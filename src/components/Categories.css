@@ -1,0 +1,36 @@
+.categories-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.categories-table thead {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.categories-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.categories-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.categories-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+
+
+
+
+
+
+
+

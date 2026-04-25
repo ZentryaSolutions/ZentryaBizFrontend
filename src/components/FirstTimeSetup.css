@@ -1,0 +1,384 @@
+/* First-Time Setup Component Styles */
+
+.setup-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--canvas-bg, #eef2f6);
+  padding: 20px;
+  gap: 12px;
+}
+
+.setup-with-login {
+  padding: 0;
+}
+
+.setup-footer-signin {
+  margin-top: 4px;
+}
+
+.setup-signin-link {
+  background: none;
+  border: none;
+  color: var(--color-primary, #4f46e5);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.setup-signin-link:hover {
+  color: var(--color-primary-dark, #4338ca);
+}
+
+.setup-box {
+  background: var(--color-surface, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--chrome-border, #e4e7ec);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.06);
+  padding: 40px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.setup-header h1 {
+  color: #333;
+  margin: 0 0 10px 0;
+  font-size: 32px;
+}
+
+.setup-header h2 {
+  color: #4f46e5;
+  margin: 0 0 10px 0;
+  font-size: 24px;
+}
+
+.setup-header p {
+  color: #666;
+  margin: 0;
+}
+
+.welcome-step {
+  text-align: center;
+}
+
+.setup-features {
+  display: flex;
+  justify-content: space-around;
+  margin: 40px 0;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.feature-icon {
+  font-size: 48px;
+}
+
+.warning-text {
+  color: #ff9800;
+  font-weight: 600;
+  margin: 10px 0;
+  padding: 10px;
+  background: #fff3e0;
+  border-radius: 6px;
+  border-left: 4px solid #ff9800;
+}
+
+.review-section {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.review-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-item strong {
+  color: #333;
+  margin-right: 10px;
+}
+
+.setup-progress {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.setup-progress::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(148, 163, 184, 0.35);
+  z-index: 0;
+}
+
+.progress-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(241, 245, 249, 0.95);
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-bottom: 8px;
+  transition: all 0.3s;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.progress-step.active .step-number {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35);
+}
+
+.progress-step.completed .step-number {
+  background: #4caf50;
+  color: white;
+}
+
+.step-label {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+}
+
+.progress-step.active .step-label {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.setup-step {
+  margin-bottom: 30px;
+}
+
+.setup-step h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.step-description {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.65);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.form-group label input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  margin-right: 8px;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 5px;
+  color: #666;
+  font-size: 12px;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #c33;
+}
+
+.success-message {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #4caf50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin: 0 auto 20px;
+}
+
+.success-message h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.success-message p {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.redirect-message {
+  color: #4f46e5;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+.setup-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 30px;
+}
+
+.setup-actions--welcome {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.setup-actions--welcome .btn-large {
+  width: 100%;
+}
+
+.setup-back-login {
+  margin-top: 4px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 500;
+}
+
+.btn-large {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 48%, #7c3aed 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.38);
+  border-radius: var(--radius-md, 12px);
+  font-family: var(--font-sans, inherit);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.45);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+@media (max-width: 640px) {
+  .setup-box {
+    padding: 30px 20px;
+  }
+  
+  .setup-progress {
+    margin-bottom: 30px;
+  }
+  
+  .step-label {
+    font-size: 10px;
+  }
+  
+  .step-number {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .setup-features {
+    flex-direction: column;
+  }
+}
+

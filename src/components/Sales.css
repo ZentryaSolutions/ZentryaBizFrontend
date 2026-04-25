@@ -1,0 +1,126 @@
+.sales-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sales-table thead {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e8edf4 100%);
+  border-bottom: 2px solid rgba(99, 102, 241, 0.15);
+}
+
+.sales-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sales-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+  background: #fff;
+}
+
+.sales-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.04) 0%, transparent 100%);
+}
+
+.sales-table tbody tr:hover td {
+  background: transparent;
+}
+
+.due-badge {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.paid-badge {
+  background: #d1fae5;
+  color: #059669;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sales-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sales-detail-modal {
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.sales-detail-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.sales-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.sales-items-table thead {
+  background: #f8fafc;
+}
+
+.sales-items-table th {
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.sales-items-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sales-totals {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 16px;
+  margin-bottom: 20px;
+}
+
+.sales-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.sales-grand-total {
+  font-weight: 700;
+  font-size: 18px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+  margin-top: 8px;
+  color: #0f172a;
+}
+
+.sales-due {
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+

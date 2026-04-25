@@ -1,0 +1,179 @@
+.tabs-container {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0 16px;
+  padding-bottom: 0;
+  background-color: #f8fafc;
+}
+
+.tab-button {
+  padding: 14px 28px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+  position: relative;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab-button:hover {
+  color: #4f46e5;
+  background-color: #ffffff;
+}
+
+.tab-button.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+  font-weight: 600;
+  background-color: #ffffff;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger-table th {
+  background-color: #f8fafc;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.ledger-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.ledger-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.transaction-type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.transaction-type-badge.purchase {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.transaction-type-badge.payment {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.supplier-payments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.supplier-payments-table th {
+  background-color: #f8fafc;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.supplier-payments-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.supplier-payments-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.payment-method-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  text-transform: capitalize;
+}
+
+.supplier-payment-modal {
+  max-width: 600px;
+}
+
+.supplier-payment-form {
+  padding: 20px;
+}
+
+/* Improved table styling */
+.ledger-table {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.ledger-table thead {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.supplier-payments-table {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.supplier-payments-table thead {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* Card content styling */
+.card-content {
+  padding: 0;
+}
+
+/* Items table styling */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.items-table th {
+  background-color: #f8fafc;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.items-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.items-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.items-table tfoot {
+  background-color: #f8fafc;
+  font-weight: 700;
+}
+

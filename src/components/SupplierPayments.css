@@ -1,0 +1,47 @@
+.supplier-payments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.supplier-payments-table th {
+  background-color: #f8fafc;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.supplier-payments-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.supplier-payments-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.payment-method-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  text-transform: capitalize;
+}
+
+.supplier-payment-modal {
+  max-width: 600px;
+}
+
+.supplier-payment-form {
+  padding: 20px;
+}
+
+
+
+

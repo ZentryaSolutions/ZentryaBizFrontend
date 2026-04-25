@@ -1,0 +1,67 @@
+.rate-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rate-list-table thead {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+}
+
+.rate-list-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.rate-list-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rate-list-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.category-header-row {
+  background: linear-gradient(90deg, #e0f2fe 0%, #bae6fd 100%);
+  font-size: 14px;
+}
+
+.category-header-row td {
+  padding: 12px;
+  border-bottom: 2px solid #7dd3fc;
+  font-weight: 600;
+}
+
+.price-cell {
+  font-weight: 500;
+  color: #059669;
+  text-align: right;
+}
+
+.editable-price-cell {
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.editable-price-cell:hover {
+  background-color: #f0f9ff;
+  border-radius: 4px;
+}
+
+.editable-price-cell.editing {
+  padding: 4px;
+}
+
+
+
+
+
+
+
