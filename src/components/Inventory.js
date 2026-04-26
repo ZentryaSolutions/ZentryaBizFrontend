@@ -42,6 +42,7 @@ const Inventory = ({ readOnly = false }) => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   const filteredProducts = useMemo(() => {
     let filtered = safeProducts;
@@ -111,7 +112,7 @@ const Inventory = ({ readOnly = false }) => {
       const categoriesResponse = await categoriesAPI.getAll();
 
       setSuppliers(suppliersData);
-      setCategories(categoriesResponse.data || []);
+      setCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : []);
 
       await fetchProducts();
     } catch (err) {
@@ -341,7 +342,7 @@ const Inventory = ({ readOnly = false }) => {
               }}
             >
               <option value="">{t('inventory.allCategories')}</option>
-              {categories
+              {safeCategories
                 .filter((c) => c.status === 'active')
                 .map((cat) => (
                   <option key={cat.category_id} value={cat.category_id}>
