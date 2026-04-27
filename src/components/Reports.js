@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { reportsAPI, customersAPI, productsAPI, suppliersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { canUseProFeatures } from '../utils/planFeatures';
-import './Reports.css';
 
 /** Calendar YYYY-MM-DD in the user's local timezone (avoid UTC shift from toISOString) */
 function formatLocalYmd(d = new Date()) {
@@ -13,6 +12,39 @@ function formatLocalYmd(d = new Date()) {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+const reportsInlineStyles = `
+.reports-inline .tabs-container{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.reports-inline .tab{border:1px solid #d0d7e2;background:#f8fafc;color:#1f2937;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px}
+.reports-inline .tab.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.reports-inline .dashboard-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.reports-inline .dashboard-card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff;cursor:pointer}
+.reports-inline .dashboard-card.highlight{border-color:#4f46e5;box-shadow:0 6px 14px rgba(79,70,229,.15)}
+.reports-inline .card-icon{font-size:20px;line-height:1}
+.reports-inline .card-label{font-size:12px;color:#64748b;margin-top:6px}
+.reports-inline .card-value{font-size:26px;font-weight:800;color:#0f172a}
+.reports-inline .report-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.reports-inline .total-card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff}
+.reports-inline .total-card.highlight{border-color:#4f46e5}
+.reports-inline .total-label{font-size:12px;color:#64748b}
+.reports-inline .total-value{font-size:24px;font-weight:800;color:#0f172a}
+.reports-inline .table-container{overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;margin-top:10px}
+.reports-inline .reports-table{width:100%;border-collapse:collapse}
+.reports-inline .reports-table th,.reports-inline .reports-table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:13px}
+.reports-inline .reports-table th{background:#f8fafc;color:#334155;font-weight:700}
+.reports-inline .empty-state{text-align:center;color:#94a3b8;padding:20px}
+.reports-inline .loading{padding:18px;color:#475569}
+.reports-inline .profit-positive{color:#16a34a}
+.reports-inline .profit-negative{color:#dc2626}
+.reports-inline .reports-v2-chart-grid{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.reports-inline .reports-v2-chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px}
+.reports-inline .reports-v2-chart-card h4{margin:0 0 10px;font-size:14px;font-weight:700;color:#1e293b}
+.reports-inline .reports-v2-bars{display:grid;gap:10px}
+.reports-inline .reports-v2-bar-row{display:grid;gap:5px}
+.reports-inline .reports-v2-bar-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#334155}
+.reports-inline .reports-v2-bar-track{height:10px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.reports-inline .reports-v2-bar-fill{height:100%;border-radius:999px}
+`;
 
 const Reports = () => {
   const { t } = useTranslation();
@@ -437,6 +469,31 @@ const Reports = () => {
     });
   };
 
+  const simpleBars = (items = []) => {
+    const max = Math.max(...items.map((x) => Number(x.value || 0)), 1);
+    return (
+      <div className="reports-v2-bars">
+        {items.map((item) => (
+          <div key={item.label} className="reports-v2-bar-row">
+            <div className="reports-v2-bar-head">
+              <span>{item.label}</span>
+              <strong>{item.display}</strong>
+            </div>
+            <div className="reports-v2-bar-track">
+              <div
+                className="reports-v2-bar-fill"
+                style={{
+                  width: `${Math.max(6, Math.round((Number(item.value || 0) / max) * 100))}%`,
+                  background: item.color || 'linear-gradient(90deg,#6366f1,#8b5cf6)',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const handleClearFilters = () => {
     setSelectedProduct('');
     setSelectedSupplier('');
@@ -521,6 +578,54 @@ const Reports = () => {
             <div className="card-icon">📝</div>
             <div className="card-label">{t('reports.creditGiven')}</div>
             <div className="card-value">{formatCurrency(dashboardData.creditGiven)}</div>
+          </div>
+        </div>
+        <div className="reports-v2-chart-grid">
+          <div className="reports-v2-chart-card">
+            <h4>Revenue Mix</h4>
+            {simpleBars([
+              {
+                label: 'Cash Received',
+                value: dashboardData.cashReceived,
+                display: formatCurrency(dashboardData.cashReceived),
+                color: 'linear-gradient(90deg,#16a34a,#34d399)',
+              },
+              {
+                label: 'Credit Given',
+                value: dashboardData.creditGiven,
+                display: formatCurrency(dashboardData.creditGiven),
+                color: 'linear-gradient(90deg,#f59e0b,#fbbf24)',
+              },
+              {
+                label: 'Total Sales',
+                value: dashboardData.totalSales,
+                display: formatCurrency(dashboardData.totalSales),
+                color: 'linear-gradient(90deg,#2563eb,#60a5fa)',
+              },
+            ])}
+          </div>
+          <div className="reports-v2-chart-card">
+            <h4>Profit Snapshot</h4>
+            {simpleBars([
+              {
+                label: 'Sales',
+                value: dashboardData.totalSales,
+                display: formatCurrency(dashboardData.totalSales),
+                color: 'linear-gradient(90deg,#3b82f6,#818cf8)',
+              },
+              {
+                label: 'Purchases',
+                value: dashboardData.totalPurchases,
+                display: formatCurrency(dashboardData.totalPurchases),
+                color: 'linear-gradient(90deg,#ef4444,#f87171)',
+              },
+              {
+                label: 'Expenses',
+                value: dashboardData.totalExpenses,
+                display: formatCurrency(dashboardData.totalExpenses),
+                color: 'linear-gradient(90deg,#f97316,#fb923c)',
+              },
+            ])}
           </div>
         </div>
       </div>
@@ -611,6 +716,29 @@ const Reports = () => {
             <div className="total-value">{formatCurrency(salesSummary.creditSales)}</div>
           </div>
         </div>
+        <div className="reports-v2-chart-card" style={{ marginTop: 14 }}>
+          <h4>Sales Distribution</h4>
+          {simpleBars([
+            {
+              label: 'Cash Sales',
+              value: salesSummary.cashSales,
+              display: formatCurrency(salesSummary.cashSales),
+              color: 'linear-gradient(90deg,#22c55e,#4ade80)',
+            },
+            {
+              label: 'Credit Sales',
+              value: salesSummary.creditSales,
+              display: formatCurrency(salesSummary.creditSales),
+              color: 'linear-gradient(90deg,#f59e0b,#fbbf24)',
+            },
+            {
+              label: 'Total Sales',
+              value: salesSummary.totalSales,
+              display: formatCurrency(salesSummary.totalSales),
+              color: 'linear-gradient(90deg,#2563eb,#60a5fa)',
+            },
+          ])}
+        </div>
       </div>
     );
   };
@@ -684,6 +812,38 @@ const Reports = () => {
               {formatCurrency(profitData.netProfit)}
             </div>
           </div>
+        </div>
+        <div className="reports-v2-chart-card" style={{ marginTop: 14 }}>
+          <h4>Profit Waterfall (Visual)</h4>
+          {simpleBars([
+            {
+              label: 'Revenue',
+              value: profitData.totalSales,
+              display: formatCurrency(profitData.totalSales),
+              color: 'linear-gradient(90deg,#22c55e,#4ade80)',
+            },
+            {
+              label: 'Purchases',
+              value: profitData.totalPurchases,
+              display: formatCurrency(profitData.totalPurchases),
+              color: 'linear-gradient(90deg,#ef4444,#fb7185)',
+            },
+            {
+              label: 'Expenses',
+              value: profitData.totalExpenses,
+              display: formatCurrency(profitData.totalExpenses),
+              color: 'linear-gradient(90deg,#f97316,#fb923c)',
+            },
+            {
+              label: 'Net Profit',
+              value: Math.abs(profitData.netProfit),
+              display: formatCurrency(profitData.netProfit),
+              color:
+                profitData.netProfit >= 0
+                  ? 'linear-gradient(90deg,#16a34a,#4ade80)'
+                  : 'linear-gradient(90deg,#dc2626,#f87171)',
+            },
+          ])}
         </div>
       </div>
     );
@@ -1472,7 +1632,8 @@ const Reports = () => {
   };
 
   return (
-    <div className="content-container">
+    <div className="content-container reports-v2-shell reports-inline">
+      <style>{reportsInlineStyles}</style>
       <div className="page-header">
         <h1 className="page-title">{t('reports.title')}</h1>
         <p className="page-subtitle">{t('reports.subtitle')}</p>

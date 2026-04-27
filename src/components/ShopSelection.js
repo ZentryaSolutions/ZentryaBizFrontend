@@ -48,6 +48,8 @@ export default function ShopSelection() {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resolvedRole, setResolvedRole] = useState('');
+  const [shopComparison, setShopComparison] = useState([]);
+  const [shopComparisonLoading, setShopComparisonLoading] = useState(false);
   const [pageError, setPageError] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
@@ -100,10 +102,75 @@ export default function ShopSelection() {
       );
       setResolvedRole(hasManageRole ? 'admin' : hasStaffRole ? 'cashier' : '');
       setShops(mapped);
+      if (hasManageRole && mapped.length > 0) {
+        fetchShopComparison(mapped);
+      } else {
+        setShopComparison([]);
+      }
     } catch (e) {
       setPageError(e.message || 'Failed to load shops');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchShopComparison = async (shopRows) => {
+    if (!supabase || !Array.isArray(shopRows) || shopRows.length === 0) {
+      setShopComparison([]);
+      return;
+    }
+    const shopIds = shopRows.map((s) => s.id).filter(Boolean);
+    if (shopIds.length === 0) {
+      setShopComparison([]);
+      return;
+    }
+    setShopComparisonLoading(true);
+    try {
+      const [salesRes, purchasesRes, expensesRes] = await Promise.all([
+        supabase.from('sales').select('shop_id,total_amount').in('shop_id', shopIds),
+        supabase.from('purchases').select('shop_id,total_amount').in('shop_id', shopIds),
+        supabase.from('expenses').select('shop_id,amount').in('shop_id', shopIds),
+      ]);
+
+      const salesRows = Array.isArray(salesRes?.data) ? salesRes.data : [];
+      const purchaseRows = Array.isArray(purchasesRes?.data) ? purchasesRes.data : [];
+      const expenseRows = Array.isArray(expensesRes?.data) ? expensesRes.data : [];
+
+      const byShop = new Map();
+      shopRows.forEach((shop) => {
+        byShop.set(shop.id, {
+          shopId: shop.id,
+          shopName: shop.name || 'Untitled shop',
+          revenue: 0,
+          expenses: 0,
+          purchases: 0,
+          profit: 0,
+        });
+      });
+
+      salesRows.forEach((row) => {
+        const rec = byShop.get(row.shop_id);
+        if (rec) rec.revenue += Number(row.total_amount || 0);
+      });
+      purchaseRows.forEach((row) => {
+        const rec = byShop.get(row.shop_id);
+        if (rec) rec.purchases += Number(row.total_amount || 0);
+      });
+      expenseRows.forEach((row) => {
+        const rec = byShop.get(row.shop_id);
+        if (rec) rec.expenses += Number(row.amount || 0);
+      });
+
+      const merged = [...byShop.values()].map((row) => ({
+        ...row,
+        profit: row.revenue - row.purchases - row.expenses,
+      }));
+      setShopComparison(merged);
+    } catch (e) {
+      console.warn('[ShopSelection] Shop comparison load failed:', e?.message || e);
+      setShopComparison([]);
+    } finally {
+      setShopComparisonLoading(false);
     }
   };
 
@@ -568,6 +635,136 @@ export default function ShopSelection() {
                     </div>
                   </li>
                 </ul>
+              </section>
+            ) : null}
+
+            {canManageShops ? (
+              <section
+                style={{
+                  marginTop: '18px',
+                  borderRadius: '14px',
+                  border: '1px solid #dde5ff',
+                  background: '#fff',
+                  padding: '16px',
+                }}
+                aria-label="Shop performance comparison"
+              >
+                <h2 style={{ margin: '0 0 6px', fontSize: '20px', color: '#1e293b' }}>
+                  Shops Performance Comparison
+                </h2>
+                <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '14px' }}>
+                  Compare revenue and estimated profit across all your shops.
+                </p>
+                {shopComparisonLoading ? (
+                  <div style={{ color: '#475569', fontSize: '14px' }}>Loading graph...</div>
+                ) : shopComparison.length === 0 ? (
+                  <div style={{ color: '#475569', fontSize: '14px' }}>
+                    No comparison data yet. Start billing in your shops to see graph insights.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {shopComparison.map((row) => {
+                      const denom = Math.max(
+                        ...shopComparison.map((s) => Math.max(s.revenue, Math.abs(s.profit), 1))
+                      );
+                      const revenuePct = Math.max(6, Math.round((row.revenue / denom) * 100));
+                      const profitPct = Math.max(6, Math.round((Math.abs(row.profit) / denom) * 100));
+                      const costBase = Math.max(Number(row.revenue || 0), 1);
+                      const purchasesRatio = Math.max(0, Math.min(100, Math.round((Number(row.purchases || 0) / costBase) * 100)));
+                      const expensesRatio = Math.max(0, Math.min(100, Math.round((Number(row.expenses || 0) / costBase) * 100)));
+                      const profitRatio = Math.max(
+                        0,
+                        Math.min(100, 100 - Math.min(100, purchasesRatio + expensesRatio))
+                      );
+                      const donutGradient = `conic-gradient(
+                        #2563eb 0% ${purchasesRatio}%,
+                        #f97316 ${purchasesRatio}% ${Math.min(100, purchasesRatio + expensesRatio)}%,
+                        ${row.profit >= 0 ? '#16a34a' : '#dc2626'} ${Math.min(100, purchasesRatio + expensesRatio)}% 100%
+                      )`;
+                      return (
+                        <div key={row.shopId} style={{ border: '1px solid #edf2ff', borderRadius: 10, padding: 10 }}>
+                          <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>{row.shopName}</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 12 }}>
+                            <div>
+                              <div style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 12, color: '#334155', marginBottom: 4 }}>
+                                  Revenue: PKR {Number(row.revenue || 0).toFixed(0)}
+                                </div>
+                                <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999 }}>
+                                  <div
+                                    style={{
+                                      width: `${revenuePct}%`,
+                                      height: '100%',
+                                      background: 'linear-gradient(90deg,#2563eb,#60a5fa)',
+                                      borderRadius: 999,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 12, color: '#334155', marginBottom: 4 }}>
+                                  Profit: PKR {Number(row.profit || 0).toFixed(0)}
+                                </div>
+                                <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999 }}>
+                                  <div
+                                    style={{
+                                      width: `${profitPct}%`,
+                                      height: '100%',
+                                      background:
+                                        row.profit >= 0
+                                          ? 'linear-gradient(90deg,#16a34a,#4ade80)'
+                                          : 'linear-gradient(90deg,#dc2626,#fb7185)',
+                                      borderRadius: 999,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', placeItems: 'center' }}>
+                              <div
+                                style={{
+                                  width: 106,
+                                  height: 106,
+                                  borderRadius: '50%',
+                                  background: donutGradient,
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                }}
+                                title="Blue: Purchases, Orange: Expenses, Green/Red: Profit"
+                              >
+                                <div
+                                  style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: '50%',
+                                    background: '#fff',
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    textAlign: 'center',
+                                    fontSize: 10,
+                                    color: '#334155',
+                                    border: '1px solid #e2e8f0',
+                                    lineHeight: 1.2,
+                                  }}
+                                >
+                                  Mix
+                                </div>
+                              </div>
+                              <div style={{ marginTop: 8, fontSize: 10, color: '#64748b', textAlign: 'center' }}>
+                                <div><span style={{ color: '#2563eb' }}>●</span> Purchases</div>
+                                <div><span style={{ color: '#f97316' }}>●</span> Expenses</div>
+                                <div>
+                                  <span style={{ color: row.profit >= 0 ? '#16a34a' : '#dc2626' }}>●</span>{' '}
+                                  {row.profit >= 0 ? 'Profit' : 'Loss'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             ) : null}
           </>

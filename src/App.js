@@ -85,10 +85,7 @@ function AppContent({ location, navigate }) {
   };
 
   const handleGoMainPage = () => {
-    const q = marketingHomeQuery(user?.id) || '';
-    const hasQuery = q.includes('?');
-    const shopPart = activeShopId ? `${hasQuery ? '&' : '?'}shop=${encodeURIComponent(activeShopId)}` : '';
-    navigate(`/${q}${shopPart}`);
+    navigate(shopsPath(user?.id), { replace: false });
   };
 
   // Show loading screen while checking auth
@@ -232,7 +229,7 @@ function AppContent({ location, navigate }) {
             ← {t('common.back')}
           </button>
           <button type="button" className="app-mainpage-btn" onClick={handleGoMainPage}>
-            Go to Main Page
+            My Shops
           </button>
         </div>
         <ErrorBoundary>
