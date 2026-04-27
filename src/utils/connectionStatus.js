@@ -2,6 +2,11 @@
 
 // Same-origin API (Express serves build, or CRA proxy in dev)
 function getDefaultServerUrl() {
+  const envBackend = process.env.REACT_APP_BACKEND_URL;
+  if (envBackend && String(envBackend).trim()) {
+    const clean = String(envBackend).trim().replace(/\/$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
   if (typeof window === 'undefined') return '/api';
   return '/api';
 }
