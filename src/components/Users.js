@@ -44,13 +44,11 @@ const Users = () => {
 
   const handleSave = async () => {
     try {
-      const { user_id, ...updateData } = editingUser;
-      
-      // Don't send password if it's empty
-      if (!updateData.password || updateData.password === '') {
-        delete updateData.password;
-      }
-      
+      const { user_id } = editingUser;
+      const updateData = {
+        name: editingUser.name || '',
+        role: editingUser.role || 'cashier',
+      };
       await usersAPI.update(user_id, updateData);
       await fetchUsers();
       setEditingUser(null);
@@ -263,63 +261,6 @@ const Users = () => {
                   <option value="administrator">{t('auth.admin')}</option>
                   <option value="cashier">{t('auth.cashier')}</option>
                 </select>
-              </div>
-              <div className="form-group">
-                <label>{t('users.status')}</label>
-                <select
-                  className="form-input"
-                  value={editingUser.is_active ? 'active' : 'inactive'}
-                  onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.value === 'active' })}
-                  disabled={isCurrentUser(editingUser) || isLastAdmin(editingUser)}
-                >
-                  <option value="active">{t('common.active')}</option>
-                  <option value="inactive">{t('common.inactive')}</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>{t('users.password')} ({t('users.optional')})</label>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder={t('users.passwordPlaceholder')}
-                    value={editingUser.password || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={async () => {
-                      try {
-                        const response = await usersAPI.generatePassword(editingUser.user_id);
-                        if (response.data.success) {
-                          setEditingUser({ ...editingUser, password: response.data.password });
-                          alert(t('users.passwordGenerated', { password: response.data.password }));
-                        }
-                      } catch (err) {
-                        alert(err.response?.data?.message || t('users.passwordGenerationFailed'));
-                      }
-                    }}
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    {t('users.generatePassword')}
-                  </button>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>{t('users.pin')} ({t('users.optional')})</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="0000"
-                  maxLength="4"
-                  value={editingUser.pin || ''}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    setEditingUser({ ...editingUser, pin: value });
-                  }}
-                />
               </div>
               <div className="modal-actions">
                 <button className="btn btn-primary" onClick={handleSave}>

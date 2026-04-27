@@ -47,6 +47,7 @@ export default function ShopSelection() {
   const accountEmail = user?.email;
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resolvedRole, setResolvedRole] = useState('');
   const [pageError, setPageError] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
@@ -90,6 +91,14 @@ export default function ShopSelection() {
       const mapped = (data || [])
         .map((row) => ({ ...row.shop, memberRole: row.role }))
         .filter(Boolean);
+      const dbRoles = mapped.map((row) => String(row.memberRole || '').toLowerCase());
+      const hasManageRole = dbRoles.some((role) =>
+        ['owner', 'admin', 'administrator'].includes(role)
+      );
+      const hasStaffRole = dbRoles.some((role) =>
+        ['cashier', 'seller', 'salesman', 'staff'].includes(role)
+      );
+      setResolvedRole(hasManageRole ? 'admin' : hasStaffRole ? 'cashier' : '');
       setShops(mapped);
     } catch (e) {
       setPageError(e.message || 'Failed to load shops');
@@ -123,7 +132,9 @@ export default function ShopSelection() {
 
   const displayName = user?.full_name || user?.name || user?.username || 'User';
   const accountRole = String(profile?.role || '').toLowerCase();
-  const canManageShops = accountRole === 'owner' || accountRole === 'admin' || accountRole === 'administrator';
+  const effectiveRole = accountRole || resolvedRole;
+  const canManageShops =
+    effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'administrator';
 
   const handleLogout = async () => {
     if (window.confirm('Logout?')) {
@@ -334,9 +345,58 @@ export default function ShopSelection() {
         {pageError ? <div className="zb-shopSel__error">{pageError}</div> : null}
 
         {loading ? (
-          <div className="zb-shopSel__grid">
-            <div className="zb-shopSel__skeleton" />
-            <div className="zb-shopSel__skeleton" />
+          <div
+            style={{
+              minHeight: '320px',
+              borderRadius: '18px',
+              border: '1px solid #d8e2ff',
+              background: 'linear-gradient(160deg,#f8faff 0%,#f1f5ff 100%)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: '28px',
+              textAlign: 'center',
+            }}
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div>
+              <div
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  margin: '0 auto 14px',
+                  borderRadius: '20px',
+                  background: 'linear-gradient(145deg,#4f46e5,#6366f1)',
+                  boxShadow: '0 14px 30px rgba(79,70,229,.28)',
+                  position: 'relative',
+                  animation: 'zbShopPulse 1.2s ease-in-out infinite',
+                }}
+              >
+                <FontAwesomeIcon
+                  icon={faStore}
+                  style={{
+                    color: '#fff',
+                    fontSize: '30px',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                />
+              </div>
+              <h3 style={{ margin: '0 0 6px', color: '#1f2a5a', fontSize: '20px' }}>
+                Setting up your workspace
+              </h3>
+              <p style={{ margin: 0, color: '#475569', fontSize: '14px' }}>
+                Checking your role and loading shops...
+              </p>
+            </div>
+            <style>{`
+              @keyframes zbShopPulse {
+                0%,100% { transform: translateY(0) scale(1); }
+                50% { transform: translateY(-4px) scale(1.04); }
+              }
+            `}</style>
           </div>
         ) : isEmpty ? (
           <div className="zb-shopSel__emptyLayout">

@@ -33,7 +33,13 @@ const Sales = ({ readOnly = false }) => {
     try {
       setLoading(true);
       const response = await salesAPI.getAll();
-      setSales(response.data || []);
+      const payload = response?.data;
+      const normalizedSales = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+      setSales(normalizedSales);
       setError(null);
     } catch (err) {
       console.error('Error fetching sales:', err);
