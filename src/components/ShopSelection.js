@@ -2,17 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowTrendUp,
-  faBolt,
-  faBoxesStacked,
-  faIndianRupeeSign,
-  faMapLocationDot,
-  faPhone,
-  faReceipt,
-  faShieldHalved,
+  faBuilding,
+  faChevronRight,
+  faCreditCard,
+  faHouse,
+  faPlus,
   faStore,
-  faTags,
-  faUserGroup,
 } from '@fortawesome/free-solid-svg-icons';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,8 +43,6 @@ export default function ShopSelection() {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resolvedRole, setResolvedRole] = useState('');
-  const [shopComparison, setShopComparison] = useState([]);
-  const [shopComparisonLoading, setShopComparisonLoading] = useState(false);
   const [pageError, setPageError] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
@@ -65,7 +58,6 @@ export default function ShopSelection() {
   const shopLimitNum =
     profile?.shop_limit != null && profile.shop_limit !== '' ? Number(profile.shop_limit) : 1;
   const unlimitedShops = isUnlimitedShops(shopLimitNum);
-  const shopsUsed = shops.length;
 
   const canCreateMore = useMemo(() => {
     if (unlimitedShops) return true;
@@ -73,11 +65,6 @@ export default function ShopSelection() {
   }, [shopLimitNum, shops.length, unlimitedShops]);
 
   const isEmpty = !loading && shops.length === 0;
-
-  const planUsagePct = unlimitedShops
-    ? 0
-    : Math.min(100, shopLimitNum > 0 ? (shopsUsed / shopLimitNum) * 100 : 0);
-  const shopLimitDisplay = unlimitedShops ? '∞' : String(shopLimitNum);
 
   const fetchShops = async () => {
     if (!supabase || !user?.id) return;
@@ -102,75 +89,10 @@ export default function ShopSelection() {
       );
       setResolvedRole(hasManageRole ? 'admin' : hasStaffRole ? 'cashier' : '');
       setShops(mapped);
-      if (hasManageRole && mapped.length > 0) {
-        fetchShopComparison(mapped);
-      } else {
-        setShopComparison([]);
-      }
     } catch (e) {
       setPageError(e.message || 'Failed to load shops');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchShopComparison = async (shopRows) => {
-    if (!supabase || !Array.isArray(shopRows) || shopRows.length === 0) {
-      setShopComparison([]);
-      return;
-    }
-    const shopIds = shopRows.map((s) => s.id).filter(Boolean);
-    if (shopIds.length === 0) {
-      setShopComparison([]);
-      return;
-    }
-    setShopComparisonLoading(true);
-    try {
-      const [salesRes, purchasesRes, expensesRes] = await Promise.all([
-        supabase.from('sales').select('shop_id,total_amount').in('shop_id', shopIds),
-        supabase.from('purchases').select('shop_id,total_amount').in('shop_id', shopIds),
-        supabase.from('expenses').select('shop_id,amount').in('shop_id', shopIds),
-      ]);
-
-      const salesRows = Array.isArray(salesRes?.data) ? salesRes.data : [];
-      const purchaseRows = Array.isArray(purchasesRes?.data) ? purchasesRes.data : [];
-      const expenseRows = Array.isArray(expensesRes?.data) ? expensesRes.data : [];
-
-      const byShop = new Map();
-      shopRows.forEach((shop) => {
-        byShop.set(shop.id, {
-          shopId: shop.id,
-          shopName: shop.name || 'Untitled shop',
-          revenue: 0,
-          expenses: 0,
-          purchases: 0,
-          profit: 0,
-        });
-      });
-
-      salesRows.forEach((row) => {
-        const rec = byShop.get(row.shop_id);
-        if (rec) rec.revenue += Number(row.total_amount || 0);
-      });
-      purchaseRows.forEach((row) => {
-        const rec = byShop.get(row.shop_id);
-        if (rec) rec.purchases += Number(row.total_amount || 0);
-      });
-      expenseRows.forEach((row) => {
-        const rec = byShop.get(row.shop_id);
-        if (rec) rec.expenses += Number(row.amount || 0);
-      });
-
-      const merged = [...byShop.values()].map((row) => ({
-        ...row,
-        profit: row.revenue - row.purchases - row.expenses,
-      }));
-      setShopComparison(merged);
-    } catch (e) {
-      console.warn('[ShopSelection] Shop comparison load failed:', e?.message || e);
-      setShopComparison([]);
-    } finally {
-      setShopComparisonLoading(false);
     }
   };
 
@@ -202,6 +124,13 @@ export default function ShopSelection() {
   const effectiveRole = accountRole || resolvedRole;
   const canManageShops =
     effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'administrator';
+  const planLabel = String(profile?.plan || 'free')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  const shopsUsed = shops.length;
+  const shopUsageLabel = unlimitedShops ? `${shopsUsed} used` : `${shopsUsed}/${shopLimitNum} used`;
 
   const handleLogout = async () => {
     if (window.confirm('Logout?')) {
@@ -287,7 +216,6 @@ export default function ShopSelection() {
     );
   }
 
-  const year = new Date().getFullYear();
   const logoSrc = `${process.env.PUBLIC_URL}/companylogo.jpeg`;
 
   const marketingLink = (sectionId) => {
@@ -301,474 +229,190 @@ export default function ShopSelection() {
   };
 
   return (
-    <div className="zb-shopSel">
-      <div className="zb-shopSel__bgGlow" aria-hidden="true" />
-      <nav className="zb-shopSel__nav" aria-label="Main">
-        <div className="zb-shopSel__navInner">
-          <Link to={marketingLink()} className="zb-shopSel__navBrand">
-            <span className="zb-shopSel__navLogoWrap">
-              <img src={logoSrc} alt="" className="zb-shopSel__navLogo" width={36} height={36} decoding="async" />
+    <div className="zb-shopSel zb-shopSel--shell">
+      <aside className="zb-shopSel__sidebar" aria-label="Workspace navigation">
+        <div className="zb-shopSel__sidebarHead">
+          <Link to={marketingLink()} className="zb-shopSel__sidebarBrand">
+            <span className="zb-shopSel__navLogoWrap zb-shopSel__navLogoWrap--sidebar">
+              <img src={logoSrc} alt="" className="zb-shopSel__navLogo" width={32} height={32} decoding="async" />
             </span>
-            <span className="zb-shopSel__navBrandText">Zentrya Biz</span>
+            <span className="zb-shopSel__sidebarBrandText">Zentrya Biz</span>
           </Link>
-          <div className="zb-shopSel__navLinks">
-            <Link to={marketingLink()}>Home</Link>
-            <Link to={marketingLink('features')}>Features</Link>
-            <Link to={marketingLink('pricing')}>Pricing</Link>
-            <Link to={marketingLink('faq')}>FAQ</Link>
-          </div>
-          <div className="zb-shopSel__navRight">
-            <div className="zb-shopSel__profile zb-shopSel__profile--nav">
-              <button type="button" className="zb-shopSel__avatarBtn" aria-label="Account menu">
-                <span className="zb-shopSel__avatar">{getInitials(displayName)}</span>
-              </button>
-              <div className="zb-shopSel__profilePopover" role="menu" aria-label="Profile menu">
-                <div className="zb-shopSel__profileName" title={displayName}>
-                  {displayName}
-                </div>
-                {accountEmail ? (
-                  <div className="zb-shopSel__profileEmail" title={accountEmail}>
-                    {accountEmail}
-                  </div>
-                ) : null}
-                <button type="button" className="zb-shopSel__logoutBtn" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      </nav>
 
-      <div className="zb-shopSel__shell">
-        <header className="zb-shopSel__header">
-          <div className="zb-shopSel__headerCopy">
-            <p className="zb-shopSel__eyebrow">Your workspace</p>
-            <h1 className="zb-shopSel__title">
-              {canManageShops
-                ? (isEmpty ? 'Let’s add your first shop' : 'Open a shop')
-                : 'Shops where you have been added'}
-            </h1>
-            <p className="zb-shopSel__lead">
-              {canManageShops
-                ? (isEmpty
-                    ? 'You’re on the free trial — no plan purchase needed yet. Create one shop to start billing and inventory.'
-                    : 'Pick where you want to work, or add another if your plan allows.')
-                : 'Choose any shop below to continue as cashier.'}
-            </p>
+        <nav className="zb-shopSel__sidebarNav" aria-label="Workspace">
+          <p className="zb-shopSel__sidebarSection">Workspace</p>
+          <span className="zb-shopSel__sidebarItem zb-shopSel__sidebarItem--active" aria-current="page">
+            <FontAwesomeIcon icon={faBuilding} className="zb-shopSel__sidebarItemIcon" aria-hidden="true" />
+            <span className="zb-shopSel__sidebarItemLabel">Organizations</span>
+          </span>
+          <Link className="zb-shopSel__sidebarItem" to={marketingLink()}>
+            <FontAwesomeIcon icon={faHouse} className="zb-shopSel__sidebarItemIcon" aria-hidden="true" />
+            <span className="zb-shopSel__sidebarItemLabel">Home</span>
+          </Link>
+          <Link className="zb-shopSel__sidebarItem" to={marketingLink('pricing')}>
+            <FontAwesomeIcon icon={faCreditCard} className="zb-shopSel__sidebarItemIcon" aria-hidden="true" />
+            <span className="zb-shopSel__sidebarItemLabel">Plans &amp; pricing</span>
+          </Link>
+        </nav>
 
-            {canManageShops ? (
-              <div className="zb-shopSel__planStrip" aria-label="Plan and shop limit">
-                <div className="zb-shopSel__planStripTop">
-                  <span className="zb-shopSel__pill zb-shopSel__pill--trial">14-day trial</span>
-                  <span className="zb-shopSel__planMeta">
-                    <span className="zb-shopSel__planMetaLabel">Shops on this plan</span>
-                    <strong className="zb-shopSel__planMetaValue">
-                      {shopsUsed} / {shopLimitDisplay} used
-                    </strong>
-                  </span>
-                  <a className="zb-shopSel__planCompare" href="/#pricing">
-                    Compare plans →
-                  </a>
-                </div>
-                <div
-                  className="zb-shopSel__planMeter"
-                  role="progressbar"
-                  aria-valuenow={shopsUsed}
-                  aria-valuemin={0}
-                  aria-valuemax={unlimitedShops ? Math.max(shopsUsed, 1) : shopLimitNum}
-                  aria-label={`${shopsUsed} of ${shopLimitDisplay} shop slots used`}
-                >
-                  <div className="zb-shopSel__planMeterTrack">
-                    <div className="zb-shopSel__planMeterFill" style={{ width: `${planUsagePct}%` }} />
-                  </div>
-                </div>
+        <div className="zb-shopSel__sidebarFoot">
+          <div className="zb-shopSel__sidebarUser">
+            <span className="zb-shopSel__sidebarUserAvatar" aria-hidden="true">
+              {getInitials(displayName)}
+            </span>
+            <div className="zb-shopSel__sidebarUserText">
+              <div className="zb-shopSel__sidebarUserName" title={displayName}>
+                {displayName}
               </div>
-            ) : null}
-          </div>
-
-          {!isEmpty && canManageShops ? (
-            <div className="zb-shopSel__headerActions">
-              {canCreateMore ? (
-                <button
-                  type="button"
-                  className="zb-shopSel__addShopBtn"
-                  onClick={openCreateModal}
-                >
-                  Add shop
-                </button>
-              ) : (
-                <div className="zb-shopSel__limitReached" role="status">
-                  <span className="zb-shopSel__limitBadge">Plan limit reached</span>
-                  <a className="zb-shopSel__upgradeLink" href="/#pricing">
-                    Upgrade for more shops
-                  </a>
+              {accountEmail ? (
+                <div className="zb-shopSel__sidebarUserEmail" title={accountEmail}>
+                  {accountEmail}
                 </div>
-              )}
-            </div>
-          ) : null}
-        </header>
-
-        {pageError ? <div className="zb-shopSel__error">{pageError}</div> : null}
-
-        {loading ? (
-          <div
-            style={{
-              minHeight: '320px',
-              borderRadius: '18px',
-              border: '1px solid #d8e2ff',
-              background: 'linear-gradient(160deg,#f8faff 0%,#f1f5ff 100%)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: '28px',
-              textAlign: 'center',
-            }}
-            aria-live="polite"
-            aria-busy="true"
-          >
-            <div>
-              <div
-                style={{
-                  width: '72px',
-                  height: '72px',
-                  margin: '0 auto 14px',
-                  borderRadius: '20px',
-                  background: 'linear-gradient(145deg,#4f46e5,#6366f1)',
-                  boxShadow: '0 14px 30px rgba(79,70,229,.28)',
-                  position: 'relative',
-                  animation: 'zbShopPulse 1.2s ease-in-out infinite',
-                }}
-              >
-                <FontAwesomeIcon
-                  icon={faStore}
-                  style={{
-                    color: '#fff',
-                    fontSize: '30px',
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                />
-              </div>
-              <h3 style={{ margin: '0 0 6px', color: '#1f2a5a', fontSize: '20px' }}>
-                Setting up your workspace
-              </h3>
-              <p style={{ margin: 0, color: '#475569', fontSize: '14px' }}>
-                Checking your role and loading shops...
-              </p>
-            </div>
-            <style>{`
-              @keyframes zbShopPulse {
-                0%,100% { transform: translateY(0) scale(1); }
-                50% { transform: translateY(-4px) scale(1.04); }
-              }
-            `}</style>
-          </div>
-        ) : isEmpty ? (
-          <div className="zb-shopSel__emptyLayout">
-            <div className="zb-shopSel__emptyMain">
-              <div className="zb-shopSel__emptyCard">
-                <div className="zb-shopSel__emptyIcon" aria-hidden="true">
-                  <FontAwesomeIcon icon={faStore} className="zb-shopSel__emptyIconSvg" />
-                </div>
-                <h2 className="zb-shopSel__emptyTitle">{canManageShops ? 'No shop yet' : 'No assigned shops yet'}</h2>
-                <p className="zb-shopSel__emptyText">
-                  {canManageShops
-                    ? 'Add your business name and you’ll land on the dashboard. You can invite salesmen later from settings.'
-                    : 'You are signed in as cashier. Ask your admin to add you to a shop.'}
-                </p>
-                {canManageShops ? (
-                  <>
-                    <button
-                      type="button"
-                      className="zb-shopSel__addShopBtn zb-shopSel__addShopBtn--large"
-                      onClick={openCreateModal}
-                      disabled={!canCreateMore}
-                    >
-                      Create your first shop
-                    </button>
-                    {!canCreateMore ? (
-                      <p className="zb-shopSel__emptyLimitNote">
-                        You’ve used all shops on your plan.{' '}
-                        <a href="/#pricing">Upgrade</a> to add more.
-                      </p>
-                    ) : null}
-                  </>
-                ) : null}
-                <p className="zb-shopSel__emptyHint">
-                  Not ready to choose?{' '}
-                  <Link className="zb-shopSel__inlineLink" to="/">
-                    Back to home
-                  </Link>
-                </p>
-              </div>
-            </div>
-            {canManageShops ? (
-              <aside className="zb-shopSel__emptyAside" aria-label="Welcome">
-                <h3 className="zb-shopSel__asideTitle">Almost set</h3>
-                <p className="zb-shopSel__asideText">
-                  One shop unlocks billing, inventory, and your team workspace — same look and feel as your sign-in experience.
-                </p>
-                <ul className="zb-shopSel__asideList">
-                  <li>
-                    <span className="zb-shopSel__asideFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faShieldHalved} />
-                    </span>
-                    <span>Secure, email-based account</span>
-                  </li>
-                  <li>
-                    <span className="zb-shopSel__asideFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faIndianRupeeSign} />
-                    </span>
-                    <span>PKR-ready ledgers</span>
-                  </li>
-                  <li>
-                    <span className="zb-shopSel__asideFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faArrowTrendUp} />
-                    </span>
-                    <span>Scale with plans when you need more shops</span>
-                  </li>
-                </ul>
-              </aside>
-            ) : null}
-
-            <section className="zb-shopSel__tips zb-shopSel__tips--empty" aria-label="What you get">
-              <h2 className="zb-shopSel__tipsTitle">Why create a shop?</h2>
-              <ul className="zb-shopSel__tipsList">
-                <li>
-                  <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                    <FontAwesomeIcon icon={faBolt} />
-                  </span>
-                  <div>
-                    <strong>One place for sales</strong>
-                    <p>POS billing, stock checks, and invoices tied to your business name.</p>
-                  </div>
-                </li>
-                <li>
-                  <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                    <FontAwesomeIcon icon={faShieldHalved} />
-                  </span>
-                  <div>
-                    <strong>Your data, your workspace</strong>
-                    <p>Each shop keeps its own products, customers, and staff access.</p>
-                  </div>
-                </li>
-                <li>
-                  <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                    <FontAwesomeIcon icon={faIndianRupeeSign} />
-                  </span>
-                  <div>
-                    <strong>PKR-first</strong>
-                    <p>Pricing and ledger amounts in Pakistani Rupees — no mixed currencies.</p>
-                  </div>
-                </li>
-              </ul>
-            </section>
-          </div>
-        ) : (
-          <>
-            <div className="zb-shopSel__shopsSection">
-            <div className="zb-shopSel__grid">
-              {shops.map((s) => (
-                <button key={s.id} type="button" className="zb-shopSel__card" onClick={() => selectShop(s.id)}>
-                  <div className="zb-shopSel__cardName">{s.name}</div>
-                  <div className="zb-shopSel__cardMeta">
-                    {s.business_type ? <span>{s.business_type}</span> : null}
-                    {s.city ? <span>• {s.city}</span> : null}
-                    {s.currency ? <span>• {s.currency}</span> : null}
-                  </div>
-                  <div className="zb-shopSel__cardRole">
-                    {s.memberRole === 'owner' || s.memberRole === 'admin' ? 'Owner/Admin' : 'Cashier'}
-                  </div>
-                </button>
-              ))}
-
-              {canManageShops && canCreateMore ? (
-                <button
-                  type="button"
-                  className="zb-shopSel__card zb-shopSel__card--create"
-                  onClick={openCreateModal}
-                >
-                  <div className="zb-shopSel__plus">＋</div>
-                  <div className="zb-shopSel__createText">Add another shop</div>
-                </button>
-              ) : canManageShops ? (
-                <a className="zb-shopSel__card zb-shopSel__card--upgrade" href="/#pricing">
-                  <div className="zb-shopSel__plus zb-shopSel__plus--muted">↑</div>
-                  <div className="zb-shopSel__createText">Upgrade for more shops</div>
-                  <span className="zb-shopSel__upgradeHint">View plans & pricing</span>
-                </a>
               ) : null}
             </div>
-            </div>
+          </div>
+          <button type="button" className="zb-shopSel__sidebarLogout" onClick={handleLogout}>
+            Log out
+          </button>
+        </div>
+      </aside>
 
-            {canManageShops ? (
-              <section className="zb-shopSel__tips" aria-label="What you can do next">
-                <h2 className="zb-shopSel__tipsTitle">After you open a shop</h2>
-                <ul className="zb-shopSel__tipsList">
-                  <li>
-                    <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faReceipt} />
-                    </span>
-                    <div>
-                      <strong>Billing & POS</strong>
-                      <p>Fast checkout, discounts, and printed or shared invoices.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faBoxesStacked} />
-                    </span>
-                    <div>
-                      <strong>Stock &amp; products</strong>
-                      <p>Track quantities and get low-stock alerts before you run out.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="zb-shopSel__tipsFa" aria-hidden="true">
-                      <FontAwesomeIcon icon={faUserGroup} />
-                    </span>
-                    <div>
-                      <strong>Customers &amp; ledger</strong>
-                      <p>Udhar / credit sales and payment history in one place.</p>
-                    </div>
-                  </li>
-                </ul>
-              </section>
-            ) : null}
-
-            {canManageShops ? (
-              <section
-                style={{
-                  marginTop: '18px',
-                  borderRadius: '14px',
-                  border: '1px solid #dde5ff',
-                  background: '#fff',
-                  padding: '16px',
-                }}
-                aria-label="Shop performance comparison"
-              >
-                <h2 style={{ margin: '0 0 6px', fontSize: '20px', color: '#1e293b' }}>
-                  Shops Performance Comparison
-                </h2>
-                <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '14px' }}>
-                  Compare revenue and estimated profit across all your shops.
+      <div className="zb-shopSel__mainWrap">
+        <main className="zb-shopSel__mainInner">
+          <div className="zb-shopSel__board">
+            <header className="zb-shopSel__mainHead">
+              <div className="zb-shopSel__mainHeadCopy">
+                <p className="zb-shopSel__eyebrow">Workspace</p>
+                <h1 className="zb-shopSel__title">
+                  {canManageShops ? (isEmpty ? 'Create a shop' : 'Choose a shop') : 'Your shops'}
+                </h1>
+                <p className="zb-shopSel__lead">
+                  {canManageShops
+                    ? isEmpty
+                      ? 'Add your first shop to open the app.'
+                      : 'Select a shop to continue.'
+                    : 'Select a shop you have access to.'}
                 </p>
-                {shopComparisonLoading ? (
-                  <div style={{ color: '#475569', fontSize: '14px' }}>Loading graph...</div>
-                ) : shopComparison.length === 0 ? (
-                  <div style={{ color: '#475569', fontSize: '14px' }}>
-                    No comparison data yet. Start billing in your shops to see graph insights.
+                <div className="zb-shopSel__summary" aria-label="Plan and shop usage">
+                  <div className="zb-shopSel__summaryItem">
+                    <span className="zb-shopSel__summaryLabel">Active plan</span>
+                    <strong className="zb-shopSel__summaryValue">{planLabel}</strong>
                   </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: '10px' }}>
-                    {shopComparison.map((row) => {
-                      const denom = Math.max(
-                        ...shopComparison.map((s) => Math.max(s.revenue, Math.abs(s.profit), 1))
-                      );
-                      const revenuePct = Math.max(6, Math.round((row.revenue / denom) * 100));
-                      const profitPct = Math.max(6, Math.round((Math.abs(row.profit) / denom) * 100));
-                      const costBase = Math.max(Number(row.revenue || 0), 1);
-                      const purchasesRatio = Math.max(0, Math.min(100, Math.round((Number(row.purchases || 0) / costBase) * 100)));
-                      const expensesRatio = Math.max(0, Math.min(100, Math.round((Number(row.expenses || 0) / costBase) * 100)));
-                      const profitRatio = Math.max(
-                        0,
-                        Math.min(100, 100 - Math.min(100, purchasesRatio + expensesRatio))
-                      );
-                      const donutGradient = `conic-gradient(
-                        #2563eb 0% ${purchasesRatio}%,
-                        #f97316 ${purchasesRatio}% ${Math.min(100, purchasesRatio + expensesRatio)}%,
-                        ${row.profit >= 0 ? '#16a34a' : '#dc2626'} ${Math.min(100, purchasesRatio + expensesRatio)}% 100%
-                      )`;
-                      return (
-                        <div key={row.shopId} style={{ border: '1px solid #edf2ff', borderRadius: 10, padding: 10 }}>
-                          <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>{row.shopName}</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 12 }}>
-                            <div>
-                              <div style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 12, color: '#334155', marginBottom: 4 }}>
-                                  Revenue: PKR {Number(row.revenue || 0).toFixed(0)}
-                                </div>
-                                <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999 }}>
-                                  <div
-                                    style={{
-                                      width: `${revenuePct}%`,
-                                      height: '100%',
-                                      background: 'linear-gradient(90deg,#2563eb,#60a5fa)',
-                                      borderRadius: 999,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: 12, color: '#334155', marginBottom: 4 }}>
-                                  Profit: PKR {Number(row.profit || 0).toFixed(0)}
-                                </div>
-                                <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999 }}>
-                                  <div
-                                    style={{
-                                      width: `${profitPct}%`,
-                                      height: '100%',
-                                      background:
-                                        row.profit >= 0
-                                          ? 'linear-gradient(90deg,#16a34a,#4ade80)'
-                                          : 'linear-gradient(90deg,#dc2626,#fb7185)',
-                                      borderRadius: 999,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', placeItems: 'center' }}>
-                              <div
-                                style={{
-                                  width: 106,
-                                  height: 106,
-                                  borderRadius: '50%',
-                                  background: donutGradient,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                }}
-                                title="Blue: Purchases, Orange: Expenses, Green/Red: Profit"
-                              >
-                                <div
-                                  style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: '50%',
-                                    background: '#fff',
-                                    display: 'grid',
-                                    placeItems: 'center',
-                                    textAlign: 'center',
-                                    fontSize: 10,
-                                    color: '#334155',
-                                    border: '1px solid #e2e8f0',
-                                    lineHeight: 1.2,
-                                  }}
-                                >
-                                  Mix
-                                </div>
-                              </div>
-                              <div style={{ marginTop: 8, fontSize: 10, color: '#64748b', textAlign: 'center' }}>
-                                <div><span style={{ color: '#2563eb' }}>●</span> Purchases</div>
-                                <div><span style={{ color: '#f97316' }}>●</span> Expenses</div>
-                                <div>
-                                  <span style={{ color: row.profit >= 0 ? '#16a34a' : '#dc2626' }}>●</span>{' '}
-                                  {row.profit >= 0 ? 'Profit' : 'Loss'}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                  <div className="zb-shopSel__summaryItem">
+                    <span className="zb-shopSel__summaryLabel">Shops</span>
+                    <strong className="zb-shopSel__summaryValue">{shopUsageLabel}</strong>
+                  </div>
+                </div>
+              </div>
+              {!isEmpty && canManageShops && canCreateMore ? (
+                <button type="button" className="zb-shopSel__addShopBtn" onClick={openCreateModal}>
+                  New shop
+                </button>
+              ) : null}
+            </header>
+
+            {pageError ? <div className="zb-shopSel__error">{pageError}</div> : null}
+
+            {loading ? (
+              <div className="zb-shopSel__loadingPanel" aria-live="polite" aria-busy="true">
+                <div className="zb-shopSel__loadingMark">
+                  <FontAwesomeIcon icon={faStore} className="zb-shopSel__loadingIcon" />
+                </div>
+                <h3 className="zb-shopSel__loadingTitle">Loading shops</h3>
+                <p className="zb-shopSel__loadingHint">Please wait…</p>
+              </div>
+            ) : isEmpty ? (
+              <div className="zb-shopSel__emptySimple">
+                <div className="zb-shopSel__emptyCard">
+                  <div className="zb-shopSel__emptyIcon" aria-hidden="true">
+                    <FontAwesomeIcon icon={faStore} className="zb-shopSel__emptyIconSvg" />
+                  </div>
+                  <h2 className="zb-shopSel__emptyTitle">
+                    {canManageShops ? 'No shops yet' : 'No assigned shops'}
+                  </h2>
+                  <p className="zb-shopSel__emptyText">
+                    {canManageShops
+                      ? 'Create a shop to get started.'
+                      : 'Ask your administrator to add you to a shop.'}
+                  </p>
+                  {canManageShops ? (
+                    <>
+                      <button
+                        type="button"
+                        className="zb-shopSel__addShopBtn zb-shopSel__addShopBtn--large"
+                        onClick={openCreateModal}
+                        disabled={!canCreateMore}
+                      >
+                        Create shop
+                      </button>
+                      {!canCreateMore ? (
+                        <p className="zb-shopSel__emptyLimitNote">
+                          Shop limit reached. <a href="/#pricing">View plans</a>
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="zb-shopSel__shopsSection">
+                <div className="zb-shopSel__grid">
+                  {shops.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="zb-shopSel__card zb-shopSel__card--shop"
+                      onClick={() => selectShop(s.id)}
+                    >
+                      <div className="zb-shopSel__cardHead">
+                        <span className="zb-shopSel__cardGlyph" aria-hidden="true">
+                          <FontAwesomeIcon icon={faStore} />
+                        </span>
+                        <span className="zb-shopSel__cardChevron" aria-hidden="true">
+                          <FontAwesomeIcon icon={faChevronRight} />
+                        </span>
+                      </div>
+                      <div className="zb-shopSel__cardBody">
+                        <div className="zb-shopSel__cardName">{s.name}</div>
+                        <div className="zb-shopSel__cardMeta">
+                          {s.business_type ? <span>{s.business_type}</span> : null}
+                          {s.city ? <span>• {s.city}</span> : null}
+                          {s.currency ? <span>• {s.currency}</span> : null}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            ) : null}
-          </>
-        )}
+                        <div className="zb-shopSel__cardRolePill">
+                          {s.memberRole === 'owner' || s.memberRole === 'admin' ? 'Owner / Admin' : 'Cashier'}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+
+                  {canManageShops && canCreateMore ? (
+                    <button
+                      type="button"
+                      className="zb-shopSel__card zb-shopSel__card--create"
+                      onClick={openCreateModal}
+                    >
+                      <div className="zb-shopSel__plus" aria-hidden="true">
+                        <FontAwesomeIcon icon={faPlus} className="zb-shopSel__plusIcon" />
+                      </div>
+                      <div className="zb-shopSel__createText">New shop</div>
+                      <span className="zb-shopSel__createHint">Add another workspace</span>
+                    </button>
+                  ) : canManageShops ? (
+                    <a className="zb-shopSel__card zb-shopSel__card--upgrade" href="/#pricing">
+                      <div className="zb-shopSel__plus zb-shopSel__plus--muted" aria-hidden="true">
+                        <FontAwesomeIcon icon={faCreditCard} />
+                      </div>
+                      <div className="zb-shopSel__createText">More shops</div>
+                      <span className="zb-shopSel__upgradeHint">Plans &amp; pricing</span>
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
 
       {showCreate && canManageShops ? (
@@ -791,76 +435,58 @@ export default function ShopSelection() {
                 <div className="zb-shopSel__formRow">
                   <div className="zb-shopSel__field">
                     <label htmlFor="zb-shop-name">Shop name</label>
-                    <div className="zb-shopSel__inputWithIcon">
-                      <span className="zb-shopSel__fieldIcon" aria-hidden="true">
-                        <FontAwesomeIcon icon={faStore} />
-                      </span>
-                      <input
-                        id="zb-shop-name"
-                        value={form.name}
-                        onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                        required
-                        placeholder="e.g. Ali Electronics"
-                        autoComplete="organization"
-                      />
-                    </div>
+                    <input
+                      id="zb-shop-name"
+                      className="zb-shopSel__control"
+                      value={form.name}
+                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                      required
+                      placeholder="e.g. Ali Electronics"
+                      autoComplete="organization"
+                    />
                   </div>
                   <div className="zb-shopSel__field">
                     <label htmlFor="zb-shop-phone">Mobile number</label>
-                    <div className="zb-shopSel__inputWithIcon">
-                      <span className="zb-shopSel__fieldIcon" aria-hidden="true">
-                        <FontAwesomeIcon icon={faPhone} />
-                      </span>
-                      <input
-                        id="zb-shop-phone"
-                        type="tel"
-                        inputMode="tel"
-                        value={form.phone}
-                        onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                        required
-                        placeholder="e.g. 0300 1234567"
-                        autoComplete="tel"
-                      />
-                    </div>
+                    <input
+                      id="zb-shop-phone"
+                      className="zb-shopSel__control"
+                      type="tel"
+                      inputMode="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                      required
+                      placeholder="e.g. 0300 1234567"
+                      autoComplete="tel"
+                    />
                     <span className="zb-shopSel__fieldHint">Used on invoices and shop settings.</span>
                   </div>
                 </div>
                 <div className="zb-shopSel__field">
                   <label htmlFor="zb-shop-address">Shop address</label>
-                  <div className="zb-shopSel__inputWithIcon zb-shopSel__inputWithIcon--top">
-                    <span className="zb-shopSel__fieldIcon" aria-hidden="true">
-                      <FontAwesomeIcon icon={faMapLocationDot} />
-                    </span>
-                    <textarea
-                      id="zb-shop-address"
-                      className="zb-shopSel__textarea"
-                      rows={3}
-                      value={form.address}
-                      onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                      placeholder="Street, area (optional)"
-                      autoComplete="street-address"
-                    />
-                  </div>
+                  <textarea
+                    id="zb-shop-address"
+                    className="zb-shopSel__textarea"
+                    rows={3}
+                    value={form.address}
+                    onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
+                    placeholder="Street, area (optional)"
+                    autoComplete="street-address"
+                  />
                 </div>
                 <div className="zb-shopSel__field">
                   <label htmlFor="zb-shop-type">Business type</label>
-                  <div className="zb-shopSel__inputWithIcon zb-shopSel__selectWrap">
-                    <span className="zb-shopSel__fieldIcon" aria-hidden="true">
-                      <FontAwesomeIcon icon={faTags} />
-                    </span>
-                    <select
-                      id="zb-shop-type"
-                      className="zb-shopSel__select"
-                      value={form.business_type}
-                      onChange={(e) => setForm((p) => ({ ...p, business_type: e.target.value }))}
-                    >
+                  <select
+                    id="zb-shop-type"
+                    className="zb-shopSel__select zb-shopSel__control"
+                    value={form.business_type}
+                    onChange={(e) => setForm((p) => ({ ...p, business_type: e.target.value }))}
+                  >
                       {BUSINESS_TYPES.map((x) => (
                         <option key={x} value={x}>
                           {x}
                         </option>
                       ))}
                     </select>
-                  </div>
                 </div>
               </div>
 
@@ -878,25 +504,6 @@ export default function ShopSelection() {
           </div>
         </div>
       ) : null}
-
-      <footer className="zb-shopSel__footer">
-        <div className="zb-shopSel__footerInner">
-          <div>
-            <h5 className="zb-shopSel__footerBrand">Zentrya Biz</h5>
-            <p className="zb-shopSel__footerTagline">Premium retail software for modern shops.</p>
-          </div>
-          <div className="zb-shopSel__footerLinks">
-            <a href="/#features">Features</a>
-            <a href="/#pricing">Pricing</a>
-            <a href="/#faq">FAQ</a>
-            <Link to="/login">Log in</Link>
-          </div>
-          <div className="zb-shopSel__footerMeta">
-            <p className="zb-shopSel__footerEmail">support@zentryasolutions.com</p>
-            <p>© {year} Zentrya Biz</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

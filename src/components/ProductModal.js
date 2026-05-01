@@ -1,16 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faBolt,
-  faBox,
-  faBoxesStacked,
-  faMoneyBillWave,
-  faPercent,
-  faStore,
-  faTag,
-  faTruck,
-  faWarehouse,
-} from '@fortawesome/free-solid-svg-icons';
 import './ProductModal.css';
 
 const ProductModal = ({ product, suppliers, onClose, onSave }) => {
@@ -137,13 +125,11 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
         <form onSubmit={handleSubmit} className="product-form product-form--compact">
           <div className="form-grid form-grid--3">
             <div className="form-group form-group--span-3">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faTag} className="pm-icon" aria-hidden />
-                <span>
-                  Item Name (English) <span className="required">*</span>
-                </span>
+              <label className="form-label" htmlFor="pm-item-name">
+                Item Name (English) <span className="required">*</span>
               </label>
               <input
+                id="pm-item-name"
                 type="text"
                 name="item_name_english"
                 value={formData.item_name_english}
@@ -155,11 +141,9 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faBox} className="pm-icon" aria-hidden />
-                <span>Unit Type</span>
-              </label>
+              <label className="form-label" htmlFor="pm-unit-type">Unit Type</label>
               <select
+                id="pm-unit-type"
                 name="unit_type"
                 value={formData.unit_type}
                 onChange={handleChange}
@@ -175,13 +159,11 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faMoneyBillWave} className="pm-icon" aria-hidden />
-                <span>
-                  Purchase (PKR) <span className="required">*</span>
-                </span>
+              <label className="form-label" htmlFor="pm-purchase-price">
+                Purchase (PKR) <span className="required">*</span>
               </label>
               <input
+                id="pm-purchase-price"
                 type="number"
                 name="purchase_price"
                 value={formData.purchase_price}
@@ -197,13 +179,11 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faStore} className="pm-icon" aria-hidden />
-                <span>
-                  Retail (PKR) <span className="required">*</span>
-                </span>
+              <label className="form-label" htmlFor="pm-retail-price">
+                Retail (PKR) <span className="required">*</span>
               </label>
               <input
+                id="pm-retail-price"
                 type="number"
                 name="retail_price"
                 value={formData.retail_price}
@@ -219,11 +199,9 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faBoxesStacked} className="pm-icon" aria-hidden />
-                <span>Wholesale (PKR)</span>
-              </label>
+              <label className="form-label" htmlFor="pm-wholesale-price">Wholesale (PKR)</label>
               <input
+                id="pm-wholesale-price"
                 type="number"
                 name="wholesale_price"
                 value={formData.wholesale_price}
@@ -236,11 +214,9 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faPercent} className="pm-icon" aria-hidden />
-                <span>Special (PKR)</span>
-              </label>
+              <label className="form-label" htmlFor="pm-special-price">Special (PKR)</label>
               <input
+                id="pm-special-price"
                 type="number"
                 name="special_price"
                 value={formData.special_price}
@@ -253,13 +229,11 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faWarehouse} className="pm-icon" aria-hidden />
-                <span>
-                  Qty in stock <span className="required">*</span>
-                </span>
+              <label className="form-label" htmlFor="pm-qty-stock">
+                Qty in stock <span className="required">*</span>
               </label>
               <input
+                id="pm-qty-stock"
                 type="number"
                 name="quantity_in_stock"
                 value={formData.quantity_in_stock}
@@ -275,11 +249,9 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group form-group--span-2">
-              <label className="form-label form-label--icon">
-                <FontAwesomeIcon icon={faTruck} className="pm-icon" aria-hidden />
-                <span>Supplier</span>
-              </label>
+              <label className="form-label" htmlFor="pm-supplier">Supplier</label>
               <select
+                id="pm-supplier"
                 name="supplier_id"
                 value={formData.supplier_id}
                 onChange={handleChange}
@@ -295,10 +267,10 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
             </div>
 
             <div className="form-group form-group--checkbox">
-              <label className="form-label form-label--icon pm-checkbox-label">
-                <FontAwesomeIcon icon={faBolt} className="pm-icon" aria-hidden />
+              <label className="form-label pm-checkbox-label" htmlFor="pm-frequent">
                 <span className="pm-checkbox-wrap">
                   <input
+                    id="pm-frequent"
                     type="checkbox"
                     name="is_frequently_sold"
                     checked={formData.is_frequently_sold}

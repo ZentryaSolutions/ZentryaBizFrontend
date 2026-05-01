@@ -179,6 +179,8 @@ function AppContent({ location, navigate }) {
   const scopedBase = appBasePath(user.id, activeShopId);
   const scopeInPath = extractAppScope(location?.pathname || '');
   const onLegacyAppPath = isLegacyAppPath(location?.pathname || '');
+  const hideBackRow = /\/(?:suppliers|customers)(?:\/|$)/.test(location?.pathname || '');
+  const compactTopSpacing = /\/(?:suppliers|customers)(?:\/|$)/.test(location?.pathname || '');
 
   if (scopeInPath) {
     if (scopeInPath.userId !== sessionUid || String(scopeInPath.shopId) !== String(activeShopId)) {
@@ -223,15 +225,19 @@ function AppContent({ location, navigate }) {
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
       />
-      <main className="main-content">
-        <div className="app-back-row">
-          <button type="button" className="app-back-btn" onClick={handleGlobalBack}>
-            ← {t('common.back')}
-          </button>
-          <button type="button" className="app-mainpage-btn" onClick={handleGoMainPage}>
-            My Shops
-          </button>
-        </div>
+      <main className={`main-content${compactTopSpacing ? ' main-content--compact-top' : ''}`}>
+        {!hideBackRow ? (
+          <div className="app-back-row">
+            <div className="app-back-row__inner">
+              <button type="button" className="app-back-btn" onClick={handleGlobalBack}>
+                ← {t('common.back')}
+              </button>
+              <button type="button" className="app-mainpage-btn" onClick={handleGoMainPage}>
+                My Shops
+              </button>
+            </div>
+          </div>
+        ) : null}
         <ErrorBoundary>
           <Routes>
             <Route path="/:uid/:shopId/app" element={<Dashboard key={refreshTrigger} readOnly={readOnlyMode} />} />

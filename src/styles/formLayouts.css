@@ -1,0 +1,25 @@
+﻿/* Issue #22 — shared responsive 2-column form layouts for modals & panels */
+.zb-form-grid {
+  display: grid;
+  gap: 14px 18px;
+  align-items: start;
+}
+
+.zb-form-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.zb-form-grid .form-group,
+.modal-content.zb-form-grid .form-group {
+  margin-bottom: 0;
+}
+
+.zb-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 560px) {
+  .zb-form-grid--2 {
+    grid-template-columns: 1fr;
+  }
+}

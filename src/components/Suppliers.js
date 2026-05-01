@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faArrowLeft,
+  faBoxesStacked,
+  faDollarSign,
+  faDownload,
+  faEye,
+  faFileInvoiceDollar,
+  faPenToSquare,
+  faReceipt,
+  faTrashCan,
+  faTruckFast,
+} from '@fortawesome/free-solid-svg-icons';
 import { suppliersAPI } from '../services/api';
 import SupplierModal from './SupplierModal';
 import SupplierDetailView from './SupplierDetailView';
@@ -16,6 +29,7 @@ const Suppliers = ({ readOnly = false }) => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingSupplier, setViewingSupplier] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [balanceFilter, setBalanceFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
@@ -43,8 +57,19 @@ const Suppliers = ({ readOnly = false }) => {
   };
 
   const handleEdit = (supplier) => {
+    // Open immediately for snappy UX, then hydrate with latest DB row in background.
     setEditingSupplier(supplier);
     setModalOpen(true);
+    suppliersAPI
+      .getById(supplier.supplier_id)
+      .then((response) => {
+        setEditingSupplier((prev) =>
+          prev && prev.supplier_id === supplier.supplier_id ? (response.data || prev) : prev
+        );
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch latest supplier after opening edit modal:', err);
+      });
   };
 
   const handleView = (supplier) => {
@@ -96,17 +121,105 @@ const Suppliers = ({ readOnly = false }) => {
     });
   };
 
+  const formatRelative = (date) => {
+    if (!date) return '-';
+    const now = Date.now();
+    const then = new Date(date).getTime();
+    if (Number.isNaN(then)) return '-';
+    const diffDays = Math.floor((now - then) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return '1 week ago';
+    if (weeks < 5) return `${weeks} weeks ago`;
+    return formatDate(date);
+  };
+
+  const isRecentlyActive = (date) => {
+    if (!date) return false;
+    const then = new Date(date).getTime();
+    if (Number.isNaN(then)) return false;
+    const diffDays = Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  };
+
+  const getLastMovementDate = (supplier) =>
+    supplier.last_purchase_date || supplier.last_payment_date || supplier.created_at || null;
+
   const filteredSuppliers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return suppliers;
-    }
     const query = searchQuery.toLowerCase().trim();
     return suppliers.filter((supplier) => {
       const name = (supplier.name || '').toLowerCase();
       const contact = (supplier.contact_number || '').toLowerCase();
-      return name.includes(query) || contact.includes(query);
+      const email = (supplier.email || '').toLowerCase();
+      const balance = Number(supplier.current_payable_balance || 0);
+      const matchesSearch =
+        !query || name.includes(query) || contact.includes(query) || email.includes(query);
+      const matchesBalance =
+        balanceFilter === 'all'
+          ? true
+          : balanceFilter === 'owed'
+            ? balance > 0
+            : balance <= 0;
+      return matchesSearch && matchesBalance;
     });
-  }, [suppliers, searchQuery]);
+  }, [suppliers, searchQuery, balanceFilter]);
+
+  const summary = useMemo(() => {
+    const totalPayable = suppliers.reduce(
+      (sum, s) => sum + Math.max(0, Number(s.current_payable_balance || 0)),
+      0
+    );
+    const activeSuppliers = suppliers.filter(
+      (s) => String(s.status || 'active').toLowerCase() === 'active'
+    ).length;
+    const totalCreditPurchases = suppliers.reduce(
+      (sum, s) => sum + Math.max(0, Number(s.total_credit_purchases || 0)),
+      0
+    );
+    const owedCount = suppliers.filter((s) => Number(s.current_payable_balance || 0) > 0).length;
+    const settledCount = suppliers.filter((s) => Number(s.current_payable_balance || 0) <= 0).length;
+    return {
+      totalPayable,
+      activeSuppliers,
+      totalCreditPurchases,
+      owedCount,
+      settledCount,
+    };
+  }, [suppliers]);
+
+  const exportCsv = () => {
+    const rows = filteredSuppliers.map((s) => ({
+      Name: s.name || '',
+      Contact: s.contact_number || '',
+      Email: s.email || '',
+      Balance: Number(s.current_payable_balance || 0).toFixed(2),
+      Status: s.status || 'active',
+      LastOrder: getLastMovementDate(s) ? formatDate(getLastMovementDate(s)) : '',
+    }));
+    const header = Object.keys(rows[0] || {
+      Name: '',
+      Contact: '',
+      Email: '',
+      Balance: '',
+      Status: '',
+      LastOrder: '',
+    });
+    const csv = [
+      header.join(','),
+      ...rows.map((r) =>
+        header.map((k) => `"${String(r[k] ?? '').replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'suppliers.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -115,7 +228,7 @@ const Suppliers = ({ readOnly = false }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, balanceFilter]);
 
   if (loading) {
     return (
@@ -145,107 +258,171 @@ const Suppliers = ({ readOnly = false }) => {
 
   return (
     <div className="content-container sup2">
-      <header className="sup2-hero">
-        <div className="sup2-hero-accent" aria-hidden />
-        <div className="sup2-hero-inner">
-          <div>
-            <span className="sup2-eyebrow">{t('menu.suppliers')}</span>
-            <h1 className="sup2-hero-title">{t('suppliers.title')}</h1>
-            <p className="sup2-hero-sub">{t('suppliers.subtitle')}</p>
-          </div>
-          <div className="sup2-hero-stat">
-            <span className="sup2-hero-stat-val">{filteredSuppliers.length}</span>
-            <span className="sup2-hero-stat-label">{t('suppliers.results')}</span>
-          </div>
+      <div className="sup3-topline">
+        <button type="button" className="sup3-back" onClick={() => window.history.back()}>
+          <FontAwesomeIcon icon={faArrowLeft} /> Back
+        </button>
+        <h1>{t('suppliers.title')}</h1>
+      </div>
+
+      <section className="sup3-stats">
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--money">
+            <FontAwesomeIcon icon={faDollarSign} />
+          </span>
+          <h3>{`PKR ${summary.totalPayable.toLocaleString()}`}</h3>
+          <p>Total Payable</p>
+          <small>{summary.owedCount} pending payments</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--green">
+            <FontAwesomeIcon icon={faTruckFast} />
+          </span>
+          <h3>{suppliers.length}</h3>
+          <p>Total Suppliers</p>
+          <small>{summary.activeSuppliers} active this month</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--blue">
+            <FontAwesomeIcon icon={faBoxesStacked} />
+          </span>
+          <h3>{summary.owedCount}</h3>
+          <p>Suppliers with dues</p>
+          <small>{summary.settledCount} settled</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--purple">
+            <FontAwesomeIcon icon={faFileInvoiceDollar} />
+          </span>
+          <h3>{`PKR ${summary.totalCreditPurchases.toLocaleString()}`}</h3>
+          <p>Lifetime Purchases</p>
+          <small>All time</small>
+        </article>
+      </section>
+
+      <header className="sup3-header">
+        <div>
+          <h2>Suppliers</h2>
+          <p>Manage your vendors and track outstanding balances</p>
         </div>
+        {!readOnly ? (
+          <button className="sup3-addBtn" onClick={handleAdd}>
+            + Add Supplier
+          </button>
+        ) : null}
       </header>
 
       {error ? <div className="sup2-alert sup2-alert--error">{error}</div> : null}
 
-      {!readOnly ? (
-        <section className="sup2-panel sup2-panel--head">
-          <div className="sup2-panel-head-row">
-            <h2>{t('suppliers.title')}</h2>
-            <button className="sup2-btn sup2-btn--primary" onClick={handleAdd}>
-              + {t('suppliers.addSupplier')}
+      <section className="sup3-mainCard">
+        <div className="sup3-filterRow">
+          <input
+            type="text"
+            className="sup3-search"
+            placeholder="Search by name, contact or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <div className="sup3-chips">
+            <button
+              className={`sup3-chip ${balanceFilter === 'all' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('all')}
+              type="button"
+            >
+              All
+            </button>
+            <button
+              className={`sup3-chip ${balanceFilter === 'owed' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('owed')}
+              type="button"
+            >
+              Balance Owed <span>{summary.owedCount}</span>
+            </button>
+            <button
+              className={`sup3-chip ${balanceFilter === 'settled' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('settled')}
+              type="button"
+            >
+              Settled <span>{summary.settledCount}</span>
+            </button>
+            <button className="sup3-chip" onClick={exportCsv} type="button">
+              <FontAwesomeIcon icon={faDownload} /> Export
             </button>
           </div>
-        </section>
-      ) : null}
-
-      <section className="sup2-panel sup2-panel--filters">
-        <div className="sup2-filter-grid">
-          <div className="sup2-field">
-            <label className="sup2-label">{t('suppliers.searchSuppliers')}</label>
-            <input
-              type="text"
-              className="sup2-input"
-              placeholder={t('suppliers.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          {searchQuery ? (
-            <button type="button" className="sup2-btn sup2-btn--ghost" onClick={() => setSearchQuery('')}>
-              {t('common.clear')}
-            </button>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="sup2-panel">
-        <div className="sup2-toolbar">
-          <h2>{t('suppliers.suppliersList')}</h2>
-          {readOnly ? <span className="sup2-readonly">{t('common.readOnlyMode')}</span> : null}
         </div>
 
-        <div className="sup2-table-wrap">
-          <table className="sup2-table">
+        <div className="sup3-tableWrap">
+          <table className="sup3-table">
             <thead>
               <tr>
-                <th>{t('suppliers.supplierName')}</th>
-                <th>{t('suppliers.contact')}</th>
-                <th>{t('suppliers.balance')}</th>
-                <th>{t('suppliers.lastActivity')}</th>
-                <th>{t('common.actions')}</th>
+                <th>Supplier</th>
+                <th>Contact</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Last Order</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {paginatedSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="sup2-empty">
+                  <td colSpan="6" className="sup2-empty">
                     {searchQuery ? t('suppliers.noSuppliersMatching', { query: searchQuery }) : t('suppliers.noSuppliers')}
                   </td>
                 </tr>
               ) : (
                 paginatedSuppliers.map((supplier) => {
                   const balance = parseFloat(supplier.current_payable_balance || 0);
-                  const lastActivity = supplier.last_purchase_date || supplier.last_payment_date;
+                  const lastMovement = getLastMovementDate(supplier);
+                  const statusText = isRecentlyActive(lastMovement) ? 'Active' : 'Inactive';
                   return (
                     <tr key={supplier.supplier_id}>
-                      <td><strong className="sup2-name">{supplier.name}</strong></td>
-                      <td>{supplier.contact_number || '-'}</td>
+                      <td>
+                        <div className="sup3-supplierCell">
+                          <span className="sup3-avatar">
+                            {String(supplier.name || 'S')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </span>
+                          <div>
+                            <strong className="sup2-name">{supplier.name}</strong>
+                            <small>{supplier.address || '-'}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="sup3-contactCell">
+                          <div>{supplier.contact_number || '-'}</div>
+                          <small>{supplier.email || '-'}</small>
+                        </div>
+                      </td>
                       <td>
                         <span
                           className={`sup2-balance ${balance > 0 ? 'sup2-balance--due' : balance === 0 ? 'sup2-balance--clear' : ''}`}
                         >
-                          {formatCurrency(balance)}
+                          {balance > 0 ? `PKR ${Math.round(balance).toLocaleString()}` : '-'}
                         </span>
                       </td>
-                      <td>{formatDate(lastActivity)}</td>
+                      <td>
+                        <span className={`sup3-status ${statusText === 'Active' ? 'is-active' : 'is-inactive'}`}>
+                          <span className="sup3-statusDot" aria-hidden="true" />
+                          {statusText}
+                        </span>
+                      </td>
+                      <td className="sup3-lastOrder">{formatRelative(lastMovement)}</td>
                       <td className="sup2-actions">
                         {!readOnly ? (
-                          <>
-                            <button className="sup2-action sup2-action--view" onClick={() => handleView(supplier)}>
-                              {t('common.view')}
+                          <div className="sup3-rowActions">
+                            <button className="sup3-rowAction" onClick={() => handleView(supplier)} aria-label="View supplier">
+                              <FontAwesomeIcon icon={faEye} />
                             </button>
-                            <button className="sup2-action sup2-action--edit" onClick={() => handleEdit(supplier)}>
-                              {t('common.edit')}
+                            <button className="sup3-rowAction" onClick={() => handleEdit(supplier)} aria-label="Edit supplier">
+                              <FontAwesomeIcon icon={faPenToSquare} />
                             </button>
-                            <button className="sup2-action sup2-action--delete" onClick={() => setDeleteConfirm(supplier.supplier_id)}>
-                              {t('common.delete')}
+                            <button className="sup3-rowAction sup3-rowAction--danger" onClick={() => setDeleteConfirm(supplier.supplier_id)} aria-label="Delete supplier">
+                              <FontAwesomeIcon icon={faTrashCan} />
                             </button>
-                          </>
+                          </div>
                         ) : (
                           <span className="sup2-viewonly">{t('common.viewOnly')}</span>
                         )}

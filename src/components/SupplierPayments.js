@@ -383,33 +383,33 @@ const SupplierPaymentModal = ({ payment, suppliers, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="supplier-payment-form">
-          <div className="form-group">
-            <label className="form-label">
-              Supplier <span className="required">*</span>
-            </label>
-            <select
-              name="supplier_id"
-              value={formData.supplier_id}
-              onChange={handleChange}
-              className={`form-input ${errors.supplier_id ? 'error' : ''}`}
-              disabled={!!payment}
-            >
-              <option value="">Select Supplier</option>
-              {suppliers.map(s => (
-                <option key={s.supplier_id} value={s.supplier_id}>
-                  {s.name} {s.current_payable_balance > 0 ? `(Balance: ${formatCurrency(s.current_payable_balance)})` : ''}
-                </option>
-              ))}
-            </select>
-            {errors.supplier_id && <span className="error-message">{errors.supplier_id}</span>}
-            {selectedSupplier && (
-              <p className="form-help-text" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                Current Payable Balance: <strong>{formatCurrency(selectedSupplier.current_payable_balance)}</strong>
-              </p>
-            )}
-          </div>
+          <div className="zb-form-grid zb-form-grid--2">
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">
+                Supplier <span className="required">*</span>
+              </label>
+              <select
+                name="supplier_id"
+                value={formData.supplier_id}
+                onChange={handleChange}
+                className={`form-input ${errors.supplier_id ? 'error' : ''}`}
+                disabled={!!payment}
+              >
+                <option value="">Select Supplier</option>
+                {suppliers.map(s => (
+                  <option key={s.supplier_id} value={s.supplier_id}>
+                    {s.name} {s.current_payable_balance > 0 ? `(Balance: ${formatCurrency(s.current_payable_balance)})` : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.supplier_id && <span className="error-message">{errors.supplier_id}</span>}
+              {selectedSupplier && (
+                <p className="form-help-text" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                  Current Payable Balance: <strong>{formatCurrency(selectedSupplier.current_payable_balance)}</strong>
+                </p>
+              )}
+            </div>
 
-          <div className="form-row">
             <div className="form-group">
               <label className="form-label">
                 Amount (PKR) <span className="required">*</span>
@@ -453,18 +453,18 @@ const SupplierPaymentModal = ({ payment, suppliers, onClose, onSave }) => {
                 className="form-input"
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Notes (Optional)</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              className="form-input"
-              placeholder="Payment notes..."
-              rows="3"
-            />
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">Notes (Optional)</label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Payment notes..."
+                rows="3"
+              />
+            </div>
           </div>
 
           <div className="modal-actions">

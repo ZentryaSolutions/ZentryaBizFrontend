@@ -14,7 +14,8 @@ import {
   faSliders,
   faTag,
 } from '@fortawesome/free-solid-svg-icons';
-import { productsAPI } from '../services/api';
+import { productsAPI, suppliersAPI } from '../services/api';
+import PurchaseModal from './PurchaseModal';
 import { withCurrentScope } from '../utils/appRouteScope';
 import './ProductDetailView.css';
 
@@ -31,6 +32,10 @@ const ProductDetailView = ({ readOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('purchases');
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [purchaseModalSuppliers, setPurchaseModalSuppliers] = useState([]);
+  const [purchaseModalProducts, setPurchaseModalProducts] = useState([]);
+  const [purchaseModalLoading, setPurchaseModalLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +132,39 @@ const ProductDetailView = ({ readOnly = false }) => {
     navigate(withCurrentScope(location.pathname, '/inventory'), { state: { editProductId: Number(productId) } });
   };
 
-  const handleAddPurchase = () => navigate(withCurrentScope(location.pathname, '/purchases'));
+  const refreshProductActivity = async () => {
+    if (!productId) return;
+    try {
+      const [prodRes, actRes] = await Promise.all([
+        productsAPI.getById(productId),
+        productsAPI.getActivity(productId).catch(() => ({ data: { purchases: [], sales: [] } })),
+      ]);
+      setProduct(prodRes.data);
+      setActivity({
+        purchases: actRes.data?.purchases || [],
+        sales: actRes.data?.sales || [],
+      });
+    } catch (_) {
+      /* ignore soft refresh errors */
+    }
+  };
+
+  const handleAddPurchase = async () => {
+    setPurchaseModalLoading(true);
+    try {
+      const [supRes, prodRes] = await Promise.all([
+        suppliersAPI.getAll(),
+        productsAPI.getAll(),
+      ]);
+      setPurchaseModalSuppliers(supRes.data);
+      setPurchaseModalProducts(prodRes.data);
+      setPurchaseModalOpen(true);
+    } catch (e) {
+      alert(e.response?.data?.error || t('purchases.failedToLoad'));
+    } finally {
+      setPurchaseModalLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -323,8 +360,14 @@ const ProductDetailView = ({ readOnly = false }) => {
             </button>
           </div>
           {!readOnly && activeTab === 'purchases' ? (
-            <button type="button" className="pdv2-btn pdv2-btn--primary pdv2-btn--compact" onClick={handleAddPurchase}>
-              <FontAwesomeIcon icon={faPlus} /> {t('inventory.addPurchase')}
+            <button
+              type="button"
+              className="pdv2-btn pdv2-btn--primary pdv2-btn--compact"
+              onClick={handleAddPurchase}
+              disabled={purchaseModalLoading}
+            >
+              <FontAwesomeIcon icon={faPlus} />{' '}
+              {purchaseModalLoading ? t('common.loading') : t('inventory.addPurchase')}
             </button>
           ) : null}
         </div>
@@ -410,6 +453,19 @@ const ProductDetailView = ({ readOnly = false }) => {
           </div>
         )}
       </section>
+
+      {purchaseModalOpen && (
+        <PurchaseModal
+          suppliers={purchaseModalSuppliers}
+          products={purchaseModalProducts}
+          initialProductId={Number(productId)}
+          onClose={() => setPurchaseModalOpen(false)}
+          onSave={async () => {
+            setPurchaseModalOpen(false);
+            await refreshProductActivity();
+          }}
+        />
+      )}
     </div>
   );
 };

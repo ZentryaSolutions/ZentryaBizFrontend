@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SupplierModal.css';
+import './CustomerModal.custom.css';
 
 const CustomerModal = ({ customer, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -7,8 +8,6 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
     phone: '',
     address: '',
     previous_due: '0',
-    customer_type: 'cash',
-    credit_limit: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -21,8 +20,6 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
         phone: customer.phone || '',
         address: customer.address || '',
         previous_due: customer.opening_balance?.toString() || '0',
-        customer_type: customer.customer_type || 'cash',
-        credit_limit: customer.credit_limit?.toString() || '',
       });
     }
   }, [customer]);
@@ -44,14 +41,6 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
     const previousDue = parseFloat(formData.previous_due);
     if (isNaN(previousDue)) {
       newErrors.previous_due = 'Previous Due must be a valid number';
-    }
-
-    // Credit Limit: numeric if provided
-    if (formData.credit_limit && formData.credit_limit.trim()) {
-      const creditLimit = parseFloat(formData.credit_limit);
-      if (isNaN(creditLimit) || creditLimit < 0) {
-        newErrors.credit_limit = 'Credit Limit must be a valid positive number';
-      }
     }
 
     setErrors(newErrors);
@@ -87,8 +76,6 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
         phone: formData.phone.trim(),
         address: formData.address.trim() || null,
         opening_balance: parseFloat(formData.previous_due) || 0,
-        customer_type: formData.customer_type,
-        credit_limit: formData.credit_limit && formData.credit_limit.trim() ? parseFloat(formData.credit_limit) : null,
       };
 
       await onSave(submitData);
@@ -101,68 +88,55 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal supplier-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className="modal-overlay customer-modal-overlay" onClick={onClose}>
+      <div className="modal supplier-modal supplier-modal--wide customer-modal-shell" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header customer-modal-header">
           <h2>{customer ? 'Edit Customer' : 'Add New Customer'}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="supplier-form">
-          <div className="form-group">
-            <label className="form-label">
-              Customer Name <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              name="name"
-              className="form-input"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter customer name"
-            />
-            {errors.name && <div className="error-text">{errors.name}</div>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              Mobile Number <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              name="phone"
-              className="form-input"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="Enter mobile number"
-            />
-            {errors.phone && <div className="error-text">{errors.phone}</div>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Address (Optional)</label>
-            <textarea
-              name="address"
-              className="form-input"
-              rows="3"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Enter customer address"
-            />
-          </div>
-
-          <div className="form-row">
+          <div className="zb-form-grid zb-form-grid--2 customer-modal-grid">
             <div className="form-group">
-              <label className="form-label">Customer Type</label>
-              <select
-                name="customer_type"
+              <label className="form-label">
+                Customer Name <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
                 className="form-input"
-                value={formData.customer_type}
+                value={formData.name}
                 onChange={handleChange}
-              >
-                <option value="cash">Cash</option>
-                <option value="credit">Credit</option>
-              </select>
+                placeholder="Enter customer name"
+              />
+              {errors.name && <div className="error-text">{errors.name}</div>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Mobile Number <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                name="phone"
+                className="form-input"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter mobile number"
+              />
+              {errors.phone && <div className="error-text">{errors.phone}</div>}
+            </div>
+
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">Address (Optional)</label>
+              <textarea
+                name="address"
+                className="form-input"
+                rows="3"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Enter customer address"
+              />
             </div>
 
             <div className="form-group">
@@ -179,26 +153,10 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
               <div className="form-hint">Amount customer already owes when added</div>
               {errors.previous_due && <div className="error-text">{errors.previous_due}</div>}
             </div>
+
           </div>
 
-          {formData.customer_type === 'credit' && (
-            <div className="form-group">
-              <label className="form-label">Credit Limit (Optional)</label>
-              <input
-                type="number"
-                step="0.01"
-                name="credit_limit"
-                className="form-input"
-                value={formData.credit_limit}
-                onChange={handleChange}
-                placeholder="Enter credit limit"
-              />
-              <div className="form-hint">Maximum amount customer can owe</div>
-              {errors.credit_limit && <div className="error-text">{errors.credit_limit}</div>}
-            </div>
-          )}
-
-          <div className="modal-actions">
+          <div className="modal-actions customer-modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>

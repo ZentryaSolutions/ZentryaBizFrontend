@@ -57,7 +57,7 @@
   scroll-behavior: smooth;
 }
 
-/* Supabase web login only — no backend session; strip hidden */
+/* Supabase web login only ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no backend session; strip hidden */
 .app--zb-web .main-content {
   padding-top: var(--header-height);
 }
@@ -554,46 +554,70 @@
 }
 
 
+/* Workspace nav — blends with canvas (Issue #19) */
 .app-back-row {
-  padding: 10px clamp(1rem, 3vw, 2rem) 0;
+  flex-shrink: 0;
+  width: 100%;
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
 }
 
-.app-back-btn {
-  display: inline-flex;
+.app-back-row__inner {
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  border: 1px solid var(--chrome-border, #e4e7ec);
-  background: #fff;
-  color: var(--color-text-muted, #667085);
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.45rem clamp(1rem, 3vw, 2rem) 0.65rem;
 }
 
-.app-back-btn:hover {
-  color: var(--color-primary, #4f46e5);
-  border-color: #c7d2fe;
-  background: #f8faff;
-}
-
+.app-back-btn,
 .app-mainpage-btn {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--chrome-border, #e4e7ec);
-  background: #fff;
-  color: var(--color-text-muted, #667085);
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.82rem;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0 0.95rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  margin-left: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--chrome-border-strong, #d0d5dd);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #101828);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
+.app-back-btn:hover,
 .app-mainpage-btn:hover {
   color: var(--color-primary, #4f46e5);
   border-color: #c7d2fe;
   background: #f8faff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.12);
+}
+
+.app-back-btn:active,
+.app-mainpage-btn:active {
+  transform: translateY(1px);
+}
+.actions-cell .btn-view,
+.actions-cell .btn-edit,
+.actions-cell .btn-delete {
+  margin-right: 0;
+}
+
+.actions-cell .btn-view {
+  min-width: 4.5rem;
+  justify-content: center;
+}
+
+.actions-cell .btn-edit,
+.actions-cell .btn-delete {
+  min-width: 4rem;
+  justify-content: center;
 }

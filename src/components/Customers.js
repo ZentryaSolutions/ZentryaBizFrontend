@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faArrowLeft,
+  faBoxesStacked,
+  faDollarSign,
+  faEye,
+  faPenToSquare,
+  faReceipt,
+  faTrashCan,
+  faUsers,
+} from '@fortawesome/free-solid-svg-icons';
 import { customersAPI } from '../services/api';
 import CustomerModal from './CustomerModal';
 import CustomerDetailView from './CustomerDetailView';
 import Pagination from './Pagination';
 import './Customers.css';
+import './Suppliers.css';
 
 const Customers = ({ readOnly = false }) => {
   const { t } = useTranslation();
@@ -101,6 +113,32 @@ const Customers = ({ readOnly = false }) => {
     });
   };
 
+  const formatRelative = (date) => {
+    if (!date) return '-';
+    const now = Date.now();
+    const then = new Date(date).getTime();
+    if (Number.isNaN(then)) return '-';
+    const diffDays = Math.floor((now - then) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return '1 week ago';
+    if (weeks < 5) return `${weeks} weeks ago`;
+    return formatDate(date);
+  };
+
+  const getLastMovementDate = (customer) =>
+    customer.last_sale_date || customer.last_payment_date || customer.created_at || null;
+
+  const isRecentlyActive = (date) => {
+    if (!date) return false;
+    const then = new Date(date).getTime();
+    if (Number.isNaN(then)) return false;
+    const diffDays = Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  };
+
   const filteredCustomers = useMemo(() => {
     let list = customers;
     if (balanceFilter === 'due') {
@@ -120,6 +158,19 @@ const Customers = ({ readOnly = false }) => {
       return name.includes(query) || phone.includes(query);
     });
   }, [customers, searchQuery, balanceFilter]);
+
+  const summary = useMemo(() => {
+    const totalReceivable = customers.reduce(
+      (sum, c) => sum + Math.max(0, Number(c.current_due || c.current_balance || 0)),
+      0
+    );
+    const activeCustomers = customers.filter((c) =>
+      isRecentlyActive(getLastMovementDate(c))
+    ).length;
+    const dueCount = customers.filter((c) => Number(c.current_due || c.current_balance || 0) > 0).length;
+    const settledCount = customers.filter((c) => Number(c.current_due || c.current_balance || 0) <= 0).length;
+    return { totalReceivable, activeCustomers, dueCount, settledCount };
+  }, [customers]);
 
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -157,195 +208,219 @@ const Customers = ({ readOnly = false }) => {
   }
 
   return (
-    <div className="content-container cus2">
-      <header className="cus2-hero">
-        <div className="cus2-hero-accent" aria-hidden />
-        <div className="cus2-hero-inner">
-          <div>
-            <span className="cus2-eyebrow">{t('menu.customers')}</span>
-            <h1 className="cus2-hero-title">{t('customers.title')}</h1>
-            <p className="cus2-hero-sub">{t('customers.subtitle')}</p>
-          </div>
-          <div className="cus2-hero-stat">
-            <span className="cus2-hero-stat-val">{filteredCustomers.length}</span>
-            <span className="cus2-hero-stat-label">{t('customers.results')}</span>
-          </div>
+    <div className="content-container sup2">
+      <div className="sup3-topline">
+        <button type="button" className="sup3-back" onClick={() => window.history.back()}>
+          <FontAwesomeIcon icon={faArrowLeft} /> Back
+        </button>
+        <h1>{t('customers.title')}</h1>
+      </div>
+
+      <section className="sup3-stats">
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--money">
+            <FontAwesomeIcon icon={faDollarSign} />
+          </span>
+          <h3>{`PKR ${Math.round(summary.totalReceivable).toLocaleString()}`}</h3>
+          <p>Total Receivable</p>
+          <small>{summary.dueCount} pending dues</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--green">
+            <FontAwesomeIcon icon={faUsers} />
+          </span>
+          <h3>{customers.length}</h3>
+          <p>Total Customers</p>
+          <small>{summary.activeCustomers} active this week</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--blue">
+            <FontAwesomeIcon icon={faBoxesStacked} />
+          </span>
+          <h3>{summary.dueCount}</h3>
+          <p>Customers with dues</p>
+          <small>{summary.settledCount} settled</small>
+        </article>
+        <article className="sup3-statCard">
+          <span className="sup3-statIcon sup3-statIcon--purple">
+            <FontAwesomeIcon icon={faReceipt} />
+          </span>
+          <h3>{filteredCustomers.length}</h3>
+          <p>Filtered Results</p>
+          <small>Current view</small>
+        </article>
+      </section>
+
+      <header className="sup3-header">
+        <div>
+          <h2>Customers</h2>
+          <p>Manage customer balances and payment activity</p>
         </div>
+        {!readOnly ? (
+          <button className="sup3-addBtn" onClick={handleAdd}>
+            + Add Customer
+          </button>
+        ) : null}
       </header>
 
-      {error ? <div className="cus2-alert cus2-alert--error">{error}</div> : null}
+      {error ? <div className="sup2-alert sup2-alert--error">{error}</div> : null}
 
-      {!readOnly ? (
-        <section className="cus2-panel cus2-panel--head">
-          <div className="cus2-panel-head-row">
-            <h2>{t('customers.title')}</h2>
-            <button type="button" className="cus2-btn cus2-btn--primary" onClick={handleAdd}>
-              + {t('customers.addCustomer')}
+      <section className="sup3-mainCard">
+        <div className="sup3-filterRow">
+          <input
+            type="text"
+            className="sup3-search"
+            placeholder="Search by name or phone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <div className="sup3-chips">
+            <button
+              className={`sup3-chip ${balanceFilter === 'all' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('all')}
+              type="button"
+            >
+              All
+            </button>
+            <button
+              className={`sup3-chip ${balanceFilter === 'due' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('due')}
+              type="button"
+            >
+              Balance Due <span>{summary.dueCount}</span>
+            </button>
+            <button
+              className={`sup3-chip ${balanceFilter === 'cleared' ? 'is-active' : ''}`}
+              onClick={() => setBalanceFilter('cleared')}
+              type="button"
+            >
+              Cleared <span>{summary.settledCount}</span>
             </button>
           </div>
-        </section>
+        </div>
+
+        <div className="sup3-tableWrap">
+          <table className="sup3-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Contact</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Last Activity</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="sup2-empty">
+                    {searchQuery
+                      ? t('customers.noCustomersMatching', { query: searchQuery })
+                      : t('customers.noCustomers')}
+                  </td>
+                </tr>
+              ) : (
+                paginatedCustomers.map((customer) => {
+                  const due = parseFloat(customer.current_due || customer.current_balance || 0);
+                  const lastActivity = getLastMovementDate(customer);
+                  const statusText = isRecentlyActive(lastActivity) ? 'Active' : 'Inactive';
+                  return (
+                    <tr key={customer.customer_id}>
+                      <td>
+                        <div className="sup3-supplierCell">
+                          <span className="sup3-avatar">
+                            {String(customer.name || 'C')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </span>
+                          <div>
+                            <strong className="sup2-name">{customer.name}</strong>
+                            <small>{customer.address || '-'}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="sup3-contactCell">
+                          <div>{customer.phone || '-'}</div>
+                          <small>{customer.customer_type || 'cash'}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`sup2-balance ${due > 0 ? 'sup2-balance--due' : 'sup2-balance--clear'}`}
+                        >
+                          {due > 0 ? `PKR ${Math.round(due).toLocaleString()}` : '-'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`sup3-status ${statusText === 'Active' ? 'is-active' : 'is-inactive'}`}>
+                          <span className="sup3-statusDot" aria-hidden="true" />
+                          {statusText}
+                        </span>
+                      </td>
+                      <td className="sup3-lastOrder">{formatRelative(lastActivity)}</td>
+                      <td className="sup2-actions">
+                        {!readOnly ? (
+                          <div className="sup3-rowActions">
+                            <button className="sup3-rowAction" onClick={() => handleView(customer)} aria-label="View customer">
+                              <FontAwesomeIcon icon={faEye} />
+                            </button>
+                            <button className="sup3-rowAction" onClick={() => handleEdit(customer)} aria-label="Edit customer">
+                              <FontAwesomeIcon icon={faPenToSquare} />
+                            </button>
+                            <button className="sup3-rowAction sup3-rowAction--danger" onClick={() => setDeleteConfirm(customer.customer_id)} aria-label="Delete customer">
+                              <FontAwesomeIcon icon={faTrashCan} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="sup2-viewonly">{t('common.viewOnly')}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredCustomers.length > 0 ? (
+          <div className="sup2-pagination">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredCustomers.length}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(newItemsPerPage) => {
+                setItemsPerPage(newItemsPerPage);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {deleteConfirm ? (
+        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal delete-modal sup2-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('common.confirmDelete')}</h3>
+            <p>{t('customers.deleteConfirm')} {t('common.cannotBeUndone')}</p>
+            <div className="modal-actions">
+              <button className="sup2-btn sup2-btn--ghost" onClick={() => setDeleteConfirm(null)}>
+                {t('common.cancel')}
+              </button>
+              <button className="sup2-btn sup2-btn--danger" onClick={() => handleDelete(deleteConfirm)}>
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {modalOpen ? (
         <CustomerModal customer={editingCustomer} onClose={handleModalClose} onSave={handleModalSave} />
-      ) : null}
-
-      {!modalOpen ? (
-        <>
-          <section className="cus2-panel cus2-panel--filters">
-            <div className="cus2-filter-grid">
-              <div className="cus2-field">
-                <label className="cus2-label">{t('customers.searchCustomer')}</label>
-                <input
-                  type="text"
-                  className="cus2-input"
-                  placeholder={t('customers.searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="cus2-filter-actions">
-                {searchQuery ? (
-                  <button type="button" className="cus2-btn cus2-btn--ghost" onClick={() => setSearchQuery('')}>
-                    {t('common.clear')}
-                  </button>
-                ) : null}
-                <div className="cus2-segment" role="tablist" aria-label="Balance filter">
-                  <button
-                    type="button"
-                    className={`cus2-segment-btn ${balanceFilter === 'all' ? 'cus2-segment-btn--on' : ''}`}
-                    onClick={() => setBalanceFilter('all')}
-                  >
-                    {t('customers.filterAll')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`cus2-segment-btn ${balanceFilter === 'due' ? 'cus2-segment-btn--on' : ''}`}
-                    onClick={() => setBalanceFilter('due')}
-                  >
-                    {t('customers.filterWithBalance')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`cus2-segment-btn ${balanceFilter === 'cleared' ? 'cus2-segment-btn--on' : ''}`}
-                    onClick={() => setBalanceFilter('cleared')}
-                  >
-                    {t('customers.filterCleared')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="cus2-panel">
-            <div className="cus2-toolbar">
-              <h2>{t('customers.customersList')}</h2>
-              {readOnly ? <span className="cus2-readonly">{t('common.readOnlyMode')}</span> : null}
-            </div>
-
-            <div className="cus2-table-wrap">
-              <table className="cus2-table">
-                <thead>
-                  <tr>
-                    <th>{t('customers.customerName')}</th>
-                    <th>{t('customers.mobileNumber')}</th>
-                    <th>{t('customers.totalDue')}</th>
-                    <th>{t('customers.lastActivity')}</th>
-                    <th>{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="cus2-empty">
-                        {searchQuery
-                          ? t('customers.noCustomersMatching', { query: searchQuery })
-                          : t('customers.noCustomers')}
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedCustomers.map((customer) => {
-                      const due = parseFloat(customer.current_due || customer.current_balance || 0);
-                      const lastActivity = customer.last_sale_date || customer.last_payment_date;
-                      return (
-                        <tr key={customer.customer_id}>
-                          <td>
-                            <strong className="cus2-name">{customer.name}</strong>
-                          </td>
-                          <td>{customer.phone || '-'}</td>
-                          <td>
-                            <span
-                              className={`cus2-due ${due > 0 ? 'cus2-due--negative' : due === 0 ? 'cus2-due--clear' : ''}`}
-                            >
-                              {formatCurrency(due)}
-                            </span>
-                          </td>
-                          <td>{formatDate(lastActivity)}</td>
-                          <td className="cus2-actions">
-                            {!readOnly ? (
-                              <>
-                                <button type="button" className="cus2-action cus2-action--view" onClick={() => handleView(customer)}>
-                                  {t('common.view')}
-                                </button>
-                                <button type="button" className="cus2-action cus2-action--edit" onClick={() => handleEdit(customer)}>
-                                  {t('common.edit')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="cus2-action cus2-action--delete"
-                                  onClick={() => setDeleteConfirm(customer.customer_id)}
-                                >
-                                  {t('common.delete')}
-                                </button>
-                              </>
-                            ) : (
-                              <span className="cus2-viewonly">{t('common.viewOnly')}</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredCustomers.length > 0 ? (
-              <div className="cus2-pagination">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={filteredCustomers.length}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={(newItemsPerPage) => {
-                    setItemsPerPage(newItemsPerPage);
-                    setCurrentPage(1);
-                  }}
-                />
-              </div>
-            ) : null}
-          </section>
-
-          {deleteConfirm ? (
-            <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
-              <div className="modal delete-modal cus2-delete-modal" onClick={(e) => e.stopPropagation()}>
-                <h3>{t('common.confirmDelete')}</h3>
-                <p>
-                  {t('customers.deleteConfirm')} {t('common.cannotBeUndone')}
-                </p>
-                <div className="modal-actions">
-                  <button className="cus2-btn cus2-btn--ghost" onClick={() => setDeleteConfirm(null)}>
-                    {t('common.cancel')}
-                  </button>
-                  <button className="cus2-btn cus2-btn--danger" onClick={() => handleDelete(deleteConfirm)}>
-                    {t('common.delete')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </>
       ) : null}
     </div>
   );

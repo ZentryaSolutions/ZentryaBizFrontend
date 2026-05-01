@@ -232,35 +232,37 @@ const Users = () => {
               <button className="modal-close" onClick={() => setEditingUser(null)}>×</button>
             </div>
             <div className="modal-content">
-              <div className="form-group">
-                <label>{t('users.email')}</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  value={editingUser.username || ''}
-                  disabled
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('users.name')}</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editingUser.name || ''}
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('users.role')}</label>
-                <select
-                  className="form-input"
-                  value={editingUser.role || 'cashier'}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                  disabled={isCurrentUser(editingUser) || isLastAdmin(editingUser)}
-                >
-                  <option value="administrator">{t('auth.admin')}</option>
-                  <option value="cashier">{t('auth.cashier')}</option>
-                </select>
+              <div className="zb-form-grid zb-form-grid--2">
+                <div className="form-group zb-form-grid__full">
+                  <label>{t('users.email')}</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editingUser.username || ''}
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('users.name')}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingUser.name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('users.role')}</label>
+                  <select
+                    className="form-input"
+                    value={editingUser.role || 'cashier'}
+                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                    disabled={isCurrentUser(editingUser) || isLastAdmin(editingUser)}
+                  >
+                    <option value="administrator">{t('auth.admin')}</option>
+                    <option value="cashier">{t('auth.cashier')}</option>
+                  </select>
+                </div>
               </div>
               <div className="modal-actions">
                 <button className="btn btn-primary" onClick={handleSave}>
@@ -346,39 +348,41 @@ const AddUserModal = ({ onClose, onSave }) => {
         </div>
         <div className="modal-content">
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>{t('users.email')} *</label>
-              <input
-                type="email"
-                autoComplete="email"
-                className="form-input"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-              <p className="form-hint" style={{ marginTop: 6, fontSize: 13, color: '#667085' }}>
-                {t('users.staffLoginHint')}
-              </p>
-            </div>
-            <div className="form-group">
-              <label>{t('users.name')}</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>{t('users.role')}</label>
-              <select
-                className="form-input"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
-                <option value="cashier">{t('auth.cashier')}</option>
-                <option value="administrator">{t('auth.admin')}</option>
-              </select>
+            <div className="zb-form-grid zb-form-grid--2">
+              <div className="form-group zb-form-grid__full">
+                <label>{t('users.email')} *</label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  className="form-input"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+                <p className="form-hint" style={{ marginTop: 6, fontSize: 13, color: '#667085' }}>
+                  {t('users.staffLoginHint')}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>{t('users.name')}</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>{t('users.role')}</label>
+                <select
+                  className="form-input"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                >
+                  <option value="cashier">{t('auth.cashier')}</option>
+                  <option value="administrator">{t('auth.admin')}</option>
+                </select>
+              </div>
             </div>
             <div className="modal-actions">
               <button type="submit" className="btn btn-primary">

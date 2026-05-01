@@ -532,73 +532,75 @@ const Sales = ({ readOnly = false }) => {
                 </div>
               ) : (
                 <>
-                  <div className="form-group">
-                    <label className="form-label">{t('sales.paymentMode')}</label>
-                    <select
-                      className="form-input"
-                      value={editFormData.payment_type}
-                      onChange={(e) => {
-                        const newPaymentType = e.target.value;
-                        setEditFormData({
-                          ...editFormData,
-                          payment_type: newPaymentType,
-                          paid_amount: newPaymentType === 'cash' ? editingSale.total_amount : 
-                                      newPaymentType === 'credit' ? 0 : editFormData.paid_amount
-                        });
-                      }}
-                    >
-                      <option value="cash">{t('sales.cash')}</option>
-                      <option value="credit">{t('sales.credit')}</option>
-                      <option value="split">{t('sales.split')}</option>
-                    </select>
-                  </div>
+                  <div className="zb-form-grid zb-form-grid--2">
+                    <div className="form-group zb-form-grid__full">
+                      <label className="form-label">{t('sales.paymentMode')}</label>
+                      <select
+                        className="form-input"
+                        value={editFormData.payment_type}
+                        onChange={(e) => {
+                          const newPaymentType = e.target.value;
+                          setEditFormData({
+                            ...editFormData,
+                            payment_type: newPaymentType,
+                            paid_amount: newPaymentType === 'cash' ? editingSale.total_amount :
+                                        newPaymentType === 'credit' ? 0 : editFormData.paid_amount
+                          });
+                        }}
+                      >
+                        <option value="cash">{t('sales.cash')}</option>
+                        <option value="credit">{t('sales.credit')}</option>
+                        <option value="split">{t('sales.split')}</option>
+                      </select>
+                    </div>
 
-                  {editFormData.payment_type === 'split' && (
+                    {editFormData.payment_type === 'split' && (
+                      <div className="form-group zb-form-grid__full">
+                        <label className="form-label">{t('sales.paidAmount')}</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={editFormData.paid_amount}
+                          onChange={(e) => setEditFormData({
+                            ...editFormData,
+                            paid_amount: parseFloat(e.target.value) || 0
+                          })}
+                          min="0"
+                          max={editingSale.total_amount}
+                          step="0.01"
+                        />
+                      </div>
+                    )}
+
                     <div className="form-group">
-                      <label className="form-label">{t('sales.paidAmount')}</label>
+                      <label className="form-label">{t('sales.discount')}</label>
                       <input
                         type="number"
                         className="form-input"
-                        value={editFormData.paid_amount}
+                        value={editFormData.discount}
                         onChange={(e) => setEditFormData({
                           ...editFormData,
-                          paid_amount: parseFloat(e.target.value) || 0
+                          discount: parseFloat(e.target.value) || 0
                         })}
                         min="0"
-                        max={editingSale.total_amount}
                         step="0.01"
                       />
                     </div>
-                  )}
 
-                  <div className="form-group">
-                    <label className="form-label">{t('sales.discount')}</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={editFormData.discount}
-                      onChange={(e) => setEditFormData({
-                        ...editFormData,
-                        discount: parseFloat(e.target.value) || 0
-                      })}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{t('sales.tax')}</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={editFormData.tax}
-                      onChange={(e) => setEditFormData({
-                        ...editFormData,
-                        tax: parseFloat(e.target.value) || 0
-                      })}
-                      min="0"
-                      step="0.01"
-                    />
+                    <div className="form-group">
+                      <label className="form-label">{t('sales.tax')}</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={editFormData.tax}
+                        onChange={(e) => setEditFormData({
+                          ...editFormData,
+                          tax: parseFloat(e.target.value) || 0
+                        })}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
                   </div>
 
                   <div className="sales-totals" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>

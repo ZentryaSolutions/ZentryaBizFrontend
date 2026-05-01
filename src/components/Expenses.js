@@ -407,11 +407,11 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="modal-content">
-          <div className="form-group">
-            <label className="form-label">{t('expenses.expenseCategory')} *</label>
-            <input className="form-input" required value={formData.expense_category} onChange={(e) => setFormData({...formData, expense_category: e.target.value})} placeholder={t('expenses.expenseCategoryPlaceholder')} />
-          </div>
-          <div className="form-row">
+          <div className="zb-form-grid zb-form-grid--2">
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">{t('expenses.expenseCategory')} *</label>
+              <input className="form-input" required value={formData.expense_category} onChange={(e) => setFormData({...formData, expense_category: e.target.value})} placeholder={t('expenses.expenseCategoryPlaceholder')} />
+            </div>
             <div className="form-group">
               <label className="form-label">{t('expenses.amount')} *</label>
               <input type="number" step="0.01" className="form-input" required value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} />
@@ -420,7 +420,7 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
               <label className="form-label">{t('expenses.expenseDate')}</label>
               <input type="date" className="form-input" value={formData.expense_date} onChange={(e) => setFormData({...formData, expense_date: e.target.value})} />
             </div>
-            <div className="form-group">
+            <div className="form-group zb-form-grid__full">
               <label className="form-label">{t('expenses.paymentMethod')}</label>
               <select className="form-input" value={formData.payment_method} onChange={(e) => setFormData({...formData, payment_method: e.target.value})}>
                 <option value="cash">{t('billing.cash')}</option>
@@ -429,10 +429,10 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
                 <option value="other">{t('billing.other')}</option>
               </select>
             </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t('expenses.notes')}</label>
-            <textarea className="form-input" rows="3" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">{t('expenses.notes')}</label>
+              <textarea className="form-input" rows="3" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
+            </div>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>{t('common.cancel')}</button>

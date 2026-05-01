@@ -236,29 +236,31 @@ const CategoryModal = ({ category, onSave, onClose }) => {
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="modal-content">
-          <div className="form-group">
-            <label className="form-label">
-              {t('categories.categoryNameLabel')}
-            </label>
-            <input 
-              className="form-input" 
-              required 
-              value={formData.category_name} 
-              onChange={(e) => setFormData({...formData, category_name: e.target.value})}
-              disabled={category && category.category_name.toLowerCase() === 'general'}
-            />
-            {category && category.category_name.toLowerCase() === 'general' && (
-              <small style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                {t('categories.generalCannotBeRenamed')}
-              </small>
-            )}
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t('categories.status')}</label>
-            <select className="form-input" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-              <option value="active">{t('categories.active')}</option>
-              <option value="inactive">{t('categories.inactive')}</option>
-            </select>
+          <div className="zb-form-grid zb-form-grid--2">
+            <div className="form-group">
+              <label className="form-label">
+                {t('categories.categoryNameLabel')}
+              </label>
+              <input 
+                className="form-input" 
+                required 
+                value={formData.category_name} 
+                onChange={(e) => setFormData({...formData, category_name: e.target.value})}
+                disabled={category && category.category_name.toLowerCase() === 'general'}
+              />
+              {category && category.category_name.toLowerCase() === 'general' && (
+                <small style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                  {t('categories.generalCannotBeRenamed')}
+                </small>
+              )}
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('categories.status')}</label>
+              <select className="form-input" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                <option value="active">{t('categories.active')}</option>
+                <option value="inactive">{t('categories.inactive')}</option>
+              </select>
+            </div>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>{t('categories.cancel')}</button>

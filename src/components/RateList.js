@@ -414,64 +414,66 @@ const PriceEditModal = ({ product, onSave, onClose }) => {
           </div>
 
           {/* Editable Price Fields */}
-          <div className="form-group">
-            <label className="form-label">
-              {t('rateList.retailPrice')} (PKR) <span className="required">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              name="retail_price"
-              value={formData.retail_price}
-              onChange={handleChange}
-              className={`form-input ${errors.retail_price ? 'error' : ''}`}
-              placeholder="0.00"
-            />
-            {errors.retail_price && (
-              <span className="error-message">{errors.retail_price}</span>
-            )}
-          </div>
+          <div className="zb-form-grid zb-form-grid--2">
+            <div className="form-group">
+              <label className="form-label">
+                {t('rateList.retailPrice')} (PKR) <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                name="retail_price"
+                value={formData.retail_price}
+                onChange={handleChange}
+                className={`form-input ${errors.retail_price ? 'error' : ''}`}
+                placeholder="0.00"
+              />
+              {errors.retail_price && (
+                <span className="error-message">{errors.retail_price}</span>
+              )}
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">
-              {t('rateList.wholesalePrice')} (PKR) <span className="required">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              name="wholesale_price"
-              value={formData.wholesale_price}
-              onChange={handleChange}
-              className={`form-input ${errors.wholesale_price ? 'error' : ''}`}
-              placeholder="0.00"
-            />
-            {errors.wholesale_price && (
-              <span className="error-message">{errors.wholesale_price}</span>
-            )}
-          </div>
+            <div className="form-group">
+              <label className="form-label">
+                {t('rateList.wholesalePrice')} (PKR) <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                name="wholesale_price"
+                value={formData.wholesale_price}
+                onChange={handleChange}
+                className={`form-input ${errors.wholesale_price ? 'error' : ''}`}
+                placeholder="0.00"
+              />
+              {errors.wholesale_price && (
+                <span className="error-message">{errors.wholesale_price}</span>
+              )}
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">
-              {t('rateList.specialPrice')} (PKR) <span style={{ fontSize: '12px', color: '#64748b' }}>({t('common.optional')})</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              name="special_price"
-              value={formData.special_price}
-              onChange={handleChange}
-              className={`form-input ${errors.special_price ? 'error' : ''}`}
-              placeholder={t('rateList.leaveEmptyToRemove')}
-            />
-            {errors.special_price && (
-              <span className="error-message">{errors.special_price}</span>
-            )}
-            <small style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-              {t('rateList.leaveEmptyToRemoveSpecialPrice')}
-            </small>
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">
+                {t('rateList.specialPrice')} (PKR) <span style={{ fontSize: '12px', color: '#64748b' }}>({t('common.optional')})</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                name="special_price"
+                value={formData.special_price}
+                onChange={handleChange}
+                className={`form-input ${errors.special_price ? 'error' : ''}`}
+                placeholder={t('rateList.leaveEmptyToRemove')}
+              />
+              {errors.special_price && (
+                <span className="error-message">{errors.special_price}</span>
+              )}
+              <small style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                {t('rateList.leaveEmptyToRemoveSpecialPrice')}
+              </small>
+            </div>
           </div>
 
           <div className="modal-actions">

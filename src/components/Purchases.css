@@ -124,3 +124,41 @@
   font-size: 13px;
 }
 
+
+
+/* Purchases list — Issue #19 follow-up: header + actions row */
+.purchases-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.purchases-page__titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.purchases-page__titles .page-title {
+  margin-bottom: 0.35rem;
+}
+
+.purchases-page__header-actions {
+  flex-shrink: 0;
+}
+
+.purchases-page__header-actions .btn {
+  white-space: nowrap;
+}
+
+.purchases-table td .actions-cell {
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .purchases-table td .actions-cell {
+    justify-content: flex-start;
+  }
+}

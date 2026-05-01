@@ -335,3 +335,115 @@
 
 
 
+
+/* Customer detail aligned to supplier detail shell */
+.cdv-skin {
+  background: #f4f3ef !important;
+}
+
+.cdv-skin .cdv2-table-wrap {
+  overflow-x: auto;
+  padding: 10px 14px 14px;
+}
+
+.cdv-skin .cdv2-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cdv-skin .cdv2-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #b0aca4;
+  border-bottom: 1px solid #f0eee9;
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.cdv-skin .cdv2-table td {
+  font-size: 13px;
+  color: #2a2620;
+  border-bottom: 1px solid #f8f7f3;
+  padding: 10px 8px;
+}
+
+.cdv-skin .cdv2-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cdv-skin .cdv2-payment-tag {
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.cdv-skin .cdv2-muted {
+  color: #9ca3af;
+}
+
+.cdv2-historyTabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px 0;
+}
+
+.cdv2-historyTab {
+  border: 1px solid #e7e2d9;
+  background: #fff;
+  color: #6b6760;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cdv2-historyTab.is-active {
+  background: #14120e;
+  border-color: #14120e;
+  color: #fff;
+}
+
+.cdv2-rowActions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.cdv2-rowActionBtn {
+  border: 1px solid #e7e2d9;
+  background: #fff;
+  color: #4b5563;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.cdv2-rowActionBtn:hover {
+  background: #f4f3ef;
+}
+
+/* Customer payment modal absolute centering */
+.cdv2-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  background: rgba(15, 23, 42, 0.42) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.cdv2-modal--centered {
+  width: min(92vw, 500px) !important;
+  max-width: 500px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  border-radius: 14px !important;
+}

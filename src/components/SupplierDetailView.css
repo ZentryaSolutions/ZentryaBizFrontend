@@ -177,3 +177,615 @@
   font-weight: 700;
 }
 
+
+/* Supplier Detail View redesign (left app sidebar untouched) */
+.sdv {
+  background: #f2f1ed;
+  padding: 12px 14px 26px;
+}
+
+.sdv-topbar {
+  height: 48px;
+  background: #fff;
+  border: 1px solid #e8e5df;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  margin-bottom: 14px;
+}
+
+.sdv-back {
+  border: 1px solid #e5e2db;
+  background: transparent;
+  color: #6b6760;
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sdv-breadcrumb { font-size: 13px; color: #9c9890; display: flex; gap: 6px; }
+.sdv-breadcrumb strong { color: #14120e; }
+
+.sdv-hero {
+  position: relative;
+  border-radius: 20px;
+  background: #13111f;
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.sdv-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 55% 90% at 88% 50%, rgba(79,70,229,.32) 0%, transparent 65%),
+    radial-gradient(ellipse 35% 55% at 4% 85%, rgba(139,92,246,.18) 0%, transparent 60%);
+  opacity: .95;
+}
+
+.sdv-hero-row, .sdv-hero-foot { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 16px; }
+.sdv-hero-id { display: flex; gap: 14px; }
+.sdv-avatar { width: 54px; height: 54px; border-radius: 14px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.14); color: #fff; display: grid; place-items: center; font-size: 18px; font-weight: 800; }
+.sdv-hero-id h2 { margin: 0 0 8px; color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.sdv-hero-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sdv-hero-meta span { font-size: 12px; color: rgba(255,255,255,.65); display: inline-flex; align-items: center; gap: 5px; }
+.sdv-status { padding: 3px 10px; border-radius: 999px; }
+.sdv-status.due { color: #34d399; background: rgba(16,185,129,.18); border: 1px solid rgba(16,185,129,.28); }
+.sdv-status.settled { color: #bfdbfe; background: rgba(59,130,246,.16); border: 1px solid rgba(59,130,246,.3); }
+
+.sdv-balance { text-align: right; }
+.sdv-balance span { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.4); }
+.sdv-balance strong { display: block; font-size: 30px; line-height: 1.05; margin-top: 3px; color: #f87171; }
+.sdv-balance strong.settled { color: #34d399; }
+.sdv-balance small { color: rgba(255,255,255,.4); font-size: 11px; }
+
+.sdv-hero-divider { height: 1px; background: rgba(255,255,255,.09); margin: 16px 0; position: relative; z-index: 1; }
+.sdv-kpis { display: flex; gap: 22px; }
+.sdv-kpis strong { color: #fff; display: block; font-size: 15px; }
+.sdv-kpis span { color: rgba(255,255,255,.42); font-size: 11px; }
+.sdv-hero-actions { display: flex; gap: 8px; }
+.sdv-btn { border-radius: 10px; padding: 9px 14px; font-size: 13px; border: none; display: inline-flex; gap: 6px; align-items: center; }
+.sdv-btn.light { background: #fff; color: #14120e; }
+.sdv-btn.dark { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #fff; }
+
+.sdv-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-bottom: 14px; }
+.sdv-card { background: #fff; border: 1px solid #e8e5df; border-radius: 16px; padding: 16px 18px; }
+.sdv-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.sdv-card .icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; }
+.sdv-card .icon.open { background: #fef3f2; color: #ef4444; }
+.sdv-card .icon.credit { background: #eff6ff; color: #2563eb; }
+.sdv-card .icon.paid { background: #f0fdf4; color: #16a34a; }
+.sdv-card .tag { font-size: 11px; font-weight: 600; color: #9c9890; }
+.sdv-card strong { font-size: 22px; color: #14120e; }
+.sdv-card p { margin: 4px 0 0; font-size: 12px; color: #9c9890; }
+
+.sdv-grid { display: grid; grid-template-columns: 1fr 316px; gap: 16px; }
+.sdv-maincard, .sdv-side-card { background: #fff; border: 1px solid #e8e5df; border-radius: 18px; overflow: hidden; }
+.sdv-tabs { display: flex; border-bottom: 1px solid #f0eee9; padding: 0 6px; }
+
+.sdv .tab-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 15px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9c9890;
+}
+
+.sdv .tab-button.active {
+  color: #14120e;
+  border-bottom: 2px solid #4f46e5;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sdv .card-content { padding: 12px 16px 14px; }
+.sdv .table-container { border: none; }
+.sdv .supplier-payments-table th,
+.sdv .ledger-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #b0aca4;
+  border-bottom: 1px solid #f0eee9;
+  background: #fff;
+}
+.sdv .supplier-payments-table td,
+.sdv .ledger-table td { font-size: 13px; border-bottom: 1px solid #f8f7f3; }
+
+.sdv-side { display: flex; flex-direction: column; gap: 14px; }
+.sdv-side-card .hd { padding: 13px 18px; border-bottom: 1px solid #f4f2ee; font-size: 14px; font-weight: 700; }
+.sdv-side-card .row { padding: 9px 18px; border-bottom: 1px solid #f8f7f3; }
+.sdv-side-card .row:last-child { border-bottom: none; }
+.sdv-side-card label { font-size: 10px; text-transform: uppercase; color: #c4c0b8; font-weight: 600; display: block; margin-bottom: 2px; }
+.sdv-side-card p { margin: 0; font-size: 13px; color: #14120e; word-break: break-word; }
+.sdv-side-card .split { display: flex; justify-content: space-between; padding: 8px 18px; font-size: 13px; }
+.sdv-side-card .total { margin: 8px 12px 12px; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; }
+.sdv-side-card .total.due { background: #fff1f1; color: #dc2626; }
+.sdv-side-card .total.settled { background: #f0fdf4; color: #16a34a; }
+
+.activity { display: flex; gap: 10px; padding: 10px 18px; }
+.activity .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; }
+.activity .dot.pay { background: #f0fdf4; color: #16a34a; }
+.activity .dot.purchase { background: #eff6ff; color: #2563eb; }
+.activity p { margin: 0; font-size: 13px; font-weight: 500; }
+.activity small { color: #b0aca4; font-size: 11.5px; }
+.empty-activity { padding: 16px 18px; color: #9c9890; font-size: 12px; }
+
+@media (max-width: 1080px) {
+  .sdv-grid { grid-template-columns: 1fr; }
+  .sdv-cards { grid-template-columns: 1fr; }
+  .sdv-hero-row, .sdv-hero-foot { flex-direction: column; }
+  .sdv-balance { text-align: left; }
+}
+
+/* Remove extra top gap on supplier detail */
+.content-container.sdv {
+  padding-top: 0 !important;
+  min-height: auto;
+}
+
+.sdv-tab-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px 4px;
+  border-top: 1px solid #f0eee9;
+  margin-top: 6px;
+}
+
+.sdv-tab-footer span {
+  font-size: 12px;
+  color: #9c9890;
+}
+
+.sdv-footer-action {
+  border: none;
+  border-radius: 9px;
+  background: #14120e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.sdv-footer-action:hover {
+  background: #2a2820;
+}
+
+/* Smooth premium modal forms (payment + purchase) */
+.sdv-modal-overlay {
+  background: rgba(15, 18, 30, 0.36);
+  backdrop-filter: blur(6px);
+  animation: sdvOverlayIn 220ms ease-out;
+}
+
+.sdv-form-modal {
+  border-radius: 22px;
+  border: 1px solid #ece9e2;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  transform-origin: center;
+  animation: sdvModalIn 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sdv-form-modal--payment {
+  max-width: 520px;
+}
+
+.sdv-form-modal--purchase {
+  max-width: 760px;
+}
+
+.sdv-form-header {
+  background: #fff;
+  border-bottom: 1px solid #f1eee8;
+  padding: 18px 20px 8px;
+}
+
+.sdv-form-header h2 {
+  margin: 0;
+  font-size: 31px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #14120e;
+}
+
+.sdv-form-subtitle {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: #9c9890;
+}
+
+.sdv-form-body {
+  padding: 14px 20px 18px;
+}
+
+.sdv-form-body .form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a4740;
+  margin-bottom: 6px;
+}
+
+.sdv-form-body .form-input {
+  background: #faf9f6;
+  border: 1.5px solid #e8e5df;
+  border-radius: 10px;
+  box-shadow: none;
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+
+.sdv-form-body .form-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background: #fff;
+}
+
+.sdv-form-actions {
+  border-top: none;
+  margin-top: 10px;
+  padding-top: 0;
+  gap: 8px;
+}
+
+.sdv-form-cancel {
+  background: #fff;
+  color: #6b6760;
+  border: 1px solid #e8e5df;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.sdv-form-cancel:hover {
+  background: #f8f6f2;
+  transform: none;
+}
+
+.sdv-form-save {
+  background: #14120e;
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: none;
+  border: 1px solid #14120e;
+}
+
+.sdv-form-save:hover:not(:disabled) {
+  background: #2a2820;
+  border-color: #2a2820;
+  transform: translateY(-1px);
+}
+
+@keyframes sdvOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sdvModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Compact modal sizing pass */
+.sdv-form-modal--payment {
+  width: min(92vw, 400px);
+  max-width: 400px;
+}
+
+.sdv-form-modal--purchase {
+  width: min(94vw, 560px);
+  max-width: 560px;
+}
+
+.sdv-form-header {
+  padding: 14px 18px 6px;
+}
+
+.sdv-form-header h2 {
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+
+.sdv-form-subtitle {
+  margin-top: 3px;
+  font-size: 11.5px;
+}
+
+.sdv-form-body {
+  padding: 10px 18px 14px;
+}
+
+.sdv-form-body .zb-form-grid {
+  gap: 10px;
+}
+
+.sdv-form-body .form-group {
+  margin-bottom: 10px;
+}
+
+.sdv-form-body .form-input {
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.sdv-form-actions {
+  margin-top: 2px;
+}
+
+.sdv-form-actions .btn {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+
+/* Final exact compact pass for Record Payment modal */
+.sdv-form-modal--payment {
+  width: min(92vw, 400px) !important;
+  max-width: 400px !important;
+  max-height: min(84vh, 430px);
+  overflow: hidden;
+}
+
+.sdv-form-modal--payment .sdv-form-header {
+  padding: 16px 18px 6px;
+}
+
+.sdv-form-modal--payment .sdv-form-header h2 {
+  font-family: 'Bricolage Grotesque', 'DM Sans', 'Inter', system-ui, sans-serif;
+  font-size: 35px;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.sdv-form-modal--payment .sdv-form-subtitle {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.sdv-form-modal--payment .sdv-form-body {
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+  padding: 10px 18px 12px;
+  overflow: hidden;
+}
+
+.sdv-form-modal--payment .zb-form-grid {
+  gap: 8px;
+}
+
+.sdv-form-modal--payment .form-group {
+  margin-bottom: 8px;
+}
+
+.sdv-form-modal--payment .form-label {
+  font-size: 12px;
+  margin-bottom: 5px;
+  line-height: 1.2;
+}
+
+.sdv-form-modal--payment .form-input {
+  height: 32px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.sdv-form-modal--payment textarea.form-input {
+  height: 32px;
+  min-height: 32px;
+  resize: none;
+  padding-top: 7px;
+  overflow: hidden;
+}
+
+.sdv-form-modal--payment .sdv-form-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sdv-form-modal--payment .sdv-form-actions .btn {
+  min-height: 32px;
+  height: 32px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* keep payment modal visible even on short laptop screens */
+@media (max-height: 760px) {
+  .sdv-form-modal--payment {
+    max-height: min(88vh, 410px);
+  }
+
+  .sdv-form-modal--payment .sdv-form-header h2 {
+    font-size: 32px;
+  }
+}
+
+/* Force modal overlay above sidebar/header and full viewport */
+.modal-overlay,
+.sdv-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  overflow: hidden !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Never clip payment modal content, keep fully visible without page scroll */
+.sdv-form-modal--payment {
+  max-height: min(82vh, 392px) !important;
+  overflow: hidden !important;
+}
+
+.sdv-form-modal--payment .sdv-form-header h2 {
+  font-size: 28px !important;
+  line-height: 1.05 !important;
+}
+
+.sdv-form-modal--payment .sdv-form-body {
+  padding: 8px 16px 10px !important;
+}
+
+.sdv-form-modal--payment .form-group {
+  margin-bottom: 7px !important;
+}
+
+.sdv-form-modal--payment .form-input {
+  height: 31px !important;
+  min-height: 31px !important;
+}
+
+.sdv-form-modal--payment textarea.form-input {
+  height: 31px !important;
+}
+
+/* Make New Purchase modal compact like Record Payment */
+.sdv-form-modal--purchase {
+  width: min(94vw, 430px) !important;
+  max-width: 430px !important;
+  max-height: min(86vh, 500px) !important;
+  overflow: hidden !important;
+}
+
+.sdv-form-modal--purchase .sdv-form-header {
+  padding: 14px 16px 6px;
+}
+
+.sdv-form-modal--purchase .sdv-form-header h2 {
+  font-size: 28px !important;
+  line-height: 1.05;
+}
+
+.sdv-form-modal--purchase .sdv-form-subtitle {
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.sdv-form-modal--purchase .sdv-form-body {
+  padding: 8px 14px 12px !important;
+  overflow-y: auto;
+}
+
+.sdv-form-modal--purchase .form-group {
+  margin-bottom: 8px !important;
+}
+
+.sdv-form-modal--purchase .form-label {
+  font-size: 11.5px;
+  margin-bottom: 4px;
+}
+
+.sdv-form-modal--purchase .form-input {
+  height: 32px;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.sdv-form-modal--purchase .purchase-items-section {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #f1eee8;
+}
+
+.sdv-form-modal--purchase .purchase-items-section h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.sdv-form-modal--purchase .items-table {
+  margin-top: 8px !important;
+}
+
+.sdv-form-modal--purchase .items-table th,
+.sdv-form-modal--purchase .items-table td {
+  padding: 8px 6px;
+  font-size: 12px;
+}
+
+.sdv-form-modal--purchase .sdv-form-actions {
+  margin-top: 6px;
+}
+
+.sdv-form-modal--purchase .sdv-form-actions .btn {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* Remove extra top gap on suppliers routes */
+.main-content.main-content--compact-top {
+  padding-top: var(--header-height) !important;
+}
+
+/* Full-width supplier detail: remove side empty gutters */
+.content-container.sdv {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.content-container.sdv .sdv {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.content-container.sdv .sdv-topbar,
+.content-container.sdv .sdv-hero,
+.content-container.sdv .sdv-cards,
+.content-container.sdv .sdv-grid {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Only keep top strip square under navbar */
+.content-container.sdv .sdv-topbar {
+  border-radius: 0 !important;
+}
+
+
+
+/* Restore side breathing space on supplier detail */
+.content-container.sdv {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* Top breadcrumb strip only: remove side gutters */
+.content-container.sdv .sdv-topbar {
+  margin-left: -12px !important;
+  margin-right: -12px !important;
+}

@@ -90,27 +90,8 @@
   padding-bottom: 2px;
 }
 
-.form-label--icon {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.pm-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: #4f46e5;
-  opacity: 0.9;
-}
-
 .pm-checkbox-label {
   margin-bottom: 0;
-  align-items: flex-start;
 }
 
 .pm-checkbox-wrap {

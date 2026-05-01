@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faArrowLeft,
+  faBook,
+  faChartLine,
+  faCircle,
+  faDollarSign,
+  faLocationDot,
+  faPhone,
+  faReceipt,
+  faTruck,
+} from '@fortawesome/free-solid-svg-icons';
 import { suppliersAPI, supplierPaymentsAPI, purchasesAPI, productsAPI } from '../services/api';
 import Pagination from './Pagination';
 import './SupplierDetailView.css';
@@ -28,6 +41,13 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [deletePurchaseConfirm, setDeletePurchaseConfirm] = useState(null);
   const [newPurchaseModalOpen, setNewPurchaseModalOpen] = useState(false);
+  const hasOpenModal =
+    paymentModalOpen ||
+    newPurchaseModalOpen ||
+    Boolean(editingPurchase) ||
+    Boolean(viewingPurchase) ||
+    Boolean(deletePaymentConfirm) ||
+    Boolean(deletePurchaseConfirm);
 
   useEffect(() => {
     fetchSupplierDetails();
@@ -44,6 +64,18 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
       fetchPurchases();
     }
   }, [activeTab, supplierId]);
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    if (hasOpenModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = previous || '';
+    }
+    return () => {
+      document.body.style.overflow = previous || '';
+    };
+  }, [hasOpenModal]);
 
   const fetchSupplierDetails = async () => {
     try {
@@ -168,21 +200,30 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
     });
   };
 
-  // Pagination for ledger transactions
-  const ledgerTransactions = ledger?.transactions || [];
+  const sortByLatestDate = (items, getDate) =>
+    [...(items || [])].sort((a, b) => {
+      const da = new Date(getDate(a) || 0).getTime();
+      const db = new Date(getDate(b) || 0).getTime();
+      return db - da;
+    });
+
+  // Pagination for ledger transactions (latest first)
+  const ledgerTransactions = sortByLatestDate(ledger?.transactions || [], (x) => x?.transaction_date);
   const ledgerTotalPages = Math.ceil(ledgerTransactions.length / itemsPerPage);
   const ledgerStartIndex = (currentPage - 1) * itemsPerPage;
   const paginatedTransactions = ledgerTransactions.slice(ledgerStartIndex, ledgerStartIndex + itemsPerPage);
 
-  // Pagination for payments
-  const paymentsTotalPages = Math.ceil(payments.length / itemsPerPage);
+  // Pagination for payments (latest first)
+  const sortedPayments = sortByLatestDate(payments, (x) => x?.payment_date || x?.created_at);
+  const paymentsTotalPages = Math.ceil(sortedPayments.length / itemsPerPage);
   const paymentsStartIndex = (paymentsPage - 1) * itemsPerPage;
-  const paginatedPayments = payments.slice(paymentsStartIndex, paymentsStartIndex + itemsPerPage);
+  const paginatedPayments = sortedPayments.slice(paymentsStartIndex, paymentsStartIndex + itemsPerPage);
 
-  // Pagination for purchases
-  const purchasesTotalPages = Math.ceil(purchases.length / itemsPerPage);
+  // Pagination for purchases (latest first)
+  const sortedPurchases = sortByLatestDate(purchases, (x) => x?.date || x?.created_at);
+  const purchasesTotalPages = Math.ceil(sortedPurchases.length / itemsPerPage);
   const purchasesStartIndex = (purchasesPage - 1) * itemsPerPage;
-  const paginatedPurchases = purchases.slice(purchasesStartIndex, purchasesStartIndex + itemsPerPage);
+  const paginatedPurchases = sortedPurchases.slice(purchasesStartIndex, purchasesStartIndex + itemsPerPage);
 
   if (loading && !supplier) {
     return (
@@ -202,534 +243,364 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
   }
 
   const balance = parseFloat(supplier?.current_payable_balance || 0);
+  const creditPurchases = parseFloat(supplier?.total_credit_purchases || 0);
+  const totalPaid = parseFloat(supplier?.total_paid || 0);
+  const lifetimeValue = parseFloat(supplier?.opening_balance || 0) + creditPurchases;
+  const purchaseOrdersCount = purchases.length;
+  const paymentCount = payments.length;
+  const lastMovementDate =
+    supplier?.last_purchase_date || supplier?.last_payment_date || supplier?.created_at || null;
+  const isRecentlyActive = (() => {
+    if (!lastMovementDate) return false;
+    const movementTs = new Date(lastMovementDate).getTime();
+    if (Number.isNaN(movementTs)) return false;
+    const diffDays = Math.floor((Date.now() - movementTs) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  })();
+  const initials = String(supplier?.name || 'SP')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0] || '')
+    .join('')
+    .toUpperCase();
+  const activityItems = [
+    ...(sortedPurchases[0]
+      ? [
+          {
+            type: 'purchase',
+            title: 'Purchase recorded',
+            meta: `${formatCurrency(sortedPurchases[0].total_amount)} · ${formatDateShort(sortedPurchases[0].date)}`,
+          },
+        ]
+      : []),
+    ...(sortedPayments[0]
+      ? [
+          {
+            type: 'payment',
+            title: 'Payment made',
+            meta: `${formatCurrency(sortedPayments[0].amount)} · ${formatDateShort(sortedPayments[0].payment_date)}`,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="content-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 className="page-title">{t('suppliers.supplierDetails')}</h1>
-            <p className="page-subtitle">{t('suppliers.supplierDetailsSubtitle')}</p>
-          </div>
-          <button className="btn btn-secondary" onClick={onClose}>
-            ← {t('suppliers.backToSuppliers')}
-          </button>
+    <div className="content-container sdv">
+      <div className="sdv-topbar">
+        <button className="sdv-back" onClick={onClose}>
+          <FontAwesomeIcon icon={faArrowLeft} /> Back
+        </button>
+        <div className="sdv-breadcrumb">
+          <span>Suppliers</span>
+          <span>›</span>
+          <strong>{supplier?.name || 'Supplier'}</strong>
         </div>
       </div>
 
-      {error && (
-        <div className="error-message" style={{ marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="error-message">{error}</div>}
 
-      {/* Supplier Information Card */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div className="card-header">
-          <h2>{t('suppliers.supplierInformation')}</h2>
-        </div>
-        <div className="card-content">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', padding: '20px' }}>
+      <section className="sdv-hero">
+        <div className="sdv-hero-bg" aria-hidden="true" />
+        <div className="sdv-hero-row">
+          <div className="sdv-hero-id">
+            <div className="sdv-avatar">{initials}</div>
             <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.supplierName')}
-              </label>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
-                {supplier?.name || 'N/A'}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.phone')}
-              </label>
-              <div style={{ fontSize: '16px', color: '#475569' }}>
-                {supplier?.contact_number || '-'}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.address')}
-              </label>
-              <div style={{ fontSize: '16px', color: '#475569' }}>
-                {supplier?.address || '-'}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.amountAlreadyOwed')}
-              </label>
-              <div style={{ fontSize: '16px', color: '#475569' }}>
-                {formatCurrency(supplier?.opening_balance || 0)}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.totalCreditPurchases')}
-              </label>
-              <div style={{ fontSize: '16px', color: '#475569' }}>
-                {formatCurrency(supplier?.total_credit_purchases || 0)}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                {t('suppliers.totalPaid')}
-              </label>
-              <div style={{ fontSize: '16px', color: '#475569' }}>
-                {formatCurrency(supplier?.total_paid || 0)}
+              <h2>{supplier?.name || 'Supplier'}</h2>
+              <div className="sdv-hero-meta">
+                <span>
+                  <FontAwesomeIcon icon={faPhone} /> {supplier?.contact_number || '-'}
+                </span>
+                <span>
+                  <FontAwesomeIcon icon={faLocationDot} /> {supplier?.address || '-'}
+                </span>
+                <span className={`sdv-status ${isRecentlyActive ? 'due' : 'settled'}`}>
+                  {isRecentlyActive ? 'Active' : 'Inactive'}
+                </span>
               </div>
             </div>
           </div>
+          <div className="sdv-balance">
+            <span>Current Payable</span>
+            <strong className={balance > 0 ? 'due' : 'settled'}>{formatCurrency(Math.abs(balance))}</strong>
+            <small>Opening + purchases - payments</small>
+          </div>
+        </div>
 
-          {/* Current Payable Balance - Prominent Display */}
-          <div style={{ 
-            marginTop: '24px', 
-            padding: '20px', 
-            backgroundColor: balance > 0 ? '#fef2f2' : balance === 0 ? '#f0fdf4' : '#f8fafc',
-            borderTop: '2px solid',
-            borderColor: balance > 0 ? '#dc2626' : balance === 0 ? '#059669' : '#cbd5e1',
-            borderRadius: '0 0 8px 8px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', display: 'block', marginBottom: '8px' }}>
-                  {t('suppliers.currentPayableBalance')}
-                </label>
-                <div style={{ 
-                  fontSize: '28px', 
-                  fontWeight: '700',
-                  color: balance > 0 ? '#dc2626' : balance === 0 ? '#059669' : '#64748b'
-                }}>
-                  {formatCurrency(balance)}
-                </div>
-                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', marginBottom: 0 }}>
-                  {t('suppliers.balanceFormula')}
-                </p>
-              </div>
-              <div style={{ 
-                padding: '12px 24px',
-                backgroundColor: balance > 0 ? '#dc2626' : balance === 0 ? '#059669' : '#64748b',
-                color: '#ffffff',
-                borderRadius: '8px',
-                fontWeight: '600',
-                fontSize: '14px'
-              }}>
-                {balance > 0 ? t('suppliers.amountDue') : balance === 0 ? t('suppliers.allPaid') : t('suppliers.advancePaid')}
-              </div>
+        <div className="sdv-hero-divider" />
+        <div className="sdv-hero-foot">
+          <div className="sdv-kpis">
+            <div>
+              <strong>{purchaseOrdersCount}</strong>
+              <span>Purchase Orders</span>
+            </div>
+            <div>
+              <strong>{formatCurrency(totalPaid)}</strong>
+              <span>Total Paid</span>
+            </div>
+            <div>
+              <strong>{formatCurrency(lifetimeValue)}</strong>
+              <span>Lifetime Value</span>
             </div>
           </div>
+          {!readOnly ? (
+            <div className="sdv-hero-actions">
+              <button className="sdv-btn light" onClick={() => setPaymentModalOpen(true)}>
+                <FontAwesomeIcon icon={faDollarSign} /> Record Payment
+              </button>
+              <button className="sdv-btn dark" onClick={() => setNewPurchaseModalOpen(true)}>
+                <FontAwesomeIcon icon={faReceipt} /> New Purchase
+              </button>
+            </div>
+          ) : null}
         </div>
-      </div>
+      </section>
 
-      {/* Tabs */}
-      <div className="card">
-        <div className="card-header">
-          <div className="tabs-container">
-            <button
-              className={`tab-button ${activeTab === 'ledger' ? 'active' : ''}`}
-              onClick={() => setActiveTab('ledger')}
-            >
-              {t('suppliers.moneyHistory')}
+      <section className="sdv-cards">
+        <article className="sdv-card">
+          <div className="sdv-card-top">
+            <span className="icon open">
+              <FontAwesomeIcon icon={faTruck} />
+            </span>
+            <span className="tag">Opening</span>
+          </div>
+          <strong>{formatCurrency(supplier?.opening_balance || 0)}</strong>
+          <p>Opening Balance</p>
+        </article>
+        <article className="sdv-card">
+          <div className="sdv-card-top">
+            <span className="icon credit">
+              <FontAwesomeIcon icon={faReceipt} />
+            </span>
+            <span className="tag">Credit</span>
+          </div>
+          <strong>{formatCurrency(creditPurchases)}</strong>
+          <p>Credit Purchases</p>
+        </article>
+        <article className="sdv-card">
+          <div className="sdv-card-top">
+            <span className="icon paid">
+              <FontAwesomeIcon icon={faDollarSign} />
+            </span>
+            <span className="tag">Paid</span>
+          </div>
+          <strong>{formatCurrency(totalPaid)}</strong>
+          <p>Total Payments</p>
+        </article>
+      </section>
+
+      <section className="sdv-grid">
+        <div className="sdv-maincard">
+          <div className="sdv-tabs">
+            <button className={`tab-button ${activeTab === 'purchases' ? 'active' : ''}`} onClick={() => setActiveTab('purchases')}>
+              <FontAwesomeIcon icon={faTruck} /> Purchase History
             </button>
-            <button
-              className={`tab-button ${activeTab === 'payments' ? 'active' : ''}`}
-              onClick={() => setActiveTab('payments')}
-            >
-              {t('suppliers.payments')}
+            <button className={`tab-button ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>
+              <FontAwesomeIcon icon={faDollarSign} /> Payments
             </button>
-            <button
-              className={`tab-button ${activeTab === 'purchases' ? 'active' : ''}`}
-              onClick={() => setActiveTab('purchases')}
-            >
-              {t('purchases.title')}
+            <button className={`tab-button ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
+              <FontAwesomeIcon icon={faBook} /> Ledger
             </button>
           </div>
-        </div>
 
-        <div className="card-content">
-          {/* Ledger Tab */}
-          {activeTab === 'ledger' && (
-            <div>
-              {loading ? (
-                <div className="loading">{t('common.loading')} {t('suppliers.moneyHistory').toLowerCase()}...</div>
-              ) : !ledger || !ledger.transactions || ledger.transactions.length === 0 ? (
-                <div className="empty-state" style={{ padding: '40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '8px', border: '2px dashed #cbd5e1' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>{t('suppliers.noTransactionsFound')}</div>
-                  <div style={{ fontSize: '14px', color: '#64748b' }}>{t('suppliers.noMoneyHistory')}</div>
-                </div>
-              ) : (
-                <>
-                  {/* Money History Summary */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-                    gap: '20px', 
-                    marginBottom: '24px',
-                    padding: '20px',
-                    backgroundColor: '#f8fafc',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <div style={{ padding: '16px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        {t('suppliers.amountAlreadyOwed')}
-                      </label>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>
-                        {formatCurrency(ledger.opening_balance || 0)}
-                      </div>
-                    </div>
-                    <div style={{ padding: '16px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        {t('suppliers.currentBalance')}
-                      </label>
-                      <div style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '700', 
-                        color: parseFloat(ledger.current_balance || 0) > 0 ? '#dc2626' : parseFloat(ledger.current_balance || 0) === 0 ? '#059669' : '#64748b'
-                      }}>
-                        {formatCurrency(ledger.current_balance || 0)}
-                      </div>
-                    </div>
-                    <div style={{ padding: '16px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        {t('suppliers.totalTransactions')}
-                      </label>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>
-                        {ledger.transactions?.length || 0}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Money History Table */}
-                  <div className="table-container">
-                    <table className="ledger-table">
-                      <thead>
-                        <tr>
-                          <th>{t('common.date')}</th>
-                          <th>{t('suppliers.type')}</th>
-                          <th>{t('suppliers.description')}</th>
-                          <th style={{ textAlign: 'right' }}>{t('expenses.amount')}</th>
-                          <th style={{ textAlign: 'right' }}>{t('suppliers.runningBalance')}</th>
+          <div className="card-content">
+            {activeTab === 'purchases' && (
+              <div className="table-container">
+                <table className="supplier-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingPurchases ? (
+                      <tr><td colSpan="4">Loading purchases...</td></tr>
+                    ) : paginatedPurchases.length === 0 ? (
+                      <tr><td colSpan="4">{t('suppliers.noPurchasesFound')}</td></tr>
+                    ) : (
+                      paginatedPurchases.map((purchase) => (
+                        <tr key={purchase.purchase_id}>
+                          <td>Purchase #{purchase.purchase_id}</td>
+                          <td>{formatDateShort(purchase.date)}</td>
+                          <td>{formatCurrency(purchase.total_amount)}</td>
+                          <td style={{ textTransform: 'capitalize' }}>{purchase.payment_type || 'cash'}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedTransactions.map((transaction, index) => {
-                          const isPurchase = transaction.transaction_type === 'Purchase';
-                          const isCredit = isPurchase && transaction.payment_type === 'credit';
-                          const runningBalance = parseFloat(transaction.running_balance || 0);
-                          
-                          return (
-                            <tr key={`${transaction.transaction_type}-${transaction.transaction_id}-${index}`}>
-                              <td>{formatDateShort(transaction.transaction_date)}</td>
-                              <td>
-                                <span className={`transaction-type-badge ${isPurchase ? 'purchase' : 'payment'}`}>
-                                  {isPurchase ? t('purchases.title') : t('suppliers.payment')}
-                                </span>
-                              </td>
-                              <td>
-                                <div>
-                                  <div style={{ fontWeight: '500' }}>
-                                    {transaction.description || (isPurchase ? t('suppliers.creditPurchase') : t('suppliers.payment'))}
-                                  </div>
-                                  {transaction.payment_method && (
-                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                      {t('suppliers.method')}: {transaction.payment_method}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                <span style={{
-                                  fontWeight: '600',
-                                  color: isPurchase ? '#059669' : '#dc2626'
-                                }}>
-                                  {isPurchase ? '+' : '-'}{formatCurrency(transaction.amount)}
-                                </span>
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                <span style={{
-                                  fontWeight: '600',
-                                  color: runningBalance > 0 ? '#dc2626' : runningBalance === 0 ? '#059669' : '#64748b',
-                                  fontSize: '15px'
-                                }}>
-                                  {formatCurrency(runningBalance)}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  {ledgerTransactions.length > 0 && (
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={ledgerTotalPages}
-                      itemsPerPage={itemsPerPage}
-                      totalItems={ledgerTransactions.length}
-                      onPageChange={setCurrentPage}
-                      onItemsPerPageChange={(newItemsPerPage) => {
-                        setItemsPerPage(newItemsPerPage);
-                        setCurrentPage(1);
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Payments Tab */}
-          {activeTab === 'payments' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #e2e8f0' }}>
-                <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>{t('suppliers.supplierPayments')}</h3>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>{t('suppliers.allPaymentsToSupplier')}</p>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="sdv-tab-footer">
+                  <span>{sortedPurchases.length} order{sortedPurchases.length !== 1 ? 's' : ''}</span>
+                  {!readOnly ? (
+                    <button className="sdv-footer-action" onClick={() => setNewPurchaseModalOpen(true)}>
+                      + New Purchase
+                    </button>
+                  ) : null}
                 </div>
-                {!readOnly && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setEditingPayment(null);
-                      setPaymentModalOpen(true);
+                {purchases.length > 0 ? (
+                  <Pagination
+                    currentPage={purchasesPage}
+                    totalPages={purchasesTotalPages}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={purchases.length}
+                    onPageChange={setPurchasesPage}
+                    onItemsPerPageChange={(newItemsPerPage) => {
+                      setItemsPerPage(newItemsPerPage);
+                      setPurchasesPage(1);
                     }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    <span>+</span> {t('suppliers.recordPayment')}
-                  </button>
-                )}
+                  />
+                ) : null}
               </div>
+            )}
 
-              {loadingPayments ? (
-                <div className="loading">{t('common.loading')} {t('suppliers.payments').toLowerCase()}...</div>
-              ) : payments.length === 0 ? (
-                <div className="empty-state" style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '8px', border: '2px dashed #cbd5e1' }}>
-                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>💳</div>
-                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>{t('suppliers.noPaymentsFound')}</div>
-                  <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>{t('suppliers.noPaymentRecords')}</div>
-                  {!readOnly && (
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => {
-                        setEditingPayment(null);
-                        setPaymentModalOpen(true);
-                      }}
-                    >
-                      {t('suppliers.recordFirstPayment')}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <div className="table-container">
-                    <table className="supplier-payments-table">
-                      <thead>
-                        <tr>
-                          <th>{t('common.date')}</th>
-                          <th>{t('expenses.amount')}</th>
-                          <th>{t('expenses.paymentMethod')}</th>
-                          <th>{t('expenses.notes')}</th>
-                          {!readOnly && <th>{t('common.actions')}</th>}
+            {activeTab === 'payments' && (
+              <div className="table-container">
+                <table className="supplier-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Note</th>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Method</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingPayments ? (
+                      <tr><td colSpan="4">Loading payments...</td></tr>
+                    ) : paginatedPayments.length === 0 ? (
+                      <tr><td colSpan="4">{t('suppliers.noPaymentsFound')}</td></tr>
+                    ) : (
+                      paginatedPayments.map((payment) => (
+                        <tr key={payment.payment_id}>
+                          <td>{payment.notes || 'Payment to supplier'}</td>
+                          <td>{formatDateShort(payment.payment_date)}</td>
+                          <td style={{ color: '#16a34a', fontWeight: 600 }}>{formatCurrency(payment.amount)}</td>
+                          <td>{payment.payment_method || 'cash'}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedPayments.map((payment) => (
-                          <tr key={payment.payment_id}>
-                            <td>{formatDateShort(payment.payment_date)}</td>
-                            <td style={{ fontWeight: 'bold', color: '#059669' }}>
-                              {formatCurrency(payment.amount)}
-                            </td>
-                            <td>
-                              <span className="payment-method-badge">
-                                {payment.payment_method || 'cash'}
-                              </span>
-                            </td>
-                            <td>{payment.notes || '-'}</td>
-                            {!readOnly && (
-                              <td className="actions-cell">
-                                <button
-                                  className="btn-edit"
-                                  onClick={() => {
-                                    setEditingPayment(payment);
-                                    setPaymentModalOpen(true);
-                                  }}
-                                >
-                                  {t('common.edit')}
-                                </button>
-                                <button
-                                  className="btn-delete"
-                                  onClick={() => setDeletePaymentConfirm(payment.payment_id)}
-                                >
-                                  {t('common.delete')}
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {payments.length > 0 && (
-                    <Pagination
-                      currentPage={paymentsPage}
-                      totalPages={paymentsTotalPages}
-                      itemsPerPage={itemsPerPage}
-                      totalItems={payments.length}
-                      onPageChange={setPaymentsPage}
-                      onItemsPerPageChange={(newItemsPerPage) => {
-                        setItemsPerPage(newItemsPerPage);
-                        setPaymentsPage(1);
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Purchases Tab */}
-          {activeTab === 'purchases' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #e2e8f0' }}>
-                <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>{t('suppliers.purchaseHistory')}</h3>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>{t('suppliers.allPurchasesFromSupplier')}</p>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="sdv-tab-footer">
+                  <span>{sortedPayments.length} payment{sortedPayments.length !== 1 ? 's' : ''}</span>
+                  {!readOnly ? (
+                    <button className="sdv-footer-action" onClick={() => setPaymentModalOpen(true)}>
+                      + Record Payment
+                    </button>
+                  ) : null}
                 </div>
-                {!readOnly && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setNewPurchaseModalOpen(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    <span>+</span> {t('purchases.newPurchase')}
-                  </button>
-                )}
+                {payments.length > 0 ? (
+                  <Pagination
+                    currentPage={paymentsPage}
+                    totalPages={paymentsTotalPages}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={payments.length}
+                    onPageChange={setPaymentsPage}
+                    onItemsPerPageChange={(newItemsPerPage) => {
+                      setItemsPerPage(newItemsPerPage);
+                      setPaymentsPage(1);
+                    }}
+                  />
+                ) : null}
               </div>
+            )}
 
-              {loadingPurchases ? (
-                <div className="loading">{t('common.loading')} {t('purchases.title').toLowerCase()}...</div>
-              ) : purchases.length === 0 ? (
-                  <div className="empty-state" style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '8px', border: '2px dashed #cbd5e1' }}>
-                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
-                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>{t('suppliers.noPurchasesFound')}</div>
-                  <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>{t('suppliers.noPurchaseRecords')}</div>
-                  {!readOnly && (
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => setNewPurchaseModalOpen(true)}
-                    >
-                      {t('suppliers.createFirstPurchase')}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <div className="table-container" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                    <table className="purchases-table" style={{ margin: 0 }}>
-                      <thead>
-                        <tr>
-                          <th>{t('purchases.purchaseId')}</th>
-                          <th>{t('common.date')}</th>
-                          <th>{t('purchases.items')}</th>
-                          <th style={{ textAlign: 'right' }}>{t('purchases.totalAmount')}</th>
-                          <th>{t('purchases.paymentType')}</th>
-                          <th>{t('common.actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedPurchases.map((purchase) => (
-                          <tr key={purchase.purchase_id}>
-                            <td><strong style={{ color: '#1e293b' }}>#{purchase.purchase_id}</strong></td>
-                            <td>{formatDateShort(purchase.date)}</td>
-                            <td>
-                              <span style={{ 
-                                display: 'inline-block', 
-                                padding: '4px 10px', 
-                                backgroundColor: '#eff6ff', 
-                                color: '#1e40af', 
-                                borderRadius: '4px',
-                                fontSize: '13px',
-                                fontWeight: '600'
-                              }}>
-                                {purchase.item_count || 0} {t('purchases.item', { count: purchase.item_count || 0 })}
-                              </span>
+            {activeTab === 'ledger' && (
+              <div className="table-container">
+                <table className="ledger-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th style={{ textAlign: 'right' }}>Amount</th>
+                      <th style={{ textAlign: 'right' }}>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan="5">Loading ledger...</td></tr>
+                    ) : paginatedTransactions.length === 0 ? (
+                      <tr><td colSpan="5">{t('suppliers.noTransactionsFound')}</td></tr>
+                    ) : (
+                      paginatedTransactions.map((transaction, index) => {
+                        const isPurchase = transaction.transaction_type === 'Purchase';
+                        const runningBalance = parseFloat(transaction.running_balance || 0);
+                        return (
+                          <tr key={`${transaction.transaction_type}-${transaction.transaction_id}-${index}`}>
+                            <td>{formatDateShort(transaction.transaction_date)}</td>
+                            <td>{isPurchase ? 'Purchase' : 'Payment'}</td>
+                            <td>{transaction.description || '-'}</td>
+                            <td style={{ textAlign: 'right', color: isPurchase ? '#dc2626' : '#16a34a' }}>
+                              {isPurchase ? '+' : '-'}{formatCurrency(transaction.amount)}
                             </td>
-                            <td style={{ textAlign: 'right', fontWeight: '700', fontSize: '15px', color: '#059669' }}>
-                              {formatCurrency(purchase.total_amount)}
-                            </td>
-                            <td>
-                              <span className={`payment-badge ${purchase.payment_type || 'cash'}`} style={{ textTransform: 'capitalize', fontSize: '13px' }}>
-                                {purchase.payment_type || 'cash'}
-                              </span>
-                            </td>
-                            <td className="actions-cell">
-                              <button
-                                className="btn-view"
-                                onClick={async () => {
-                                  try {
-                                    const response = await purchasesAPI.getById(purchase.purchase_id);
-                                    setViewingPurchase(response.data);
-                                  } catch (err) {
-                                    alert(t('purchases.failedToLoadDetails'));
-                                  }
-                                }}
-                              >
-                                {t('common.view')}
-                              </button>
-                              {!readOnly && (
-                                <>
-                                  <button
-                                    className="btn-edit"
-                                    onClick={async () => {
-                                      try {
-                                        const response = await purchasesAPI.getById(purchase.purchase_id);
-                                        setEditingPurchase(response.data);
-                                      } catch (err) {
-                                        alert(t('purchases.failedToLoadForEdit'));
-                                      }
-                                    }}
-                                  >
-                                    {t('common.edit')}
-                                  </button>
-                                  <button
-                                    className="btn-delete"
-                                    onClick={() => setDeletePurchaseConfirm(purchase.purchase_id)}
-                                  >
-                                    {t('common.delete')}
-                                  </button>
-                                </>
-                              )}
-                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(runningBalance)}</td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {purchases.length > 0 && (
-                    <Pagination
-                      currentPage={purchasesPage}
-                      totalPages={purchasesTotalPages}
-                      itemsPerPage={itemsPerPage}
-                      totalItems={purchases.length}
-                      onPageChange={setPurchasesPage}
-                      onItemsPerPageChange={(newItemsPerPage) => {
-                        setItemsPerPage(newItemsPerPage);
-                        setPurchasesPage(1);
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          )}
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+                {ledgerTransactions.length > 0 ? (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={ledgerTotalPages}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={ledgerTransactions.length}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={(newItemsPerPage) => {
+                      setItemsPerPage(newItemsPerPage);
+                      setCurrentPage(1);
+                    }}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+
+        <aside className="sdv-side">
+          <div className="sdv-side-card">
+            <div className="hd">Supplier Info</div>
+            <div className="row"><label>Company</label><p>{supplier?.name || '-'}</p></div>
+            <div className="row"><label>Phone</label><p>{supplier?.contact_number || '-'}</p></div>
+            <div className="row"><label>Email</label><p>{supplier?.email || '-'}</p></div>
+            <div className="row"><label>Address</label><p>{supplier?.address || '-'}</p></div>
+            <div className="row"><label>Notes</label><p>{supplier?.notes || '-'}</p></div>
+          </div>
+          <div className="sdv-side-card">
+            <div className="hd">Balance Breakdown</div>
+            <div className="split"><span>Opening balance</span><strong>{formatCurrency(supplier?.opening_balance || 0)}</strong></div>
+            <div className="split"><span>+ Credit purchases</span><strong>{formatCurrency(creditPurchases)}</strong></div>
+            <div className="split"><span>- Payments made</span><strong>{formatCurrency(totalPaid)}</strong></div>
+            <div className={`total ${balance > 0 ? 'due' : 'settled'}`}>
+              <span>{balance > 0 ? 'Amount Owed' : 'Settled'}</span>
+              <strong>{formatCurrency(Math.abs(balance))}</strong>
+            </div>
+          </div>
+          <div className="sdv-side-card">
+            <div className="hd">Activity</div>
+            {activityItems.length === 0 ? (
+              <div className="empty-activity">No activity yet</div>
+            ) : (
+              activityItems.map((item, idx) => (
+                <div className="activity" key={`${item.type}-${idx}`}>
+                  <span className={`dot ${item.type === 'payment' ? 'pay' : 'purchase'}`}>
+                    <FontAwesomeIcon icon={item.type === 'payment' ? faDollarSign : faChartLine} />
+                  </span>
+                  <div>
+                    <p>{item.title}</p>
+                    <small>{item.meta}</small>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      </section>
 
       {/* Payment Modal */}
       {paymentModalOpen && (
@@ -855,7 +726,9 @@ const PurchaseDetailModal = ({ purchase, onClose, onEdit, onDelete, readOnly }) 
     minute: '2-digit'
   });
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal((
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
       <div className="modal" style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto', zIndex: 2001, backgroundColor: '#ffffff' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px', backgroundColor: '#f8fafc' }}>
@@ -960,7 +833,7 @@ const PurchaseDetailModal = ({ purchase, onClose, onEdit, onDelete, readOnly }) 
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 // Purchase Edit Modal Component (simplified version for supplier detail view)
@@ -1028,21 +901,20 @@ const PurchaseEditModal = ({ purchase, supplierId, supplierName, products, onSav
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
   const total = formData.items.reduce((sum, item) => sum + (item.quantity * item.cost_price), 0);
 
-  return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
-      <div className="modal purchase-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', zIndex: 2001 }}>
-        <div className="modal-header">
-          <h2>{purchase ? t('purchases.editPurchaseId', { id: purchase.purchase_id }) : t('purchases.newPurchase')}</h2>
+  if (typeof document === 'undefined') return null;
+
+  return createPortal((
+    <div className="modal-overlay sdv-modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal purchase-modal sdv-form-modal sdv-form-modal--purchase" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', zIndex: 2001 }}>
+        <div className="modal-header sdv-form-header">
+          <div>
+            <h2>{purchase ? 'Edit Purchase' : 'New Purchase'}</h2>
+            <p className="sdv-form-subtitle">Credit purchase from {supplierName || 'supplier'}</p>
+          </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
-        <form onSubmit={handleSubmit} className="modal-content">
-          {supplierName && (
-            <div style={{ padding: '12px 16px', marginBottom: '16px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px' }}>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase' }}>Supplier</div>
-              <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e40af' }}>{supplierName}</div>
-            </div>
-          )}
-          <div className="form-row">
+        <form onSubmit={handleSubmit} className="modal-content sdv-form-body">
+          <div className="zb-form-grid zb-form-grid--2">
             <div className="form-group">
               <label className="form-label">{t('purchases.paymentType')}</label>
               <select className="form-input" value={formData.payment_type} onChange={(e) => setFormData({...formData, payment_type: e.target.value})}>
@@ -1058,8 +930,8 @@ const PurchaseEditModal = ({ purchase, supplierId, supplierName, products, onSav
 
           <div className="purchase-items-section">
             <h3>Items</h3>
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 2 }}>
+            <div className="zb-form-grid zb-form-grid--2">
+              <div className="form-group zb-form-grid__full">
                 <label className="form-label">Product</label>
                 <select className="form-input" value={selectedProduct?.product_id || ''} onChange={(e) => {
                   const product = products.find(p => p.product_id === parseInt(e.target.value));
@@ -1115,8 +987,8 @@ const PurchaseEditModal = ({ purchase, supplierId, supplierName, products, onSav
                   placeholder="Enter cost price"
                 />
               </div>
-              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button type="button" className="btn btn-primary" onClick={handleAddItem}>Add</button>
+              <div className="form-group zb-form-grid__full" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+                <button type="button" className="btn btn-primary sdv-form-save" onClick={handleAddItem}>Add</button>
               </div>
             </div>
 
@@ -1157,14 +1029,14 @@ const PurchaseEditModal = ({ purchase, supplierId, supplierName, products, onSav
             )}
           </div>
 
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('common.loading') : purchase ? t('purchases.updatePurchase') : t('purchases.savePurchase')}</button>
+          <div className="modal-actions sdv-form-actions">
+            <button type="button" className="btn btn-secondary sdv-form-cancel" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary sdv-form-save" disabled={saving}>{saving ? t('common.loading') : purchase ? 'Update Purchase' : 'Save Purchase'}</button>
           </div>
         </form>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 // Payment Modal Component
@@ -1242,49 +1114,38 @@ const SupplierPaymentModal = ({ payment, supplierId, supplierName, currentBalanc
 
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal supplier-payment-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{payment ? t('suppliers.editPayment') : t('suppliers.recordSupplierPayment')}</h2>
+  if (typeof document === 'undefined') return null;
+
+  return createPortal((
+    <div className="modal-overlay sdv-modal-overlay" onClick={onClose}>
+      <div className="modal supplier-payment-modal sdv-form-modal sdv-form-modal--payment" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header sdv-form-header">
+          <div>
+            <h2>{payment ? 'Edit Payment' : 'Record Payment'}</h2>
+            <p className="sdv-form-subtitle">To {supplierName || 'supplier'}</p>
+          </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="supplier-payment-form">
-          <div className="form-group">
-            <label className="form-label">
-              {t('suppliers.supplier')}
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              value={supplierName || ''}
-              disabled
-              style={{ backgroundColor: '#f8fafc', color: '#64748b' }}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="supplier-payment-form sdv-form-body">
+          <div className="zb-form-grid zb-form-grid--2">
+            <div className="form-group">
+              <label className="form-label">
+                {t('expenses.amount')} (PKR) <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                name="amount"
+                value={formData.amount}
+                onChange={handleChange}
+                step="0.01"
+                min="0.01"
+                className={`form-input ${errors.amount ? 'error' : ''}`}
+                placeholder="0.00"
+              />
+              {errors.amount && <span className="error-message">{errors.amount}</span>}
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">
-              {t('expenses.amount')} (PKR) <span className="required">*</span>
-            </label>
-            <input
-              type="number"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              step="0.01"
-              min="0.01"
-              className={`form-input ${errors.amount ? 'error' : ''}`}
-              placeholder="0.00"
-            />
-            {errors.amount && <span className="error-message">{errors.amount}</span>}
-            <p className="form-help-text" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-              {t('suppliers.currentPayableBalance')}: <strong>{formatCurrency(currentBalance)}</strong>
-            </p>
-          </div>
-
-          <div className="form-row">
             <div className="form-group">
               <label className="form-label">{t('expenses.paymentMethod')}</label>
               <select
@@ -1311,24 +1172,24 @@ const SupplierPaymentModal = ({ payment, supplierId, supplierName, currentBalanc
                 className="form-input"
               />
             </div>
+
+            <div className="form-group zb-form-grid__full">
+              <label className="form-label">{t('expenses.notes')} ({t('common.optional')})</label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                className="form-input"
+                placeholder={t('suppliers.paymentNotesPlaceholder')}
+                rows="3"
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">{t('expenses.notes')} ({t('common.optional')})</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              className="form-input"
-              placeholder={t('suppliers.paymentNotesPlaceholder')}
-              rows="3"
-            />
-          </div>
-
-          <div className="modal-actions">
+          <div className="modal-actions sdv-form-actions">
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary sdv-form-cancel"
               onClick={onClose}
               disabled={saving}
             >
@@ -1336,7 +1197,7 @@ const SupplierPaymentModal = ({ payment, supplierId, supplierName, currentBalanc
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary sdv-form-save"
               disabled={saving}
             >
               {saving ? t('common.loading') : (payment ? t('suppliers.updatePayment') : t('suppliers.recordPayment'))}
@@ -1345,7 +1206,7 @@ const SupplierPaymentModal = ({ payment, supplierId, supplierName, currentBalanc
         </form>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 export default SupplierDetailView;
