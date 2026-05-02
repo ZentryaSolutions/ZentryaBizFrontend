@@ -12,6 +12,31 @@ import {
 } from '../services/api';
 import { zbKeys } from './queryKeys';
 
+/**
+ * Lists: newest created or updated first (stable tie-break by numeric id descending).
+ */
+export function sortRowsByRecencyDesc(rows, idKey) {
+  if (!Array.isArray(rows)) return [];
+  const key = idKey || 'id';
+  const rowTime = (row) => {
+    const stamps = ['updated_at', 'modified_at', 'last_modified_at', 'created_at'];
+    let max = 0;
+    stamps.forEach((k) => {
+      const v = row[k];
+      if (v == null || v === '') return;
+      const t = new Date(v).getTime();
+      if (!Number.isNaN(t) && t > max) max = t;
+    });
+    return max;
+  };
+  return [...rows].sort((a, b) => {
+    const bt = rowTime(b);
+    const at = rowTime(a);
+    if (bt !== at) return bt - at;
+    return Number(b[key] || 0) - Number(a[key] || 0);
+  });
+}
+
 /** Used by Inventory + Billing + Categories + Suppliers + bootstrap prefetch */
 export async function fetchInventoryBundle() {
   let suppliersData = [];
@@ -23,18 +48,15 @@ export async function fetchInventoryBundle() {
     suppliersData = [];
   }
 
+  suppliersData = sortRowsByRecencyDesc(suppliersData, 'supplier_id');
+
   const categoriesResponse = await categoriesAPI.getAll();
   const categories = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [];
 
   const productsResponse = await productsAPI.getAll();
   let productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
 
-  productsData.sort((a, b) => {
-    const aTime = new Date(a.updated_at || a.modified_at || a.created_at || 0).getTime();
-    const bTime = new Date(b.updated_at || b.modified_at || b.created_at || 0).getTime();
-    if (aTime !== bTime) return bTime - aTime;
-    return Number(b.product_id || 0) - Number(a.product_id || 0);
-  });
+  productsData = sortRowsByRecencyDesc(productsData, 'product_id');
 
   return { suppliers: suppliersData, categories, products: productsData };
 }
@@ -46,7 +68,8 @@ export async function fetchDashboardData() {
 
 export async function fetchCustomersList() {
   const response = await customersAPI.getAll();
-  return Array.isArray(response.data) ? response.data : [];
+  const list = Array.isArray(response.data) ? response.data : [];
+  return sortRowsByRecencyDesc(list, 'customer_id');
 }
 
 export async function fetchSettingsDoc() {

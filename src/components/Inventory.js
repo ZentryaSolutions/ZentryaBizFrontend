@@ -20,7 +20,7 @@ import {
 import { productsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
-import { fetchInventoryBundle } from '../lib/workspaceQueries';
+import { fetchInventoryBundle, sortRowsByRecencyDesc } from '../lib/workspaceQueries';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { inventoryCustomStyles } from '../styles/inventoryCustomStyles';
 import ProductModal from './ProductModal';
@@ -65,8 +65,10 @@ const Inventory = ({ readOnly = false }) => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const products = useMemo(() => {
+    if (!sortConfig.key) {
+      return sortRowsByRecencyDesc(rawProducts, 'product_id');
+    }
     const list = Array.isArray(rawProducts) ? [...rawProducts] : [];
-    if (!sortConfig.key) return list;
     const key = sortConfig.key;
     const direction = sortConfig.direction;
     return list.sort((a, b) => {
