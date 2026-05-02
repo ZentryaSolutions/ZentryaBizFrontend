@@ -1,14 +1,35 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { categoriesAPI, productsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchInventoryBundle } from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import './Categories.css';
 
 const Categories = ({ readOnly = false }) => {
   const { t } = useTranslation();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: categories = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).inventoryBundle(),
+    queryFn: fetchInventoryBundle,
+    enabled: Boolean(activeShopId),
+    select: (d) => d?.categories ?? [],
+  });
+
+  const error = useMemo(() => {
+    if (!isError || !queryError) return null;
+    return queryError.response?.data?.error || t('categories.failedToLoad');
+  }, [isError, queryError, t]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,24 +38,6 @@ const Categories = ({ readOnly = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const response = await categoriesAPI.getAll();
-      setCategories(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError(err.response?.data?.error || t('categories.failedToLoad'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSaveCategory = async (data) => {
     try {
       if (editingCategory) {
@@ -42,7 +45,7 @@ const Categories = ({ readOnly = false }) => {
       } else {
         await categoriesAPI.create(data);
       }
-      await fetchCategories();
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
       setModalOpen(false);
       setEditingCategory(null);
     } catch (err) {
@@ -59,7 +62,7 @@ const Categories = ({ readOnly = false }) => {
     if (!window.confirm(t('categories.deleteConfirm'))) return;
     try {
       await categoriesAPI.delete(categoryId);
-      await fetchCategories();
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
     } catch (err) {
       alert(err.response?.data?.error || t('categories.categoryDeleteFailed'));
     }
@@ -101,7 +104,11 @@ const Categories = ({ readOnly = false }) => {
   }, [searchQuery]);
 
   if (loading) {
-    return <div className="content-container"><div className="loading">{t('categories.loading')}</div></div>;
+    return (
+      <div className="content-container">
+        <PageLoadingCenter message={t('categories.loading')} />
+      </div>
+    );
   }
 
   return (

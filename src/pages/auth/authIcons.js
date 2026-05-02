@@ -1,5 +1,19 @@
 import React from 'react';
 
+/** Compact home — auth “back” control */
+export function IconHome({ className }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 10.5L12 4l8 6.5V19a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1V10.5z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconEnvelope({ className }) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -81,3 +95,58 @@ export function IconEyeOff({ className }) {
     </svg>
   );
 }
+
+/** Auth promo panel: multi-shop / billing & inventory */
+export function IconFeatureShopBilling({ className }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 11L5.5 6H18.5L21 11V20h-4v-4H7v4H3V11z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M2 11h20" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Auth promo panel: sales / reports */
+export function IconFeatureReportLive({ className }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <path
+        d="M7 20v-7M12 20V8M17 20v-11"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Auth promo panel: vendors & customers */
+export function IconFeaturePeople({ className }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="7" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M4 19.5v-.5A4.25 4.25 0 0 1 8.25 15h1.5A4.25 4.25 0 0 1 14 19v.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <circle cx="17" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M14.5 19.5V19a2.75 2.75 0 0 1 2.45-2.73"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export const AUTH_FEATURE_ICONS = [IconFeatureShopBilling, IconFeatureReportLive, IconFeaturePeople];

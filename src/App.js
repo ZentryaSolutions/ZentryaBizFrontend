@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
+import { queryClient } from './lib/queryClient';
+import ShopCacheSync from './components/ShopCacheSync';
+import AppWorkspaceBootstrap from './components/AppWorkspaceBootstrap';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import ProductDetailView from './components/ProductDetailView';
@@ -38,7 +42,6 @@ import {
   parseShopsPath,
   userIdFromPublicUrlParam,
   isDashSeparatedUuid,
-  marketingHomeQuery,
 } from './utils/workspacePaths';
 import { appBasePath, extractAppScope, isLegacyAppPath } from './utils/appRouteScope';
 // Inner component that uses location (must be inside Router)
@@ -179,8 +182,10 @@ function AppContent({ location, navigate }) {
   const scopedBase = appBasePath(user.id, activeShopId);
   const scopeInPath = extractAppScope(location?.pathname || '');
   const onLegacyAppPath = isLegacyAppPath(location?.pathname || '');
-  const hideBackRow = /\/(?:suppliers|customers)(?:\/|$)/.test(location?.pathname || '');
-  const compactTopSpacing = /\/(?:suppliers|customers)(?:\/|$)/.test(location?.pathname || '');
+  const hideBackRow = /\/(?:suppliers|customers)(?:\/|$)|\/inventory(?:\/product\/[^/]+)?(?:\/)?$/.test(
+    location?.pathname || ''
+  );
+  const compactTopSpacing = /\/(?:suppliers|customers|inventory)(?:\/|$)/.test(location?.pathname || '');
 
   if (scopeInPath) {
     if (scopeInPath.userId !== sessionUid || String(scopeInPath.shopId) !== String(activeShopId)) {
@@ -195,7 +200,9 @@ function AppContent({ location, navigate }) {
 
   // Main app
   return (
+    <AppWorkspaceBootstrap shopId={activeShopId}>
     <div className={`app${mobileNavOpen ? ' app--nav-open' : ''}${zbWebOnly ? ' app--zb-web' : ''}`}>
+      <ShopCacheSync />
       <UpdateNotification />
       <Header onMenuClick={() => setMobileNavOpen(true)} />
       <ConnectionStatus 
@@ -264,17 +271,20 @@ function AppContent({ location, navigate }) {
         </ErrorBoundary>
       </main>
     </div>
+    </AppWorkspaceBootstrap>
   );
 }
 
 // Main App component wrapped with AuthProvider and Router
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContentWithRouter />
-      </Router>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <AppContentWithRouter />
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

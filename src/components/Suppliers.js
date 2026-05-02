@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -14,6 +15,10 @@ import {
   faTruckFast,
 } from '@fortawesome/free-solid-svg-icons';
 import { suppliersAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchInventoryBundle } from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import SupplierModal from './SupplierModal';
 import SupplierDetailView from './SupplierDetailView';
 import Pagination from './Pagination';
@@ -21,9 +26,25 @@ import './Suppliers.css';
 
 const Suppliers = ({ readOnly = false }) => {
   const { t } = useTranslation();
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: suppliers = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).inventoryBundle(),
+    queryFn: fetchInventoryBundle,
+    enabled: Boolean(activeShopId),
+    select: (d) => d?.suppliers ?? [],
+  });
+
+  const error = useMemo(() => {
+    if (!isError || !queryError) return null;
+    return queryError.response?.data?.error || t('suppliers.failedToLoad');
+  }, [isError, queryError, t]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -32,24 +53,6 @@ const Suppliers = ({ readOnly = false }) => {
   const [balanceFilter, setBalanceFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const response = await suppliersAPI.getAll();
-      setSuppliers(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching suppliers:', err);
-      setError(err.response?.data?.error || t('suppliers.failedToLoad'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAdd = () => {
     setEditingSupplier(null);
@@ -79,7 +82,7 @@ const Suppliers = ({ readOnly = false }) => {
   const handleDelete = async (supplierId) => {
     try {
       await suppliersAPI.delete(supplierId);
-      setSuppliers(suppliers.filter((s) => s.supplier_id !== supplierId));
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting supplier:', err);
@@ -95,14 +98,11 @@ const Suppliers = ({ readOnly = false }) => {
   const handleModalSave = async (supplierData) => {
     try {
       if (editingSupplier) {
-        const response = await suppliersAPI.update(editingSupplier.supplier_id, supplierData);
-        setSuppliers(
-          suppliers.map((s) => (s.supplier_id === editingSupplier.supplier_id ? response.data : s))
-        );
+        await suppliersAPI.update(editingSupplier.supplier_id, supplierData);
       } else {
-        const response = await suppliersAPI.create(supplierData);
-        setSuppliers([...suppliers, response.data].sort((a, b) => a.name.localeCompare(b.name)));
+        await suppliersAPI.create(supplierData);
       }
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
       handleModalClose();
     } catch (err) {
       console.error('Error saving supplier:', err);
@@ -233,12 +233,7 @@ const Suppliers = ({ readOnly = false }) => {
   if (loading) {
     return (
       <div className="content-container sup2">
-        <div className="sup2-loading">
-          <span className="sup2-loading-ring" aria-hidden />
-          <p>
-            {t('common.loading')} {t('suppliers.title').toLowerCase()}...
-          </p>
-        </div>
+        <PageLoadingCenter message={`${t('common.loading')} ${t('suppliers.title').toLowerCase()}…`} />
       </div>
     );
   }
@@ -249,7 +244,7 @@ const Suppliers = ({ readOnly = false }) => {
         supplierId={viewingSupplier}
         onClose={() => {
           setViewingSupplier(null);
-          fetchSuppliers();
+          queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
         }}
         readOnly={readOnly}
       />

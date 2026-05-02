@@ -1,0 +1,27 @@
+﻿.zb-workspace-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(165deg, #ede9fe 0%, #e0e7ff 45%, #ddd6fe 100%);
+}
+.zb-workspace-boot__panel {
+  width: min(420px, 100%);
+  padding: 32px 28px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(199, 210, 254, 0.85);
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.06), 0 24px 48px rgba(30, 27, 75, 0.12);
+  text-align: center;
+}
+.zb-workspace-boot__brand { font-weight: 800; font-size: 14px; letter-spacing: -0.02em; color: #101828; margin-bottom: 12px; }
+.zb-workspace-boot__title { margin: 0 0 8px; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: #101828; }
+.zb-workspace-boot__sub { margin: 0 0 22px; font-size: 14px; line-height: 1.5; color: #667085; }
+.zb-workspace-boot__track { height: 8px; border-radius: 999px; background: #eef2ff; overflow: hidden; margin-bottom: 10px; }
+.zb-workspace-boot__fill { height: 100%; border-radius: 999px; background: linear-gradient(95deg, #4338ca 0%, #4f46e5 38%, #6366f1 100%); transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+.zb-workspace-boot__pct { margin: 0 0 18px; font-size: 13px; font-weight: 700; color: #6366f1; }
+.zb-workspace-boot__spinner { width: 36px; height: 36px; margin: 0 auto; border: 3px solid #e0e7ff; border-top-color: #4f46e5; border-radius: 50%; animation: zbBootSpin 0.85s linear infinite; }
+@keyframes zbBootSpin { to { transform: rotate(360deg); } }

@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { purchasesAPI } from '../services/api';
 import './Purchases.css';
+
+const purchasePortalOverlayCss = `
+.zb-purchase-overlay{position:fixed!important;inset:0!important;z-index:10050!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:12px!important;background:rgba(15,23,42,.42)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;overflow:auto!important}
+.zb-purchase-compact.modal.purchase-modal{width:min(460px,96vw)!important;max-width:460px!important;max-height:min(85vh,620px)!important;margin:auto!important;display:flex!important;flex-direction:column!important}
+.zb-purchase-compact.modal.purchase-modal .modal-header{padding:10px 14px!important;flex-shrink:0!important}
+.zb-purchase-compact.modal.purchase-modal .modal-header h2{font-size:16px!important;font-weight:600!important;margin:0!important}
+.zb-purchase-compact.modal.purchase-modal .modal-content{padding:10px 14px 12px!important;overflow-y:auto!important;flex:1!important;min-height:0!important}
+.zb-purchase-compact.modal.purchase-modal .zb-form-grid{gap:8px 12px!important}
+.zb-purchase-compact.modal.purchase-modal .form-group{margin-bottom:0!important}
+.zb-purchase-compact.modal.purchase-modal .form-label{font-size:10px!important;letter-spacing:.04em!important;margin-bottom:4px!important}
+.zb-purchase-compact.modal.purchase-modal .form-input,.zb-purchase-compact.modal.purchase-modal .purchase-input{padding:7px 10px!important;min-height:36px!important;font-size:13px!important;border-radius:8px!important}
+.zb-purchase-compact.modal.purchase-modal .purchase-items-section{margin-top:10px!important}
+.zb-purchase-compact.modal.purchase-modal .purchase-items-section h3{font-size:12px!important;font-weight:600!important;margin:0 0 8px!important;text-transform:uppercase!important;letter-spacing:.05em!important;color:#64748b!important}
+.zb-purchase-compact.modal.purchase-modal .modal-actions{padding:10px 14px!important;margin-top:4px!important;gap:8px!important;flex-shrink:0!important;border-top:1px solid #eef1f6!important}
+.zb-purchase-compact.modal.purchase-modal .items-table{font-size:12px!important}
+.zb-purchase-compact.modal.purchase-modal .items-table th,.zb-purchase-compact.modal.purchase-modal .items-table td{padding:6px 8px!important}
+`;
 
 /**
  * Shared purchase create/edit modal. Optionally pass initialProductId (no edit purchase)
@@ -25,6 +43,14 @@ const PurchaseModal = ({ suppliers, products, purchase, onSave, onClose, initial
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   useEffect(() => {
     if (purchase || initialProductId == null || Number.isNaN(Number(initialProductId))) return;
@@ -91,9 +117,11 @@ const PurchaseModal = ({ suppliers, products, purchase, onSave, onClose, initial
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
   const total = formData.items.reduce((sum, item) => sum + (item.quantity * item.cost_price), 0);
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal purchase-modal" onClick={(e) => e.stopPropagation()}>
+  const modalTree = (
+    <>
+      <style>{purchasePortalOverlayCss}</style>
+      <div className="modal-overlay zb-purchase-overlay" onClick={onClose}>
+      <div className="modal purchase-modal zb-purchase-compact" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{purchase ? `Edit Purchase #${purchase.purchase_id}` : 'New Purchase'}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
@@ -384,7 +412,10 @@ const PurchaseModal = ({ suppliers, products, purchase, onSave, onClose, initial
         </form>
       </div>
     </div>
+    </>
   );
+
+  return createPortal(modalTree, document.body);
 };
 
 export default PurchaseModal;

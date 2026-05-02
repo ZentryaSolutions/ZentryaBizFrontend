@@ -1,97 +1,56 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faDollarSign, faLocationDot, faPhone, faReceipt, faBook } from '@fortawesome/free-solid-svg-icons';
-import { customersAPI, customerPaymentsAPI, salesAPI } from '../services/api';
+import { customerPaymentsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchCustomerDetailPack } from '../lib/workspaceQueries';
 import './CustomerDetailView.css';
 import './SupplierDetailView.css';
 
 const CustomerDetailView = ({ customerId, onClose, readOnly = false }) => {
   const { t } = useTranslation();
-  const [customer, setCustomer] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+  const keys = zbKeys(activeShopId);
+
+  const {
+    data: pack,
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useQuery({
+    queryKey: keys.customerDetailPack(customerId),
+    queryFn: () => fetchCustomerDetailPack(customerId),
+    enabled: Boolean(activeShopId && customerId),
+    staleTime: 60 * 1000,
+  });
+
+  const customer = pack?.customer ?? null;
+  const salesHistory = useMemo(() => pack?.salesHistory ?? [], [pack]);
+  const paymentsHistory = useMemo(() => pack?.paymentsHistory ?? [], [pack]);
+  const loadingSalesHistory = isFetching && !isLoading;
+  const loading = isLoading;
+  const error =
+    queryError &&
+    (queryError.response?.data?.error || queryError.message || t('customers.failedToLoadDetails'));
+
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
-  const [salesHistory, setSalesHistory] = useState([]);
-  const [paymentsHistory, setPaymentsHistory] = useState([]);
-  const [loadingSalesHistory, setLoadingSalesHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState('ledger');
   const [viewSaleModal, setViewSaleModal] = useState(null);
   const [viewPaymentModal, setViewPaymentModal] = useState(null);
 
-  useEffect(() => {
-    fetchCustomerDetails();
-    fetchSalesHistory();
-  }, [customerId]);
-
-  const fetchCustomerDetails = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await customersAPI.getById(customerId);
-      setCustomer(response.data);
-    } catch (err) {
-      console.error('Error fetching customer details:', err);
-      setError(err.response?.data?.error || t('customers.failedToLoadDetails'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePaymentSave = async () => {
-    await fetchCustomerDetails();
-    await fetchSalesHistory();
+    await queryClient.invalidateQueries({ queryKey: keys.customerDetailPack(customerId) });
+    await queryClient.invalidateQueries({ queryKey: keys.customersList() });
+    await queryClient.invalidateQueries({ queryKey: keys.salesList() });
     setPaymentModalOpen(false);
     setEditingPayment(null);
   };
-
-  const fetchSalesHistory = async () => {
-    try {
-      setLoadingSalesHistory(true);
-      const [salesRes, payRes] = await Promise.all([
-        salesAPI.getAll({ customer_id: customerId, limit: 500 }),
-        customerPaymentsAPI.getAll({ customer_id: customerId }),
-      ]);
-      setSalesHistory(Array.isArray(salesRes.data) ? salesRes.data : []);
-      setPaymentsHistory(Array.isArray(payRes.data) ? payRes.data : []);
-    } catch (err) {
-      console.error('Error fetching customer sales history:', err);
-      setSalesHistory([]);
-      setPaymentsHistory([]);
-    } finally {
-      setLoadingSalesHistory(false);
-    }
-  };
-
-  const purchaseAndPaymentRows = useMemo(() => {
-    const rows = [];
-    salesHistory.forEach((sale) => {
-      rows.push({
-        kind: 'sale',
-        id: `s-${sale.sale_id}`,
-        ts: new Date(sale.date).getTime(),
-        tie: Number(sale.sale_id) || 0,
-        sale,
-      });
-    });
-    paymentsHistory.forEach((payment) => {
-      rows.push({
-        kind: 'payment',
-        id: `p-${payment.payment_id}`,
-        ts: new Date(payment.payment_date).getTime(),
-        tie: Number(payment.payment_id) || 0,
-        payment,
-      });
-    });
-    rows.sort((a, b) => {
-      if (b.ts !== a.ts) return b.ts - a.ts;
-      if (a.kind !== b.kind) return a.kind === 'payment' ? -1 : 1;
-      return b.tie - a.tie;
-    });
-    return rows;
-  }, [salesHistory, paymentsHistory]);
 
   const ledgerRows = useMemo(
     () =>

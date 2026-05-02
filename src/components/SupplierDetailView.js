@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
@@ -13,22 +14,46 @@ import {
   faReceipt,
   faTruck,
 } from '@fortawesome/free-solid-svg-icons';
-import { suppliersAPI, supplierPaymentsAPI, purchasesAPI, productsAPI } from '../services/api';
+import { supplierPaymentsAPI, purchasesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchSupplierDetailPack } from '../lib/workspaceQueries';
 import Pagination from './Pagination';
 import './SupplierDetailView.css';
 import './Purchases.css';
 
 const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
   const { t } = useTranslation();
-  const [supplier, setSupplier] = useState(null);
-  const [ledger, setLedger] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingPayments, setLoadingPayments] = useState(false);
-  const [loadingPurchases, setLoadingPurchases] = useState(false);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+  const keys = zbKeys(activeShopId);
+
+  const {
+    data: pack,
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useQuery({
+    queryKey: keys.supplierDetailPack(supplierId),
+    queryFn: () =>
+      fetchSupplierDetailPack({ supplierId, queryClient, shopId: activeShopId }),
+    enabled: Boolean(activeShopId && supplierId),
+    staleTime: 60 * 1000,
+  });
+
+  const supplier = pack?.supplier ?? null;
+  const ledger = pack?.ledger ?? null;
+  const payments = pack?.payments ?? [];
+  const purchases = pack?.purchases ?? [];
+  const products = pack?.products ?? [];
+  const loading = isLoading;
+  const loadingPayments = isFetching && !isLoading;
+  const loadingPurchases = isFetching && !isLoading;
+  const error =
+    queryError &&
+    (queryError.response?.data?.error ||
+      queryError.message ||
+      t('suppliers.failedToLoadDetails'));
   const [activeTab, setActiveTab] = useState('ledger');
   const [currentPage, setCurrentPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -50,22 +75,6 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
     Boolean(deletePurchaseConfirm);
 
   useEffect(() => {
-    fetchSupplierDetails();
-    fetchLedger();
-    fetchPayments();
-    fetchPurchases();
-    fetchProducts();
-  }, [supplierId]);
-
-  useEffect(() => {
-    if (activeTab === 'payments') {
-      fetchPayments();
-    } else if (activeTab === 'purchases') {
-      fetchPurchases();
-    }
-  }, [activeTab, supplierId]);
-
-  useEffect(() => {
     const previous = document.body.style.overflow;
     if (hasOpenModal) {
       document.body.style.overflow = 'hidden';
@@ -77,70 +86,15 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
     };
   }, [hasOpenModal]);
 
-  const fetchSupplierDetails = async () => {
-    try {
-      const response = await suppliersAPI.getById(supplierId);
-      setSupplier(response.data);
-    } catch (err) {
-      console.error('Error fetching supplier details:', err);
-      setError(err.response?.data?.error || t('suppliers.failedToLoadDetails'));
-    }
-  };
-
-  const fetchLedger = async () => {
-    try {
-      setLoading(true);
-      const response = await suppliersAPI.getLedger(supplierId);
-      setLedger(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching supplier ledger:', err);
-      setError(err.response?.data?.error || t('suppliers.failedToLoadLedger'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPayments = async () => {
-    try {
-      setLoadingPayments(true);
-      const response = await supplierPaymentsAPI.getAll({ supplier_id: supplierId });
-      setPayments(response.data || []);
-    } catch (err) {
-      console.error('Error fetching supplier payments:', err);
-    } finally {
-      setLoadingPayments(false);
-    }
-  };
-
-  const fetchPurchases = async () => {
-    try {
-      setLoadingPurchases(true);
-      const response = await purchasesAPI.getAll();
-      const filteredPurchases = (response.data || []).filter(p => p.supplier_id === supplierId);
-      setPurchases(filteredPurchases);
-    } catch (err) {
-      console.error('Error fetching purchases:', err);
-    } finally {
-      setLoadingPurchases(false);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const response = await productsAPI.getAll();
-      setProducts(response.data || []);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    }
-  };
+  const refreshSupplierPack = () =>
+    queryClient.invalidateQueries({ queryKey: keys.supplierDetailPack(supplierId) });
 
   const handlePurchaseDelete = async (purchaseId) => {
     try {
       await purchasesAPI.delete(purchaseId);
-      await fetchPurchases();
-      await fetchSupplierDetails();
-      await fetchLedger();
+      await queryClient.invalidateQueries({ queryKey: keys.purchasesList() });
+      await queryClient.invalidateQueries({ queryKey: keys.inventoryBundle() });
+      await refreshSupplierPack();
       setDeletePurchaseConfirm(null);
     } catch (err) {
       alert(err.response?.data?.error || t('purchases.purchaseFailed'));
@@ -148,18 +102,15 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
   };
 
   const handlePurchaseSave = async () => {
-    await fetchPurchases();
-    await fetchProducts();
-    await fetchSupplierDetails();
-    await fetchLedger();
+    await queryClient.invalidateQueries({ queryKey: keys.purchasesList() });
+    await queryClient.invalidateQueries({ queryKey: keys.inventoryBundle() });
+    await refreshSupplierPack();
     setEditingPurchase(null);
     setViewingPurchase(null);
   };
 
   const handlePaymentSave = async () => {
-    await fetchPayments();
-    await fetchSupplierDetails();
-    await fetchLedger();
+    await refreshSupplierPack();
     setPaymentModalOpen(false);
     setEditingPayment(null);
   };
@@ -167,9 +118,7 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
   const handlePaymentDelete = async (paymentId) => {
     try {
       await supplierPaymentsAPI.delete(paymentId);
-      await fetchPayments();
-      await fetchSupplierDetails();
-      await fetchLedger();
+      await refreshSupplierPack();
       setDeletePaymentConfirm(null);
     } catch (err) {
       alert(err.response?.data?.error || t('suppliers.failedToDeletePayment'));

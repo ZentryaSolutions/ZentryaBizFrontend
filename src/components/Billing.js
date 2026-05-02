@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { productsAPI, salesAPI, settingsAPI, customersAPI } from '../services/api';
+import { salesAPI, customersAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import {
+  fetchInventoryBundle,
+  fetchCustomersList,
+  fetchSettingsDoc,
+} from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import './Billing.css';
 
 const STOCK_ERR = (avail) =>
@@ -26,9 +36,36 @@ function validateCartAgainstStock(invoiceItems, productsList) {
 
 const Billing = ({ readOnly = false }) => {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const billingPrefillRef = useRef(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: bundle, isLoading: invLoading } = useQuery({
+    queryKey: zbKeys(activeShopId).inventoryBundle(),
+    queryFn: fetchInventoryBundle,
+    enabled: Boolean(activeShopId),
+  });
+  const products = useMemo(() => bundle?.products ?? [], [bundle?.products]);
+
+  const { data: customersRaw = [], isLoading: custLoading } = useQuery({
+    queryKey: zbKeys(activeShopId).customersList(),
+    queryFn: fetchCustomersList,
+    enabled: Boolean(activeShopId),
+  });
+  const customers = useMemo(
+    () => (customersRaw || []).filter((c) => c.status === 'active'),
+    [customersRaw]
+  );
+
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
+    queryKey: zbKeys(activeShopId).settingsDoc(),
+    queryFn: fetchSettingsDoc,
+    enabled: Boolean(activeShopId),
+  });
+
   // Core state
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -36,7 +73,6 @@ const Billing = ({ readOnly = false }) => {
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [shopName, setShopName] = useState('My Shop');
@@ -66,12 +102,31 @@ const Billing = ({ readOnly = false }) => {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    filterProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- filterProducts closes over latest products/searchQuery via deps below
+  }, [searchQuery, products]);
 
   useEffect(() => {
-    filterProducts();
-  }, [searchQuery, products]);
+    if (!settingsData) return;
+    const data = settingsData;
+    try {
+      if (data.other_app_settings) {
+        const otherSettings =
+          typeof data.other_app_settings === 'string'
+            ? JSON.parse(data.other_app_settings)
+            : data.other_app_settings;
+        setShopName(otherSettings.shop_name || 'My Shop');
+        setShopPhone(otherSettings.shop_phone || '');
+        setShopAddress(otherSettings.shop_address || '');
+      } else if (data.shop_name) {
+        setShopName(String(data.shop_name));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [settingsData]);
+
+  const loading = invLoading || custLoading || settingsLoading;
 
   const stockCheck = useMemo(
     () => validateCartAgainstStock(invoiceItems, products),
@@ -89,58 +144,6 @@ const Billing = ({ readOnly = false }) => {
       : customers;
     return list.slice(0, 50);
   }, [customers, customerSearchQuery]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      await Promise.all([
-        fetchProducts(),
-        fetchCustomers(),
-        fetchSettings()
-      ]);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const response = await productsAPI.getAll();
-      // Don't filter by stock - allow all products
-      setProducts(response.data || []);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await customersAPI.getAll();
-      setCustomers((response.data || []).filter(c => c.status === 'active'));
-    } catch (err) {
-      console.error('Error fetching customers:', err);
-    }
-  };
-
-  const fetchSettings = async () => {
-    try {
-      const response = await settingsAPI.get();
-      const data = response.data;
-      if (data.other_app_settings) {
-        const otherSettings = typeof data.other_app_settings === 'string' 
-          ? JSON.parse(data.other_app_settings) 
-          : data.other_app_settings;
-        setShopName(otherSettings.shop_name || 'My Shop');
-        setShopPhone(otherSettings.shop_phone || '');
-        setShopAddress(otherSettings.shop_address || '');
-      }
-    } catch (err) {
-      console.error('Error fetching settings:', err);
-    }
-  };
 
   const filterProducts = () => {
     if (!searchQuery.trim()) {
@@ -243,6 +246,24 @@ const Billing = ({ readOnly = false }) => {
     }, 100);
   };
 
+  // Product detail → "Add sale": open Billing with this product on the invoice
+  useEffect(() => {
+    const raw = location.state?.billingAddProductId;
+    if (raw == null || products.length === 0) return;
+    const pid = Number(raw);
+    const marker = `${location.key}:${pid}`;
+    if (billingPrefillRef.current === marker) return;
+    const product = products.find((x) => Number(x.product_id) === pid);
+    if (!product) return;
+    billingPrefillRef.current = marker;
+    handleProductSelect(product);
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: {} }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- omit handleProductSelect/navigate to avoid re-entry loops; ref marker guards idempotency
+  }, [location.state, location.key, location.pathname, location.search, location.hash, products]);
+
   // Handle Enter key in search
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter' && filteredProducts.length > 0) {
@@ -339,6 +360,7 @@ const Billing = ({ readOnly = false }) => {
     }
     const p = parseFloat(paidAmount) || 0;
     if (p > grandTotal) setPaidAmount(grandTotal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync paid cap when totals change; full deps would thrash paid edits
   }, [invoiceItems, discount, selectedCustomer]);
 
   // Handle save invoice
@@ -350,9 +372,11 @@ const Billing = ({ readOnly = false }) => {
 
     let freshProducts = products;
     try {
-      const pr = await productsAPI.getAll();
-      freshProducts = pr.data || [];
-      setProducts(freshProducts);
+      const row = await queryClient.fetchQuery({
+        queryKey: zbKeys(activeShopId).inventoryBundle(),
+        queryFn: fetchInventoryBundle,
+      });
+      freshProducts = row?.products || [];
     } catch (e) {
       console.error(e);
     }
@@ -422,9 +446,9 @@ const Billing = ({ readOnly = false }) => {
       // Reset form
       resetForm();
 
-      // Refresh products to update stock
-      await fetchProducts();
-      await fetchCustomers();
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
 
       window.dispatchEvent(new Event('data-refresh'));
 
@@ -484,7 +508,7 @@ const Billing = ({ readOnly = false }) => {
         status: 'active',
       });
       const row = res.data;
-      setCustomers((prev) => [...prev, row].sort((a, b) => (parseFloat(b.current_due) || 0) - (parseFloat(a.current_due) || 0)));
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
       const fresh = await refreshCustomerRow(row);
       setSelectedCustomer(fresh);
       {
@@ -685,12 +709,12 @@ const Billing = ({ readOnly = false }) => {
     return `PKR ${Number(amount || 0).toFixed(2)}`;
   };
 
-  const { subtotal, discountAmount, grandTotal, remainingDue, change, paid } = calculateTotals();
+  const { subtotal, grandTotal, remainingDue, change, paid } = calculateTotals();
 
   if (loading) {
     return (
       <div className="billing-container">
-        <div className="loading">{t('common.loading')}</div>
+        <PageLoadingCenter message={t('common.loading')} />
       </div>
     );
   }

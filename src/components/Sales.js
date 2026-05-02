@@ -1,16 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { salesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchSalesList } from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import './Sales.css';
 
 const Sales = ({ readOnly = false }) => {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAdmin, activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: sales = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).salesList(),
+    queryFn: fetchSalesList,
+    enabled: Boolean(activeShopId),
+  });
+
+  const error = useMemo(() => {
+    if (!isError || !queryError) return null;
+    return queryError.response?.data?.error || 'Failed to load sales';
+  }, [isError, queryError]);
   const [selectedSale, setSelectedSale] = useState(null);
   const [editingSale, setEditingSale] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -24,30 +42,6 @@ const Sales = ({ readOnly = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-
-  useEffect(() => {
-    fetchSales();
-  }, []);
-
-  const fetchSales = async () => {
-    try {
-      setLoading(true);
-      const response = await salesAPI.getAll();
-      const payload = response?.data;
-      const normalizedSales = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : [];
-      setSales(normalizedSales);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching sales:', err);
-      setError(err.response?.data?.error || 'Failed to load sales');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
 
@@ -126,7 +120,7 @@ const Sales = ({ readOnly = false }) => {
       };
       
       await salesAPI.update(editingSale.sale_id, updateData);
-      await fetchSales();
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
       setEditingSale(null);
       alert(t('sales.updateSuccess'));
     } catch (err) {
@@ -141,7 +135,7 @@ const Sales = ({ readOnly = false }) => {
   const handleDelete = async (saleId) => {
     try {
       await salesAPI.delete(saleId);
-      await fetchSales();
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
       setDeleteConfirm(null);
       alert(t('sales.deleteSuccess'));
     } catch (err) {
@@ -315,7 +309,7 @@ const Sales = ({ readOnly = false }) => {
   if (loading) {
     return (
       <div className="content-container">
-        <div className="loading">{t('common.loading')}...</div>
+        <PageLoadingCenter message={`${t('common.loading')}…`} />
       </div>
     );
   }

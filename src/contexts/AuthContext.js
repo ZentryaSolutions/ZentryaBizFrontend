@@ -8,6 +8,7 @@ import axios from 'axios';
 import { supabase } from '../lib/supabaseClient';
 import { getServerUrl } from '../utils/connectionStatus';
 import { authAPI } from '../services/api';
+import { queryClient } from '../lib/queryClient';
 
 const SS_UID = 'zb_simple_uid';
 const SS_USER = 'zb_simple_username';
@@ -67,7 +68,8 @@ async function tryEstablishNodeSession(username, password) {
   const deviceId = localStorage.getItem('deviceId') || 'unknown';
   const cfg = {
     headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
-    timeout: 25000,
+    // Allow backend time for DB retries (see backend/db.js) on slow Supabase/network paths.
+    timeout: 60000,
   };
   const base = getServerUrl();
   const save = (data) => {
@@ -84,7 +86,13 @@ async function tryEstablishNodeSession(username, password) {
       save(data);
       return;
     }
-  } catch {
+  } catch (e) {
+    if (e.response?.status === 503) {
+      console.warn(
+        '[Zentrya Biz] API session failed — database unreachable:',
+        e.response?.data?.message || e.message
+      );
+    }
     // fall through — legacy-only account or old backend
   }
   try {
@@ -113,6 +121,12 @@ export const AuthProvider = ({ children }) => {
     setActiveShopIdState(v);
     if (v) sessionStorage.setItem(SS_SHOP, v);
     else sessionStorage.removeItem(SS_SHOP);
+    try {
+      const uid = user?.id || sessionStorage.getItem(SS_UID);
+      if (v && uid) localStorage.setItem(`zb_last_shop_${String(uid)}`, v);
+    } catch {
+      /* ignore quota */
+    }
   };
 
   const applyLocalUser = (uid) => {
@@ -273,6 +287,7 @@ export const AuthProvider = ({ children }) => {
     clearSession();
     localStorage.removeItem('sessionId');
     localStorage.removeItem('user');
+    queryClient.clear();
     setUser(null);
     setProfile(null);
     setActiveShopId('');

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -10,7 +11,9 @@ import {
   faUsers,
   faWallet,
 } from '@fortawesome/free-solid-svg-icons';
-import { reportsAPI } from '../services/api';
+import { fetchDashboardData } from '../lib/workspaceQueries';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
 import { isZbWebOnlyMode } from '../lib/appMode';
 import { withCurrentScope } from '../utils/appRouteScope';
 import './Dashboard.css';
@@ -72,48 +75,28 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
 
-  const fetchDashboardData = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) {
-        setLoading(true);
-      }
-      setLoadFailed(false);
-      const response = await reportsAPI.getDashboard();
-      setDashboardData(response.data);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      if (!silent) {
-        setDashboardData(null);
-        setLoadFailed(true);
-      }
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  }, []);
+  const {
+    data: dashboardData,
+    isLoading: loading,
+    isError: loadFailed,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).dashboard(),
+    queryFn: fetchDashboardData,
+    enabled: Boolean(activeShopId),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  });
 
   useEffect(() => {
-    fetchDashboardData({ silent: false });
-
-    const handleRefresh = () => fetchDashboardData({ silent: true });
+    const handleRefresh = () => {
+      queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).dashboard() });
+    };
     window.addEventListener('data-refresh', handleRefresh);
-
-    const tick = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      fetchDashboardData({ silent: true });
-    };
-    const interval = setInterval(tick, 30000);
-
-    return () => {
-      window.removeEventListener('data-refresh', handleRefresh);
-      clearInterval(interval);
-    };
-  }, [fetchDashboardData]);
+    return () => window.removeEventListener('data-refresh', handleRefresh);
+  }, [activeShopId, queryClient]);
 
   const formatCurrency = (amount) => {
     return `PKR ${Number(amount || 0).toFixed(2)}`;

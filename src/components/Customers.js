@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -12,6 +13,10 @@ import {
   faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import { customersAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchCustomersList } from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import CustomerModal from './CustomerModal';
 import CustomerDetailView from './CustomerDetailView';
 import Pagination from './Pagination';
@@ -20,9 +25,25 @@ import './Suppliers.css';
 
 const Customers = ({ readOnly = false }) => {
   const { t } = useTranslation();
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: customers = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).customersList(),
+    queryFn: fetchCustomersList,
+    enabled: Boolean(activeShopId),
+  });
+
+  const error = useMemo(() => {
+    if (!isError || !queryError) return null;
+    return queryError.response?.data?.error || t('customers.failedToLoad');
+  }, [isError, queryError, t]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
@@ -31,24 +52,6 @@ const Customers = ({ readOnly = false }) => {
   const [balanceFilter, setBalanceFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const response = await customersAPI.getAll();
-      setCustomers(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching customers:', err);
-      setError(err.response?.data?.error || t('customers.failedToLoad'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleView = (customer) => {
     setViewingCustomer(customer.customer_id);
@@ -67,7 +70,7 @@ const Customers = ({ readOnly = false }) => {
   const handleDelete = async (customerId) => {
     try {
       await customersAPI.delete(customerId);
-      setCustomers(customers.filter((c) => c.customer_id !== customerId));
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting customer:', err);
@@ -83,18 +86,11 @@ const Customers = ({ readOnly = false }) => {
   const handleModalSave = async (customerData) => {
     try {
       if (editingCustomer) {
-        const response = await customersAPI.update(editingCustomer.customer_id, customerData);
-        setCustomers(
-          customers.map((c) => (c.customer_id === editingCustomer.customer_id ? response.data : c))
-        );
+        await customersAPI.update(editingCustomer.customer_id, customerData);
       } else {
-        const response = await customersAPI.create(customerData);
-        setCustomers(
-          [...customers, response.data].sort(
-            (a, b) => (parseFloat(b.current_due) || 0) - (parseFloat(a.current_due) || 0)
-          )
-        );
+        await customersAPI.create(customerData);
       }
+      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
       handleModalClose();
     } catch (err) {
       console.error('Error saving customer:', err);
@@ -184,12 +180,7 @@ const Customers = ({ readOnly = false }) => {
   if (loading) {
     return (
       <div className="content-container cus2">
-        <div className="cus2-loading">
-          <span className="cus2-loading-ring" aria-hidden />
-          <p>
-            {t('common.loading')} {t('customers.title').toLowerCase()}...
-          </p>
-        </div>
+        <PageLoadingCenter message={`${t('common.loading')} ${t('customers.title').toLowerCase()}…`} />
       </div>
     );
   }
@@ -200,7 +191,7 @@ const Customers = ({ readOnly = false }) => {
         customerId={viewingCustomer}
         onClose={() => {
           setViewingCustomer(null);
-          fetchCustomers();
+          queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
         }}
         readOnly={readOnly}
       />

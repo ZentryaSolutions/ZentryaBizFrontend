@@ -1,17 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { purchasesAPI, suppliersAPI, productsAPI } from '../services/api';
+import { purchasesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchInventoryBundle, fetchPurchasesList } from '../lib/workspaceQueries';
+import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import PurchaseModal from './PurchaseModal';
 import './Purchases.css';
 
 const Purchases = ({ readOnly = false }) => {
   const { t } = useTranslation();
-  const [purchases, setPurchases] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { activeShopId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: purchases = [],
+    isLoading: purchasesLoading,
+    isError: purchasesErr,
+    error: purchasesQueryErr,
+  } = useQuery({
+    queryKey: zbKeys(activeShopId).purchasesList(),
+    queryFn: fetchPurchasesList,
+    enabled: Boolean(activeShopId),
+  });
+
+  const { data: bundle, isLoading: bundleLoading } = useQuery({
+    queryKey: zbKeys(activeShopId).inventoryBundle(),
+    queryFn: fetchInventoryBundle,
+    enabled: Boolean(activeShopId),
+  });
+  const suppliers = bundle?.suppliers ?? [];
+  const products = bundle?.products ?? [];
+
+  const loading = purchasesLoading || bundleLoading;
+
+  const error = useMemo(() => {
+    if (!purchasesErr || !purchasesQueryErr) return null;
+    return purchasesQueryErr.response?.data?.error || t('purchases.failedToLoad');
+  }, [purchasesErr, purchasesQueryErr, t]);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewingPurchase, setViewingPurchase] = useState(null);
   const [editingPurchase, setEditingPurchase] = useState(null);
@@ -21,42 +49,9 @@ const Purchases = ({ readOnly = false }) => {
   const [supplierSearch, setSupplierSearch] = useState('');
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
 
-  useEffect(() => {
-    fetchPurchases();
-    fetchSuppliers();
-    fetchProducts();
-  }, []);
-
-  const fetchPurchases = async () => {
-    try {
-      setLoading(true);
-      const response = await purchasesAPI.getAll();
-      setPurchases(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching purchases:', err);
-      setError(err.response?.data?.error || t('purchases.failedToLoad'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSuppliers = async () => {
-    try {
-      const response = await suppliersAPI.getAll();
-      setSuppliers(response.data);
-    } catch (err) {
-      console.error('Error fetching suppliers:', err);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const response = await productsAPI.getAll();
-      setProducts(response.data);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    }
+  const invalidatePurchasesAndStock = async () => {
+    await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).purchasesList() });
+    await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
   };
 
   const handleView = async (purchaseId) => {
@@ -72,8 +67,7 @@ const Purchases = ({ readOnly = false }) => {
     if (!window.confirm(t('purchases.deleteConfirm'))) return;
     try {
       await purchasesAPI.delete(purchaseId);
-      await fetchPurchases();
-      await fetchProducts();
+      await invalidatePurchasesAndStock();
     } catch (err) {
       alert(err.response?.data?.error || t('purchases.purchaseFailed'));
     }
@@ -102,7 +96,11 @@ const Purchases = ({ readOnly = false }) => {
   }, [selectedSupplier]);
 
   if (loading) {
-    return <div className="content-container"><div className="loading">Loading purchases...</div></div>;
+    return (
+      <div className="content-container">
+        <PageLoadingCenter message="Loading purchases…" />
+      </div>
+    );
   }
 
   if (viewingPurchase && !editingPurchase) {
@@ -124,8 +122,7 @@ const Purchases = ({ readOnly = false }) => {
         products={products}
         purchase={editingPurchase}
         onSave={async () => {
-          await fetchPurchases();
-          await fetchProducts();
+          await invalidatePurchasesAndStock();
           setEditingPurchase(null);
           setViewingPurchase(null);
         }}
@@ -357,8 +354,7 @@ const Purchases = ({ readOnly = false }) => {
           suppliers={suppliers}
           products={products}
           onSave={async () => {
-            await fetchPurchases();
-            await fetchProducts();
+            await invalidatePurchasesAndStock();
             setModalOpen(false);
           }}
           onClose={() => setModalOpen(false)}
