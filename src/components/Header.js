@@ -2,18 +2,38 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faGear, faRightFromBracket, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { settingsAPI } from '../services/api';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import Notifications from './Notifications';
 import ProfileMenu from './ProfileMenu';
-import { withCurrentScope } from '../utils/appRouteScope';
+import { shopsPath } from '../utils/workspacePaths';
 import './Header.css';
+
+function workspaceTitle(pathname) {
+  const p = pathname || '';
+  if (/\/app(?:\/|$)/.test(p)) return 'Dashboard';
+  if (p.includes('/billing')) return 'Billing';
+  if (p.includes('/inventory/product/')) return 'Product';
+  if (p.includes('/inventory')) return 'Inventory';
+  if (p.includes('/customers')) return 'Customers';
+  if (p.includes('/suppliers')) return 'Suppliers';
+  if (p.includes('/purchases')) return 'Purchases';
+  if (p.includes('/expenses')) return 'Expenses';
+  if (p.includes('/rate-list')) return 'Rate List';
+  if (p.includes('/invoices')) return 'Invoices';
+  if (p.includes('/sales')) return 'Sales';
+  if (p.includes('/reports')) return 'Reports';
+  if (p.includes('/categories')) return 'Categories';
+  if (p.includes('/users')) return 'Users';
+  if (p.includes('/settings')) return 'Settings';
+  return 'Zentrya Biz';
+}
 
 const Header = ({ onMenuClick }) => {
   const { t } = useTranslation();
-  const { user, logout, isAdmin, activeShopId } = useAuth();
+  const { user, activeShopId } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [storeName, setStoreName] = useState('');
@@ -26,9 +46,10 @@ const Header = ({ onMenuClick }) => {
       const data = response.data;
 
       if (data && data.other_app_settings) {
-        const otherSettings = typeof data.other_app_settings === 'string'
-          ? JSON.parse(data.other_app_settings)
-          : data.other_app_settings;
+        const otherSettings =
+          typeof data.other_app_settings === 'string'
+            ? JSON.parse(data.other_app_settings)
+            : data.other_app_settings;
 
         const name =
           otherSettings?.shop_name ||
@@ -44,7 +65,6 @@ const Header = ({ onMenuClick }) => {
       console.error('[Header] Error fetching store name:', error);
     }
 
-    // Same source of truth as Settings: Supabase `shops.name` overrides API JSON when set
     if (isSupabaseBrowserConfigured() && supabase && activeShopId) {
       try {
         const { data: shopRow, error } = await supabase
@@ -56,7 +76,7 @@ const Header = ({ onMenuClick }) => {
           resolved = String(shopRow.name).trim();
         }
       } catch {
-        /* keep resolved from settings */
+        /* keep */
       }
     }
 
@@ -64,9 +84,7 @@ const Header = ({ onMenuClick }) => {
   }, [activeShopId]);
 
   useEffect(() => {
-    if (user) {
-      fetchStoreName();
-    }
+    if (user) fetchStoreName();
   }, [user, fetchStoreName]);
 
   useEffect(() => {
@@ -77,27 +95,14 @@ const Header = ({ onMenuClick }) => {
     return () => window.removeEventListener('zb-shop-display-updated', onShopDisplayUpdated);
   }, [user, fetchStoreName]);
 
-  const navActive = (path) => {
-    if (path === '/users') return location.pathname.endsWith('/users') || location.pathname.includes('/users/');
-    if (path === '/settings') return location.pathname.endsWith('/settings') || location.pathname.includes('/settings/');
-    return false;
-  };
-
   if (!user) {
     return null;
   }
 
-  const handleHeaderLogout = async () => {
-    if (window.confirm(t('auth.confirmLogout'))) {
-      await logout();
-    }
-  };
-
-  const logoSrc = `${process.env.PUBLIC_URL}/companylogo.jpeg`;
   const displayUserName = user?.full_name || user?.name || user?.username || 'User';
 
   return (
-    <header className="app-header">
+    <header className="app-header zb-topbar">
       <div className="header-left">
         {onMenuClick ? (
           <button
@@ -110,62 +115,36 @@ const Header = ({ onMenuClick }) => {
             <FontAwesomeIcon icon={faBars} className="header-menu-toggle-icon" aria-hidden />
           </button>
         ) : null}
-        <div className="header-brand">
-          <img
-            className="header-brandLogo"
-            src={logoSrc}
-            alt=""
-            width={48}
-            height={48}
-            decoding="async"
-          />
-          <h1 className="store-name" title={storeName || t('app.brandName')}>
-            {storeName || t('app.brandName')}
-          </h1>
-        </div>
-        <nav className="header-nav-links" aria-label="Workspace">
-          {isAdmin() ? (
-            <button
-              type="button"
-              className={`header-nav-link ${navActive('/users') ? 'header-nav-link--active' : ''}`}
-              onClick={() => navigate(withCurrentScope(location.pathname, '/users'))}
-              data-navigation="true"
-            >
-              <FontAwesomeIcon icon={faUsers} className="header-nav-link-icon" aria-hidden />
-              {t('menu.users')}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={`header-nav-link ${navActive('/settings') ? 'header-nav-link--active' : ''}`}
-            onClick={() => navigate(withCurrentScope(location.pathname, '/settings'))}
-            data-navigation="true"
-          >
-            <FontAwesomeIcon icon={faGear} className="header-nav-link-icon" aria-hidden />
-            {t('menu.settings')}
-          </button>
-        </nav>
+        <button
+          type="button"
+          className="zb-tb-myshops"
+          onClick={() => user?.id && navigate(shopsPath(user.id))}
+          data-navigation="true"
+          title={t('app.myShops', { defaultValue: 'My Shops' })}
+        >
+          <FontAwesomeIcon icon={faChevronLeft} style={{ width: '0.65rem' }} aria-hidden />
+          My Shops
+        </button>
+        <span className="zb-tb-divider" aria-hidden />
+        <span className="zb-tb-title">{workspaceTitle(location.pathname)}</span>
       </div>
 
+      <div className="zb-tb-fill" />
+
       <div className="header-right">
-        <Notifications />
-        <div className="header-profile-actions">
-          <ProfileMenu user={user} profileLabel={displayUserName} />
-          <button
-            type="button"
-            className="header-logout-btn"
-            onClick={handleHeaderLogout}
-            aria-label={t('auth.logout')}
-            title={t('auth.logout')}
-            data-navigation="true"
-          >
-            <FontAwesomeIcon icon={faRightFromBracket} className="header-logout-icon" aria-hidden />
-          </button>
+        <div className="zb-tb-live">
+          <span className="zb-tb-live-dot" aria-hidden />
+          Live
         </div>
+        <span className="zb-tb-divider" aria-hidden />
+        <Notifications />
+        <span className="zb-tb-shop-label" title={storeName}>
+          {storeName || 'Shop'}
+        </span>
+        <ProfileMenu user={user} profileLabel={displayUserName} />
       </div>
     </header>
   );
 };
 
 export default Header;
-

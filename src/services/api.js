@@ -219,6 +219,8 @@ export const authAPI = {
   zbSignupWithOtp: (data) => api.post('/auth/zb-signup-with-otp', data),
   /** Forgot password: OTP + new password (zb_simple_users + users) */
   zbResetPasswordAfterOtp: (data) => api.post('/auth/zb-reset-password-after-otp', data),
+  /** Logged-in Zentrya user: current + new password (zb_simple_users + users) — requires API `DATABASE_URL` */
+  zbChangePassword: (data) => api.post('/auth/zb-change-password', data),
   getStaffInvite: (token) => api.get(`/auth/staff-invite/${encodeURIComponent(token)}`),
   rejectStaffInvite: (token) => api.post(`/auth/staff-invite/${encodeURIComponent(token)}/reject`),
   acceptStaffInvite: (token, data) => api.post(`/auth/staff-invite/${encodeURIComponent(token)}/accept`, data),
@@ -228,6 +230,12 @@ export const authAPI = {
 export const otpAPI = {
   request: (body) => api.post('/otp/request', body),
   verify: (body) => api.post('/otp/verify', body),
+};
+
+/** Stripe subscription checkout + customer portal (`backend/routes/billing.js`) */
+export const billingAPI = {
+  createCheckoutSession: (body) => api.post('/billing/create-checkout-session', body),
+  createPortalSession: (body) => api.post('/billing/create-portal-session', body),
 };
 
 // Users API (Admin only)

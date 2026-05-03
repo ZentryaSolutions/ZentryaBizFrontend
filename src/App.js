@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
+import { ZbWorkspaceDashboardStyles } from './components/zbDashboardStyles';
 import { queryClient } from './lib/queryClient';
 import ShopCacheSync from './components/ShopCacheSync';
 import AppWorkspaceBootstrap from './components/AppWorkspaceBootstrap';
@@ -55,7 +56,6 @@ function AppContentWithRouter() {
 function AppContent({ location, navigate }) {
   const { i18n, t } = useTranslation();
   const { user, loading: authLoading, activeShopId, profile } = useAuth();
-  const [activeMenu, setActiveMenu] = useState('dashboard');
   /** Server/LAN read-only (client mode) */
   const [connectionReadOnly, setConnectionReadOnly] = useState(false);
   const readOnlyMode = connectionReadOnly;
@@ -182,9 +182,9 @@ function AppContent({ location, navigate }) {
   const scopedBase = appBasePath(user.id, activeShopId);
   const scopeInPath = extractAppScope(location?.pathname || '');
   const onLegacyAppPath = isLegacyAppPath(location?.pathname || '');
-  const hideBackRow = /\/(?:suppliers|customers)(?:\/|$)|\/inventory(?:\/product\/[^/]+)?(?:\/)?$/.test(
-    location?.pathname || ''
-  );
+  const hideBackRow =
+    /\/app(?:\/|$)/.test(location?.pathname || '') ||
+    /\/(?:suppliers|customers)(?:\/|$)|\/inventory(?:\/product\/[^/]+)?(?:\/)?$/.test(location?.pathname || '');
   const compactTopSpacing = /\/(?:suppliers|customers|inventory)(?:\/|$)/.test(location?.pathname || '');
 
   if (scopeInPath) {
@@ -201,9 +201,17 @@ function AppContent({ location, navigate }) {
   // Main app
   return (
     <AppWorkspaceBootstrap shopId={activeShopId}>
-    <div className={`app${mobileNavOpen ? ' app--nav-open' : ''}${zbWebOnly ? ' app--zb-web' : ''}`}>
+    <ZbWorkspaceDashboardStyles />
+    <div
+      className={`app zb-workspace-shell${mobileNavOpen ? ' app--nav-open' : ''}${zbWebOnly ? ' app--zb-web' : ''}`}
+    >
       <ShopCacheSync />
       <UpdateNotification />
+      <Sidebar
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+      />
+      <div className="zb-main-col">
       <Header onMenuClick={() => setMobileNavOpen(true)} />
       <ConnectionStatus 
         onRefresh={handleRefresh}
@@ -226,12 +234,6 @@ function AppContent({ location, navigate }) {
           Your subscription is expired. Renew from pricing / billing to restore Pro and Premium features.
         </div>
       )}
-      <Sidebar
-        activeMenu={activeMenu}
-        setActiveMenu={setActiveMenu}
-        mobileOpen={mobileNavOpen}
-        onMobileClose={() => setMobileNavOpen(false)}
-      />
       <main className={`main-content${compactTopSpacing ? ' main-content--compact-top' : ''}`}>
         {!hideBackRow ? (
           <div className="app-back-row">
@@ -270,6 +272,7 @@ function AppContent({ location, navigate }) {
           </Routes>
         </ErrorBoundary>
       </main>
+      </div>
     </div>
     </AppWorkspaceBootstrap>
   );

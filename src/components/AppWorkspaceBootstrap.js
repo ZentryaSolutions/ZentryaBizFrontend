@@ -16,23 +16,33 @@ import {
 } from '../lib/workspaceQueries';
 import './AppWorkspaceBootstrap.css';
 
-function WorkspaceLoadingOverlay({ progress }) {
-  const pct = Math.min(100, Math.max(0, progress));
-  const sub =
-    progress < 50
-      ? 'Loading products, sales, and settings so pages open instantly.'
-      : 'Caching customer, product, and supplier details for faster detail screens.';
+function WorkspaceLoadingOverlay() {
+  const logoSrc = `${process.env.PUBLIC_URL}/companylogo.jpeg`;
   return (
-    <div className="zb-workspace-boot" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+    <div className="zb-workspace-boot" role="status" aria-live="polite" aria-busy="true">
       <div className="zb-workspace-boot__panel">
-        <div className="zb-workspace-boot__brand">Zentrya Biz</div>
+        <img
+          src={logoSrc}
+          alt=""
+          width={72}
+          height={72}
+          decoding="async"
+          className="zb-workspace-boot__logo"
+        />
+        <p className="zb-workspace-boot__brand">Zentrya Biz</p>
         <p className="zb-workspace-boot__title">Preparing your workspace</p>
-        <p className="zb-workspace-boot__sub">{sub}</p>
-        <div className="zb-workspace-boot__track">
-          <div className="zb-workspace-boot__fill" style={{ width: `${pct}%` }} />
+        <p className="zb-workspace-boot__sub">Syncing products, sales, and settings.</p>
+
+        <div className="zb-boot-viz" aria-hidden>
+          <div className="zb-boot-viz__glow" />
+          <div className="zb-boot-viz__ring zb-boot-viz__ring--a" />
+          <div className="zb-boot-viz__ring zb-boot-viz__ring--b" />
+          <div className="zb-boot-viz__dots">
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
-        <p className="zb-workspace-boot__pct">{pct}%</p>
-        <div className="zb-workspace-boot__spinner" aria-hidden />
       </div>
     </div>
   );
@@ -40,12 +50,11 @@ function WorkspaceLoadingOverlay({ progress }) {
 
 /**
  * First entry after shop select: parallel prefetch into React Query cache.
- * Shows centered progress until all tasks settle (failures still allow entering the app).
+ * Shows a branded loader until prefetch settles (failures still allow entering the app).
  */
 export default function AppWorkspaceBootstrap({ shopId, children }) {
   const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (!shopId) {
@@ -55,7 +64,6 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
 
     let cancelled = false;
     setReady(false);
-    setProgress(0);
 
     const keys = zbKeys(shopId);
     const tasks = [
@@ -67,24 +75,14 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
       { queryKey: keys.purchasesList(), queryFn: fetchPurchasesList },
     ];
 
-    const total = tasks.length;
-    let completed = 0;
-
-    const bump = () => {
-      completed += 1;
-      if (!cancelled) setProgress(Math.round((completed / total) * 50));
-    };
-
     (async () => {
       await Promise.allSettled(
         tasks.map((t) =>
-          queryClient
-            .prefetchQuery({
-              queryKey: t.queryKey,
-              queryFn: t.queryFn,
-              staleTime: 60 * 1000,
-            })
-            .finally(bump)
+          queryClient.prefetchQuery({
+            queryKey: t.queryKey,
+            queryFn: t.queryFn,
+            staleTime: 60 * 1000,
+          })
         )
       );
 
@@ -116,10 +114,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
       ];
 
       if (warmTasks.length === 0) {
-        if (!cancelled) {
-          setProgress(100);
-          setReady(true);
-        }
+        if (!cancelled) setReady(true);
         return;
       }
 
@@ -137,15 +132,9 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
             })
           )
         );
-        if (!cancelled) {
-          setProgress(50 + Math.round(((b + 1) / totalBatches) * 50));
-        }
       }
 
-      if (!cancelled) {
-        setProgress(100);
-        setReady(true);
-      }
+      if (!cancelled) setReady(true);
     })();
 
     return () => {
@@ -156,7 +145,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
   if (!shopId) return children;
 
   if (!ready) {
-    return <WorkspaceLoadingOverlay progress={progress} />;
+    return <WorkspaceLoadingOverlay />;
   }
 
   return children;
