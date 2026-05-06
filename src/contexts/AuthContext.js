@@ -87,11 +87,16 @@ async function tryEstablishNodeSession(username, password) {
       return;
     }
   } catch (e) {
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
     if (e.response?.status === 503) {
+      console.warn('[Zentrya Biz] API session failed — database unreachable:', msg);
+    } else if (e.code === 'ERR_NETWORK' || !e.response) {
       console.warn(
-        '[Zentrya Biz] API session failed — database unreachable:',
-        e.response?.data?.message || e.message
+        '[Zentrya Biz] API session unreachable (check REACT_APP_BACKEND_URL, CORS, and that POST /api/auth/zb-simple-session is allowed):',
+        msg
       );
+    } else {
+      console.warn('[Zentrya Biz] zb-simple-session:', e.response?.status, msg);
     }
     // fall through — legacy-only account or old backend
   }

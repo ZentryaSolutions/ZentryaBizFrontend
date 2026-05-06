@@ -1,24 +1,46 @@
 /**
- * Browser Supabase client (publishable key). CRA only exposes REACT_APP_* vars.
- * NEXT_PUBLIC_* is for Next.js — kept as fallback if you ever switch bundler.
+ * Browser Supabase client. CRA embeds env at build time from `frontend/.env` locally
+ * or from Vercel Project → Environment Variables (must trigger a redeploy after changes).
+ *
+ * Supports legacy JWT anon keys (eyJ...) and newer publishable keys (sb_publishable_...).
  */
 import { createClient } from '@supabase/supabase-js';
 
-const url =
-  process.env.REACT_APP_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  '';
+function firstNonEmpty(...keys) {
+  for (const envKey of keys) {
+    const raw = process.env[envKey];
+    if (raw == null) continue;
+    const s = String(raw).trim();
+    if (s) return s;
+  }
+  return '';
+}
 
-const key =
-  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.REACT_APP_SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
+const url = firstNonEmpty('REACT_APP_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
 
-export const supabase =
-  url && key ? createClient(url, key, { auth: { persistSession: true } }) : null;
+const key = firstNonEmpty(
+  'REACT_APP_SUPABASE_PUBLISHABLE_KEY',
+  'REACT_APP_SUPABASE_ANON_KEY',
+  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+);
 
+function buildClient() {
+  if (!url || !key) return null;
+  try {
+    return createClient(url, key, { auth: { persistSession: true } });
+  } catch (e) {
+    console.error(
+      '[Supabase] createClient failed (check URL/key; publishable keys need a recent @supabase/supabase-js):',
+      e
+    );
+    return null;
+  }
+}
+
+export const supabase = buildClient();
+
+/** True only when a client was created — same as having valid env at build time and a working key format. */
 export function isSupabaseBrowserConfigured() {
-  return !!(url && key);
+  return supabase != null;
 }

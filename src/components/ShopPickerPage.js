@@ -469,8 +469,9 @@ export default function ShopPickerPage() {
             Supabase not configured
           </p>
           <div style={{ fontSize: 14, color: '#6b6760' }}>
-            Add <code>REACT_APP_SUPABASE_URL</code> and <code>REACT_APP_SUPABASE_ANON_KEY</code> in the
-            frontend <code>.env</code>.
+            Add <code>REACT_APP_SUPABASE_URL</code> plus <code>REACT_APP_SUPABASE_PUBLISHABLE_KEY</code> or{' '}
+            <code>REACT_APP_SUPABASE_ANON_KEY</code> in <code>frontend/.env</code> (local) or Vercel env, then
+            restart / redeploy.
           </div>
         </div>
       </div>

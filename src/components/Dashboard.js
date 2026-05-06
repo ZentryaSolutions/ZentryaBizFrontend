@@ -217,20 +217,29 @@ const Dashboard = () => {
     return <DashboardSkeleton t={t} />;
   }
 
-  if (!dashboardData) {
-    if (loadFailed && isZbWebOnlyMode()) {
-      return (
-        <div className="content-container">
-          <div className="zb-dash">
-            <h1 className="page-title">{t('dashboard.title')}</h1>
-            <p className="page-subtitle">
-              The POS API on port 5000 needs a <strong>server session</strong> (<code>x-session-id</code>), not
-              only Supabase login. Check DevTools → Network → <code>dashboard</code>.
-            </p>
-          </div>
+  if (!dashboardData && loadFailed) {
+    const webOnly = isZbWebOnlyMode();
+    return (
+      <div className="content-container">
+        <div className="zb-dash">
+          <h1 className="page-title">{t('dashboard.title')}</h1>
+          <p className="page-subtitle">
+            {webOnly
+              ? t('dashboard.hintMissingApiSession', {
+                  defaultValue:
+                    'You are signed in with Supabase, but the browser never got a POS API session. After login, POST /api/auth/zb-simple-session must return 200 and set sessionId (sent as header x-session-id). Sign out and sign in again while watching Network → zb-simple-session. On production, REACT_APP_BACKEND_URL must be your deployed API URL (not localhost).',
+                })
+              : t('dashboard.hintBackendOrCors', {
+                  defaultValue:
+                    'Dashboard data failed to load. This is usually CORS blocking the OPTIONS preflight (403) between your frontend and API, REACT_APP_BACKEND_URL pointing at the wrong host, or an invalid x-session-id. Confirm the backend allows your site origin with credentials and headers x-session-id, x-shop-id, x-device-id.',
+                })}
+          </p>
         </div>
-      );
-    }
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
     return (
       <div className="content-container">
         <div className="error-message">{t('dashboard.failedToLoad')}</div>

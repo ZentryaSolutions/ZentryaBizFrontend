@@ -6,13 +6,16 @@ const API_BASE_URL = getServerUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Add device ID to all requests
 api.interceptors.request.use((config) => {
+  const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+  const isUrlParams = typeof URLSearchParams !== 'undefined' && config.data instanceof URLSearchParams;
+  if (config.data != null && !isFormData && !isUrlParams && typeof config.data !== 'string') {
+    config.headers['Content-Type'] = 'application/json';
+  }
+
   const deviceId = localStorage.getItem('deviceId') || 'unknown';
   config.headers['x-device-id'] = deviceId;
 

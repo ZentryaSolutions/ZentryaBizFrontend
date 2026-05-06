@@ -72,6 +72,12 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isSupabaseBrowserConfigured()) {
+      setError(
+        'Supabase is not in this build yet. On your PC: copy `frontend/env.template` to `frontend/.env`, paste the same REACT_APP_* values as on Vercel, then restart `npm start`. On Vercel: confirm variables exist and redeploy so the bundle picks them up.'
+      );
+      return;
+    }
     setLoading(true);
     try {
       const r = await signInWithPassword(email, password);
@@ -187,9 +193,13 @@ export default function LoginPage() {
         {mode === 'login' ? (
           <div className="zb-auth__panel zb-auth__panel--visible" key="login">
             {!isSupabaseBrowserConfigured() ? (
-              <div className="zb-auth__notice zb-auth__notice--warn">
-                Add <code>REACT_APP_SUPABASE_URL</code> and <code>REACT_APP_SUPABASE_ANON_KEY</code> in{' '}
-                <code>.env</code>.
+              <div className="zb-auth__notice">
+                <strong>Local dev:</strong> create <code>frontend/.env</code> (copy from <code>env.template</code>)
+                with <code>REACT_APP_SUPABASE_URL</code> plus either <code>REACT_APP_SUPABASE_PUBLISHABLE_KEY</code>{' '}
+                or <code>REACT_APP_SUPABASE_ANON_KEY</code>, then restart <code>npm start</code>.
+                <br />
+                <strong>Vercel:</strong> same variables must be set on the frontend project — after changing them,
+                trigger a new deployment (bundle is built with those values).
               </div>
             ) : null}
             {justRegistered ? (
