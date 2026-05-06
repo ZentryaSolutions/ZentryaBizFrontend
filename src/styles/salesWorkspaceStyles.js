@@ -67,4 +67,14 @@ export const salesWorkspaceStyles = `
 .sal2-iconbtn:hover{background:#f8fafc;color:#111827;border-color:#d1d5db}
 .sal2-iconbtn--del:hover{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
 .sal2-empty{padding:40px 16px;text-align:center;color:#94a3b8;font-size:14px}
+
+/* Full-screen overlay + centered modal (covers sidebar + navbar) */
+.sal2-modal-overlay{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sal2-modal{width:min(980px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;border-radius:14px;background:#fff;box-shadow:0 24px 70px rgba(2,6,23,.35);border:1px solid rgba(226,232,240,.9)}
+.sal2-modal .modal-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eef2f7;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:1}
+.sal2-modal .modal-header h2{margin:0;font-size:15px;font-weight:800;color:#0f172a}
+.sal2-modal .modal-close{width:34px;height:34px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#64748b;cursor:pointer;font-size:18px;line-height:1}
+.sal2-modal .modal-close:hover{background:#f8fafc;color:#0f172a;border-color:#d1d5db}
+.sal2-modal .modal-content{padding:16px}
+.sal2-modal .modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:14px}
 `;

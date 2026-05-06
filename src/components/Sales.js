@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -488,6 +489,8 @@ const Sales = ({ readOnly = false }) => {
     );
   }
 
+  const portal = (node) => createPortal(node, document.body);
+
   return (
     <div className="content-container sales-page sal2">
       <style>{salesWorkspaceStyles}</style>
@@ -708,246 +711,260 @@ const Sales = ({ readOnly = false }) => {
         ) : null}
       </section>
 
-      {selectedSale && (
-        <div className="modal-overlay" onClick={() => setSelectedSale(null)}>
-          <div className="modal sales-detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                {t('sales.saleDetails')} - {selectedSale.invoice_number}
-              </h2>
-              <button type="button" className="modal-close" onClick={() => setSelectedSale(null)}>
-                ×
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="sales-detail-info">
-                <div>
-                  <strong>{t('sales.date')}:</strong> {formatDate(selectedSale.date)}
+      {selectedSale
+        ? portal(
+            <div className="sal2-modal-overlay" onClick={() => setSelectedSale(null)}>
+              <div className="sal2-modal modal sales-detail-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>
+                    {t('sales.saleDetails')} - {selectedSale.invoice_number}
+                  </h2>
+                  <button type="button" className="modal-close" onClick={() => setSelectedSale(null)}>
+                    ×
+                  </button>
                 </div>
-                <div>
-                  <strong>{t('sales.customer')}:</strong> {selectedSale.customer_name || t('sales.cashCustomer')}
-                </div>
-                <div>
-                  <strong>{t('sales.paymentMode')}:</strong> {selectedSale.payment_mode || 'cash'}
-                </div>
-              </div>
-
-              <table className="sales-items-table">
-                <thead>
-                  <tr>
-                    <th>{t('sales.productName')}</th>
-                    <th>{t('sales.quantity')}</th>
-                    <th>{t('sales.price')}</th>
-                    <th>{t('sales.total')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedSale.items || []).map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.product_name || item.name || 'N/A'}</td>
-                      <td>{item.quantity}</td>
-                      <td>{formatCurrency(item.selling_price)}</td>
-                      <td>{formatCurrency(item.quantity * item.selling_price)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="sales-totals">
-                {selectedSale.discount > 0 && (
-                  <div className="sales-total-row">
-                    <span>{t('sales.subtotal')}:</span>
-                    <span>{formatCurrency((selectedSale.total_amount || 0) + (selectedSale.discount || 0))}</span>
-                  </div>
-                )}
-                {selectedSale.discount > 0 && (
-                  <div className="sales-total-row">
-                    <span>{t('sales.discount')}:</span>
-                    <span>-{formatCurrency(selectedSale.discount)}</span>
-                  </div>
-                )}
-                <div className="sales-total-row sales-grand-total">
-                  <span>{t('sales.grandTotal')}:</span>
-                  <span>{formatCurrency(selectedSale.total_amount)}</span>
-                </div>
-                <div className="sales-total-row">
-                  <span>{t('sales.paidAmount')}:</span>
-                  <span>{formatCurrency(selectedSale.paid_amount)}</span>
-                </div>
-                {selectedSale.total_amount - selectedSale.paid_amount > 0 && (
-                  <div className="sales-total-row sales-due">
-                    <span>{t('sales.remainingDue')}:</span>
-                    <span>{formatCurrency(selectedSale.total_amount - selectedSale.paid_amount)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn btn-primary" onClick={() => handlePrintInvoice(selectedSale)}>
-                  {t('sales.printInvoice')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setSelectedSale(null)}>
-                  {t('common.close')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingSale && (
-        <div className="modal-overlay" onClick={() => setEditingSale(null)}>
-          <div className="modal sales-edit-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                {t('sales.editSale')} - {editingSale.invoice_number}
-              </h2>
-              <button type="button" className="modal-close" onClick={() => setEditingSale(null)}>
-                ×
-              </button>
-            </div>
-            <div className="modal-content">
-              {editingSale.is_finalized ? (
-                <div className="error-message">{t('sales.cannotEditFinalized')}</div>
-              ) : (
-                <>
-                  <div className="zb-form-grid zb-form-grid--2">
-                    <div className="form-group zb-form-grid__full">
-                      <label className="form-label">{t('sales.paymentMode')}</label>
-                      <select
-                        className="form-input"
-                        value={editFormData.payment_type}
-                        onChange={(e) => {
-                          const newPaymentType = e.target.value;
-                          setEditFormData({
-                            ...editFormData,
-                            payment_type: newPaymentType,
-                            paid_amount: newPaymentType === 'cash' ? editingSale.total_amount : newPaymentType === 'credit' ? 0 : editFormData.paid_amount,
-                          });
-                        }}
-                      >
-                        <option value="cash">{t('sales.cash')}</option>
-                        <option value="credit">{t('sales.credit')}</option>
-                        <option value="split">{t('sales.split')}</option>
-                      </select>
+                <div className="modal-content">
+                  <div className="sales-detail-info">
+                    <div>
+                      <strong>{t('sales.date')}:</strong> {formatDate(selectedSale.date)}
                     </div>
+                    <div>
+                      <strong>{t('sales.customer')}:</strong> {selectedSale.customer_name || t('sales.cashCustomer')}
+                    </div>
+                    <div>
+                      <strong>{t('sales.paymentMode')}:</strong> {selectedSale.payment_mode || 'cash'}
+                    </div>
+                  </div>
 
-                    {editFormData.payment_type === 'split' && (
-                      <div className="form-group zb-form-grid__full">
-                        <label className="form-label">{t('sales.paidAmount')}</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          value={editFormData.paid_amount}
-                          onChange={(e) =>
-                            setEditFormData({
-                              ...editFormData,
-                              paid_amount: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          min="0"
-                          max={editingSale.total_amount}
-                          step="0.01"
-                        />
+                  <table className="sales-items-table">
+                    <thead>
+                      <tr>
+                        <th>{t('sales.productName')}</th>
+                        <th>{t('sales.quantity')}</th>
+                        <th>{t('sales.price')}</th>
+                        <th>{t('sales.total')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedSale.items || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.product_name || item.name || 'N/A'}</td>
+                          <td>{item.quantity}</td>
+                          <td>{formatCurrency(item.selling_price)}</td>
+                          <td>{formatCurrency(item.quantity * item.selling_price)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="sales-totals">
+                    {selectedSale.discount > 0 && (
+                      <div className="sales-total-row">
+                        <span>{t('sales.subtotal')}:</span>
+                        <span>{formatCurrency((selectedSale.total_amount || 0) + (selectedSale.discount || 0))}</span>
                       </div>
                     )}
-
-                    <div className="form-group">
-                      <label className="form-label">{t('sales.discount')}</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={editFormData.discount}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            discount: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">{t('sales.tax')}</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={editFormData.tax}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            tax: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="sales-totals" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-                    <div className="sales-total-row">
-                      <span>{t('sales.subtotal')}:</span>
-                      <span>{formatCurrency((editingSale.subtotal || editingSale.total_amount) + (editFormData.discount || 0))}</span>
-                    </div>
-                    {editFormData.discount > 0 && (
+                    {selectedSale.discount > 0 && (
                       <div className="sales-total-row">
                         <span>{t('sales.discount')}:</span>
-                        <span>-{formatCurrency(editFormData.discount)}</span>
-                      </div>
-                    )}
-                    {editFormData.tax > 0 && (
-                      <div className="sales-total-row">
-                        <span>{t('sales.tax')}:</span>
-                        <span>+{formatCurrency(editFormData.tax)}</span>
+                        <span>-{formatCurrency(selectedSale.discount)}</span>
                       </div>
                     )}
                     <div className="sales-total-row sales-grand-total">
                       <span>{t('sales.grandTotal')}:</span>
-                      <span>{formatCurrency((editingSale.subtotal || editingSale.total_amount) - editFormData.discount + editFormData.tax)}</span>
+                      <span>{formatCurrency(selectedSale.total_amount)}</span>
                     </div>
+                    <div className="sales-total-row">
+                      <span>{t('sales.paidAmount')}:</span>
+                      <span>{formatCurrency(selectedSale.paid_amount)}</span>
+                    </div>
+                    {selectedSale.total_amount - selectedSale.paid_amount > 0 && (
+                      <div className="sales-total-row sales-due">
+                        <span>{t('sales.remainingDue')}:</span>
+                        <span>{formatCurrency(selectedSale.total_amount - selectedSale.paid_amount)}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="modal-actions" style={{ marginTop: '20px' }}>
-                    <button type="button" className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>
-                      {saving ? t('common.saving') : t('common.save')}
+                  <div className="modal-actions">
+                    <button type="button" className="btn btn-primary" onClick={() => handlePrintInvoice(selectedSale)}>
+                      {t('sales.printInvoice')}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={() => setEditingSale(null)} disabled={saving}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setSelectedSale(null)}>
+                      {t('common.close')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        : null}
+
+      {editingSale
+        ? portal(
+            <div className="sal2-modal-overlay" onClick={() => setEditingSale(null)}>
+              <div className="sal2-modal modal sales-edit-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>
+                    {t('sales.editSale')} - {editingSale.invoice_number}
+                  </h2>
+                  <button type="button" className="modal-close" onClick={() => setEditingSale(null)}>
+                    ×
+                  </button>
+                </div>
+                <div className="modal-content">
+                  {editingSale.is_finalized ? (
+                    <div className="error-message">{t('sales.cannotEditFinalized')}</div>
+                  ) : (
+                    <>
+                      <div className="zb-form-grid zb-form-grid--2">
+                        <div className="form-group zb-form-grid__full">
+                          <label className="form-label">{t('sales.paymentMode')}</label>
+                          <select
+                            className="form-input"
+                            value={editFormData.payment_type}
+                            onChange={(e) => {
+                              const newPaymentType = e.target.value;
+                              setEditFormData({
+                                ...editFormData,
+                                payment_type: newPaymentType,
+                                paid_amount:
+                                  newPaymentType === 'cash'
+                                    ? editingSale.total_amount
+                                    : newPaymentType === 'credit'
+                                      ? 0
+                                      : editFormData.paid_amount,
+                              });
+                            }}
+                          >
+                            <option value="cash">{t('sales.cash')}</option>
+                            <option value="credit">{t('sales.credit')}</option>
+                            <option value="split">{t('sales.split')}</option>
+                          </select>
+                        </div>
+
+                        {editFormData.payment_type === 'split' && (
+                          <div className="form-group zb-form-grid__full">
+                            <label className="form-label">{t('sales.paidAmount')}</label>
+                            <input
+                              type="number"
+                              className="form-input"
+                              value={editFormData.paid_amount}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  paid_amount: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              min="0"
+                              max={editingSale.total_amount}
+                              step="0.01"
+                            />
+                          </div>
+                        )}
+
+                        <div className="form-group">
+                          <label className="form-label">{t('sales.discount')}</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={editFormData.discount}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                discount: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">{t('sales.tax')}</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={editFormData.tax}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                tax: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        className="sales-totals"
+                        style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}
+                      >
+                        <div className="sales-total-row">
+                          <span>{t('sales.subtotal')}:</span>
+                          <span>{formatCurrency((editingSale.subtotal || editingSale.total_amount) + (editFormData.discount || 0))}</span>
+                        </div>
+                        {editFormData.discount > 0 && (
+                          <div className="sales-total-row">
+                            <span>{t('sales.discount')}:</span>
+                            <span>-{formatCurrency(editFormData.discount)}</span>
+                          </div>
+                        )}
+                        {editFormData.tax > 0 && (
+                          <div className="sales-total-row">
+                            <span>{t('sales.tax')}:</span>
+                            <span>+{formatCurrency(editFormData.tax)}</span>
+                          </div>
+                        )}
+                        <div className="sales-total-row sales-grand-total">
+                          <span>{t('sales.grandTotal')}:</span>
+                          <span>{formatCurrency((editingSale.subtotal || editingSale.total_amount) - editFormData.discount + editFormData.tax)}</span>
+                        </div>
+                      </div>
+
+                      <div className="modal-actions" style={{ marginTop: '20px' }}>
+                        <button type="button" className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>
+                          {saving ? t('common.saving') : t('common.save')}
+                        </button>
+                        <button type="button" className="btn btn-secondary" onClick={() => setEditingSale(null)} disabled={saving}>
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        : null}
+
+      {deleteConfirm
+        ? portal(
+            <div className="sal2-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+              <div className="sal2-modal modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>{t('sales.confirmDelete')}</h2>
+                  <button type="button" className="modal-close" onClick={() => setDeleteConfirm(null)}>
+                    ×
+                  </button>
+                </div>
+                <div className="modal-content">
+                  <p>{t('sales.deleteWarning')}</p>
+                  <div className="modal-actions">
+                    <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>
+                      {t('common.delete')}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>
                       {t('common.cancel')}
                     </button>
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteConfirm && (
-        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{t('sales.confirmDelete')}</h2>
-              <button type="button" className="modal-close" onClick={() => setDeleteConfirm(null)}>
-                ×
-              </button>
-            </div>
-            <div className="modal-content">
-              <p>{t('sales.deleteWarning')}</p>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>
-                  {t('common.delete')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>
-                  {t('common.cancel')}
-                </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        : null}
     </div>
   );
 };
