@@ -63,12 +63,15 @@ function clearSession() {
   sessionStorage.removeItem(SS_EMAIL);
 }
 
-/** After zb_login, create Node session: zb_simple_users → users + session (see POST /api/auth/zb-simple-session). */
+/**
+ * After zb_login, create Node session (POST /api/auth/zb-simple-session → sessionId → x-session-id).
+ * @returns {{ ok: boolean; hint?: string }}
+ */
 async function tryEstablishNodeSession(username, password) {
+  let hint = '';
   const deviceId = localStorage.getItem('deviceId') || 'unknown';
   const cfg = {
     headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
-    // Allow backend time for DB retries (see backend/db.js) on slow Supabase/network paths.
     timeout: 60000,
   };
   const base = getServerUrl();
@@ -84,28 +87,40 @@ async function tryEstablishNodeSession(username, password) {
     const { data } = await axios.post(`${base}/auth/zb-simple-session`, { username, password }, cfg);
     if (data?.sessionId) {
       save(data);
-      return;
+      return { ok: true };
     }
+    hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
   } catch (e) {
     const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
-    if (e.response?.status === 503) {
+    const code = e.response?.status;
+    hint = code ? `zb-simple-session HTTP ${code}: ${msg}` : msg;
+    if (code === 503) {
       console.warn('[Zentrya Biz] API session failed — database unreachable:', msg);
     } else if (e.code === 'ERR_NETWORK' || !e.response) {
       console.warn(
-        '[Zentrya Biz] API session unreachable (check REACT_APP_BACKEND_URL, CORS, and that POST /api/auth/zb-simple-session is allowed):',
+        '[Zentrya Biz] API session unreachable (REACT_APP_BACKEND_URL, LAN override in localStorage hisaabkitab_server_url on production, or CORS):',
         msg
       );
     } else {
-      console.warn('[Zentrya Biz] zb-simple-session:', e.response?.status, msg);
+      console.warn('[Zentrya Biz] zb-simple-session:', code, msg);
     }
-    // fall through — legacy-only account or old backend
   }
   try {
     const { data } = await axios.post(`${base}/auth/login`, { username, password }, cfg);
     save(data);
-  } catch {
-    /* Zentrya-only or API down */
+  } catch (_) {
+    /* legacy login only */
   }
+  return localStorage.getItem('sessionId')
+    ? { ok: true }
+    : {
+        ok: false,
+        hint:
+          hint ||
+          'POS API session missing. Uses API base: ' +
+            base +
+            ' — clear LAN server override in Settings → Connection / localStorage key hisaabkitab_server_url.',
+      };
 }
 
 export const AuthProvider = ({ children }) => {
@@ -226,7 +241,25 @@ export const AuthProvider = ({ children }) => {
 
     persistSession(data.user_id, data.username, data.full_name, em);
     applyLocalUser(data.user_id);
-    await tryEstablishNodeSession(em, password);
+    const apiSess = await tryEstablishNodeSession(em, password);
+    if (!apiSess.ok) {
+      clearSession();
+      setUser(null);
+      setProfile(null);
+      try {
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('user');
+      } catch {
+        /* ignore */
+      }
+      return {
+        success: false,
+        error:
+          'POS API session failed — dashboard needs the backend. ' +
+          (apiSess.hint ||
+            'Check Network → zb-simple-session, Vercel REACT_APP_BACKEND_URL (…/api), and clear any LAN server URL stored in the browser.'),
+      };
+    }
     try {
       await refreshProfile(data.user_id);
     } catch {
@@ -266,7 +299,24 @@ export const AuthProvider = ({ children }) => {
 
       persistSession(data.user_id, data.username, data.full_name, em);
       applyLocalUser(data.user_id);
-      await tryEstablishNodeSession(em, password);
+      const apiSess = await tryEstablishNodeSession(em, password);
+      if (!apiSess.ok) {
+        clearSession();
+        setUser(null);
+        setProfile(null);
+        try {
+          localStorage.removeItem('sessionId');
+          localStorage.removeItem('user');
+        } catch {
+          /* ignore */
+        }
+        return {
+          success: false,
+          error:
+            'Account created but POS API session failed. ' +
+            (apiSess.hint || 'Check backend URL and zb-simple-session in Network.'),
+        };
+      }
       try {
         await refreshProfile(data.user_id);
       } catch {

@@ -13,10 +13,36 @@ function getDefaultServerUrl() {
 
 const DEFAULT_SERVER_URL = getDefaultServerUrl();
 
+function isHttpsProductionSite() {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname || '';
+  if (window.location.protocol !== 'https:') return false;
+  return h !== 'localhost' && h !== '127.0.0.1';
+}
+
+/** LAN/localhost overrides break hosted frontends — API calls stay on localhost or disappear to wrong origin (/api). */
+function storedBackendIsUnsafeFromHostedProd(stored) {
+  const s = String(stored || '').trim().toLowerCase();
+  if (!s) return false;
+  if (s === '/api' || s.startsWith('/api/')) return true;
+  if (s.includes('localhost') || s.includes('127.0.0.1')) return true;
+  if (/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(s)) return true;
+  if (typeof window !== 'undefined') {
+    try {
+      const full = /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, '')}`;
+      const parsed = new URL(full);
+      if (parsed.origin === window.location.origin) return true;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return false;
+}
+
 // Get server URL from localStorage or use default
 export const getServerUrl = () => {
   const stored = localStorage.getItem('hisaabkitab_server_url');
-  if (stored) {
+  if (stored && !(isHttpsProductionSite() && storedBackendIsUnsafeFromHostedProd(stored))) {
     return stored.endsWith('/api') ? stored : `${stored}/api`;
   }
   return DEFAULT_SERVER_URL;

@@ -172,7 +172,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { activeShopId, isAdmin } = useAuth();
+  const { activeShopId, isAdmin, logout } = useAuth();
   const queryClient = useQueryClient();
   const admin = isAdmin();
 
@@ -227,13 +227,31 @@ const Dashboard = () => {
             {webOnly
               ? t('dashboard.hintMissingApiSession', {
                   defaultValue:
-                    'You are signed in with Supabase, but the browser never got a POS API session. After login, POST /api/auth/zb-simple-session must return 200 and set sessionId (sent as header x-session-id). Sign out and sign in again while watching Network → zb-simple-session. On production, REACT_APP_BACKEND_URL must be your deployed API URL (not localhost).',
+                    'No POS API session (missing sessionId). Common causes: LAN/localhost server saved in this browser (same site as /api), wrong REACT_APP_BACKEND_URL on the last deploy, or zb-simple-session failing. Clear hisaabkitab_server_url from localStorage / Settings → connection, then sign out and sign in again; check Network → zb-simple-session = 200.',
                 })
               : t('dashboard.hintBackendOrCors', {
                   defaultValue:
                     'Dashboard data failed to load. This is usually CORS blocking the OPTIONS preflight (403) between your frontend and API, REACT_APP_BACKEND_URL pointing at the wrong host, or an invalid x-session-id. Confirm the backend allows your site origin with credentials and headers x-session-id, x-shop-id, x-device-id.',
                 })}
           </p>
+          {webOnly ? (
+            <p className="page-subtitle" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ marginRight: 8 }}
+                onClick={async () => {
+                  await logout?.();
+                  navigate('/login', { replace: true });
+                }}
+              >
+                Sign out and try again
+              </button>
+              <span style={{ fontSize: 13, color: '#667085' }}>
+                After sign-in, zb-simple-session must succeed or login will be blocked.
+              </span>
+            </p>
+          ) : null}
         </div>
       </div>
     );
