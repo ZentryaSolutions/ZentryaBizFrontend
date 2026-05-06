@@ -169,7 +169,7 @@ function AppContent({ location }) {
   const scopedBase = appBasePath(user.id, activeShopId);
   const scopeInPath = extractAppScope(location?.pathname || '');
   const onLegacyAppPath = isLegacyAppPath(location?.pathname || '');
-  const compactTopSpacing = /\/(?:suppliers|customers|inventory|purchases|sales)(?:\/|$)/.test(
+  const compactTopSpacing = /\/(?:suppliers|customers|inventory|purchases|sales|billing)(?:\/|$)/.test(
     location?.pathname || ''
   );
 

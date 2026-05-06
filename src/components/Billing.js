@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +12,7 @@ import {
   fetchSettingsDoc,
 } from '../lib/workspaceQueries';
 import PageLoadingCenter from './PageLoadingCenter';
-import './Billing.css';
+import { billingWorkspaceStyles } from '../styles/billingWorkspaceStyles';
 
 const STOCK_ERR = (avail) =>
   `Insufficient stock. Available: ${Number(avail || 0)} units. Please add stock first.`;
@@ -87,6 +88,8 @@ const Billing = ({ readOnly = false }) => {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [saleNotes, setSaleNotes] = useState('');
+  const [paymentMode, setPaymentMode] = useState('cash'); // cash | card | transfer
+  const [creditMode, setCreditMode] = useState('full'); // full | partial | credit
   
   // Price type per item
   const [itemPriceTypes, setItemPriceTypes] = useState({});
@@ -356,12 +359,30 @@ const Billing = ({ readOnly = false }) => {
     const { grandTotal } = calculateTotals();
     if (!selectedCustomer) {
       setPaidAmount(grandTotal);
+      setCreditMode('full');
       return;
     }
     const p = parseFloat(paidAmount) || 0;
     if (p > grandTotal) setPaidAmount(grandTotal);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync paid cap when totals change; full deps would thrash paid edits
   }, [invoiceItems, discount, selectedCustomer]);
+
+  useEffect(() => {
+    const { grandTotal } = calculateTotals();
+    if (!selectedCustomer) {
+      setCreditMode('full');
+      return;
+    }
+    const paid = parseFloat(paidAmount) || 0;
+    if (grandTotal <= 0) {
+      setCreditMode('full');
+      return;
+    }
+    if (paid <= 0.00001) setCreditMode('credit');
+    else if (paid + 0.00001 < grandTotal) setCreditMode('partial');
+    else setCreditMode('full');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- derived credit mode from paid/grandTotal; keep stable
+  }, [paidAmount, invoiceItems, discount, selectedCustomer]);
 
   // Handle save invoice
   const handleSaveInvoice = async (shouldPrint = false) => {
@@ -420,7 +441,7 @@ const Billing = ({ readOnly = false }) => {
         customer_id: selectedCustomer?.customer_id || null,
         customer_name: selectedCustomer ? null : (customerName.trim() || null),
         payment_type: paymentType,
-        payment_mode: 'cash',
+        payment_mode: paymentMode,
         paid_amount: paid,
         discount: parseFloat(discount) || 0,
         tax: 0, // No tax for now
@@ -486,6 +507,8 @@ const Billing = ({ readOnly = false }) => {
     setSaleNotes('');
     setItemPriceTypes({});
     setError(null);
+    setPaymentMode('cash');
+    setCreditMode('full');
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -709,7 +732,7 @@ const Billing = ({ readOnly = false }) => {
     return `PKR ${Number(amount || 0).toFixed(2)}`;
   };
 
-  const { subtotal, grandTotal, remainingDue, change, paid } = calculateTotals();
+  const { subtotal, grandTotal, change, paid } = calculateTotals();
 
   if (loading) {
     return (
@@ -719,464 +742,491 @@ const Billing = ({ readOnly = false }) => {
     );
   }
 
+  const portal = (node) => createPortal(node, document.body);
+
+  const due = grandTotal - paid;
+  const isFullCredit = selectedCustomer && creditMode === 'credit';
+  const showPaidSection = !isFullCredit;
+  const invStatus = invoiceNumber ? 'saved' : selectedCustomer && creditMode !== 'full' ? 'credit' : 'draft';
+
+  const fmt = (n) =>
+    `PKR ${Math.round(Number(n || 0)).toLocaleString('en-PK')}`;
+
+  const quickPays = (() => {
+    if (paymentMode !== 'cash' || !showPaidSection || grandTotal <= 0) return [];
+    const rounds = [grandTotal, Math.ceil(grandTotal / 100) * 100, Math.ceil(grandTotal / 500) * 500, Math.ceil(grandTotal / 1000) * 1000];
+    return [...new Set(rounds)].slice(0, 4);
+  })();
+
   return (
-    <div className="billing-container">
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+    <div className="content-container bil2">
+      <style>{billingWorkspaceStyles}</style>
 
-      {!stockCheck.ok && invoiceItems.length > 0 && (
-        <div className="billing-stock-banner" role="alert">
-          {STOCK_ERR(stockCheck.available)}
-        </div>
-      )}
+      {error ? <div className="bil2-err">{error}</div> : null}
 
-      {/* Header with Time and Invoice Info */}
-      <div className="billing-header-bar">
-        <div className="billing-time-display">
-          <div className="billing-date">{currentTime.toLocaleDateString('en-PK', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</div>
-          <div className="billing-time">{currentTime.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+      <div className="bil2-tabbar" role="tablist">
+        <div className="bil2-tab active" role="tab" aria-selected="true">
+          <span className="bil2-tabdot" />
+          <div className="bil2-tabinfo">
+            <div className="bil2-tablabel">{`Bill #1 · ${selectedCustomer?.name || t('billing.cashCustomer')}`}</div>
+            <div className="bil2-tabsub">
+              {invoiceItems.length === 0 ? 'Empty' : fmt(subtotal)}
+              {selectedCustomer && creditMode !== 'full' && invoiceItems.length ? (
+                <span className="bil2-creditbadge">{creditMode === 'credit' ? 'Credit' : 'Partial'}</span>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <div className="billing-invoice-display">
-          <span>{t('billing.invoiceNumber')}: {invoiceNumber || t('billing.newBill')}</span>
-        </div>
-      </div>
-
-      {selectedCustomer && (
-        <div
-          className={`billing-outstanding-box ${
-            parseFloat(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0) > 0
-              ? 'billing-outstanding-box--due'
-              : 'billing-outstanding-box--clear'
-          }`}
+        <div className="bil2-tabsep" />
+        <button
+          type="button"
+          className="bil2-newtab"
+          onClick={() => {
+            if (invoiceItems.length && !window.confirm('Start a new bill? Current bill will be cleared.')) return;
+            resetForm();
+          }}
         >
-          <div className="billing-outstanding-box__label">{t('billing.outstandingBalance')}</div>
-          <div className="billing-outstanding-box__name">{selectedCustomer.name}</div>
-          <div className="billing-outstanding-box__amount">
-            {formatCurrency(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0)}
-          </div>
+          + New Bill
+        </button>
+        <div className="bil2-clock" aria-label="Live clock">
+          <div className="bil2-ctime">{currentTime.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</div>
+          <div className="bil2-cdate">{currentTime.toLocaleDateString('en-PK', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}</div>
         </div>
-      )}
-
-      {/* Top Search Bar */}
-      <div className="billing-search-section">
-        <div className="billing-search-box">
-          <span className="billing-search-icon">⚡</span>
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="billing-search-input"
-            placeholder={t('billing.searchProducts')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleSearchKeyPress}
-            autoFocus
-          />
-        </div>
-        {filteredProducts.length > 0 && (
-          <div className="billing-search-results">
-            {filteredProducts.map(product => {
-              const displayPrice = selectedCustomer?.customer_type === 'wholesale' && product.wholesale_price
-                ? product.wholesale_price
-                : (selectedCustomer?.customer_type === 'special' && product.special_price
-                  ? product.special_price
-                  : (product.retail_price || product.selling_price));
-              const outOfStock = parseFloat(product.quantity_in_stock) <= 0;
-              return (
-                <div
-                  key={product.product_id}
-                  className={`billing-search-result-item ${outOfStock ? 'billing-search-result-item--disabled' : ''}`}
-                  onClick={() => {
-                    if (outOfStock) {
-                      alert(STOCK_ERR(product.quantity_in_stock));
-                      return;
-                    }
-                    handleProductSelect(product);
-                  }}
-                >
-                  <div className="billing-result-info">
-                    <div className="billing-result-name">{product.item_name_english || product.name}</div>
-                    <div className="billing-result-meta">
-                      <span className="billing-result-stock">{t('inventory.stock')}: {product.quantity_in_stock || 0} {product.unit_type || 'pcs'}</span>
-                      <span className="billing-result-price">{formatCurrency(displayPrice)}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
-      {/* Main Layout: Left (Items) + Right (Summary) */}
-      <div className="billing-main-layout">
-        {/* LEFT SIDE - Bill Items Table */}
-        <div className="billing-items-section">
-          <div className="billing-section-header">
-            <h3>{t('billing.invoiceItems')}</h3>
-            <div className="billing-customer-selector-wrapper">
-              <div className="billing-customer-dropdown-container">
-                <div 
-                  className="billing-customer-select-trigger"
-                  onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
-                >
-                  {selectedCustomer ? selectedCustomer.name : t('billing.cashCustomer')}
-                  <span className="billing-dropdown-arrow">▼</span>
-                </div>
-                {showCustomerDropdown && (
-                  <>
-                    <div 
-                      className="billing-customer-dropdown-overlay"
-                      onClick={() => setShowCustomerDropdown(false)}
-                    />
-                    <div className="billing-customer-dropdown">
-                      <input
-                        type="text"
-                        className="billing-customer-search-input"
-                        placeholder={t('billing.searchCustomer')}
-                        value={customerSearchQuery}
-                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                      <div className="billing-customer-options">
-                        <button
-                          type="button"
-                          className="billing-new-customer-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowNewCustomerModal(true);
-                          }}
-                        >
-                          + {t('billing.addNewCustomer')}
-                        </button>
-                        <div
-                          className={`billing-customer-option ${!selectedCustomer ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedCustomer(null);
-                            setCustomerName('');
-                            setCustomerSearchQuery('');
-                            setShowCustomerDropdown(false);
-                          }}
-                        >
-                          {t('billing.cashCustomer')}
+      <div className="bil2-area">
+        <div className="bil2-left">
+          <div className="bil2-searchcard">
+            <div className="bil2-srchrow">
+              <span className="bil2-srchico">🔎</span>
+              <input
+                ref={searchInputRef}
+                className="bil2-srchin"
+                placeholder={`${t('billing.searchProducts')}  ·  Press Enter to add first result`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => handleSearchKeyPress(e)}
+                autoComplete="off"
+              />
+            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="bil2-drop">
+                {filteredProducts.map((p, idx) => {
+                  const outOfStock = parseFloat(p.quantity_in_stock) <= 0;
+                  const displayPrice =
+                    selectedCustomer?.customer_type === 'wholesale' && p.wholesale_price
+                      ? p.wholesale_price
+                      : selectedCustomer?.customer_type === 'special' && p.special_price
+                        ? p.special_price
+                        : p.retail_price || p.selling_price || 0;
+                  return (
+                    <div
+                      key={p.product_id}
+                      className={`bil2-droprow ${idx === 0 ? 'hi' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (outOfStock) {
+                          alert(STOCK_ERR(p.quantity_in_stock));
+                          return;
+                        }
+                        handleProductSelect(p);
+                      }}
+                    >
+                      <div className="bil2-drthumb">📦</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="bil2-drname">{p.item_name_english || p.name}</div>
+                        <div className="bil2-drsku">
+                          {t('inventory.stock')}: {p.quantity_in_stock || 0} {p.unit_type || 'pcs'}
                         </div>
-                        {!customerSearchQuery.trim() && (
-                          <div className="billing-customer-hint">{t('billing.typeToSearchCustomers')}</div>
-                        )}
-                        {filteredCustomerRows.map((c) => (
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="bil2-drprice">{fmt(displayPrice)}</div>
+                        <div className="bil2-drstock">per {p.unit_type || 'pcs'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="bil2-items">
+            <div className="bil2-custbar">
+              <div className="bil2-crow">
+                <span className="bil2-cico">👤</span>
+                <span className="bil2-clbl">Customer</span>
+                <div className="bil2-combowrap">
+                  <input
+                    className="bil2-comboinp"
+                    placeholder={t('billing.cashCustomer')}
+                    value={selectedCustomer ? selectedCustomer.name : customerSearchQuery}
+                    onChange={(e) => {
+                      setSelectedCustomer(null);
+                      setCustomerName('');
+                      setCustomerSearchQuery(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    autoComplete="off"
+                  />
+                  <span className="bil2-comboarrow">▾</span>
+                  {showCustomerDropdown ? (
+                    <div className="bil2-cdrop" onMouseDown={(e) => e.preventDefault()}>
+                      {(filteredCustomerRows || []).slice(0, 8).map((c) => {
+                        const dueAmt = parseFloat(c.current_due ?? c.current_balance ?? 0) || 0;
+                        return (
                           <div
                             key={c.customer_id}
-                            className={`billing-customer-option ${selectedCustomer?.customer_id === c.customer_id ? 'selected' : ''}`}
-                            onClick={async () => {
-                              setCustomerName('');
+                            className="bil2-cdrow"
+                            onMouseDown={async (e) => {
+                              e.preventDefault();
                               setCustomerSearchQuery('');
                               setShowCustomerDropdown(false);
                               const fresh = await refreshCustomerRow(c);
                               setSelectedCustomer(fresh);
-
                               const updatedItems = invoiceItems.map((item) => {
-                                const product = products.find((p) => p.product_id === item.product_id);
-                                if (!product) return item;
-
+                                const prod = products.find((p) => p.product_id === item.product_id);
+                                if (!prod) return item;
                                 const customerType = fresh.customer_type || 'walk-in';
                                 let newPrice = item.selling_price;
-
-                                if (customerType === 'wholesale' && product.wholesale_price) {
-                                  newPrice = product.wholesale_price;
-                                } else if (customerType === 'special' && product.special_price) {
-                                  newPrice = product.special_price || product.retail_price || product.selling_price;
-                                } else {
-                                  newPrice = product.retail_price || product.selling_price;
-                                }
-
+                                if (customerType === 'wholesale' && prod.wholesale_price) newPrice = prod.wholesale_price;
+                                else if (customerType === 'special' && prod.special_price) newPrice = prod.special_price || prod.retail_price || prod.selling_price;
+                                else newPrice = prod.retail_price || prod.selling_price;
                                 return { ...item, selling_price: newPrice };
                               });
                               setInvoiceItems(updatedItems);
-                              {
-                                let subtotal = 0;
-                                updatedItems.forEach((item) => {
-                                  const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-                                  const price = parseFloat(item.selling_price) || 0;
-                                  subtotal += qty * price;
-                                });
-                                const gt = Math.max(0, subtotal - (parseFloat(discount) || 0));
-                                setPaidAmount(gt);
-                              }
+                              setPaidAmount(Math.max(0, updatedItems.reduce((s, it) => s + (parseFloat(it.selling_price) || 0) * (parseFloat(it.quantity) || 0), 0) - (parseFloat(discount) || 0)));
                             }}
                           >
-                            {c.name} {c.customer_type ? `(${c.customer_type})` : ''}{' '}
-                            <span className="billing-customer-phone">{c.phone || ''}</span>
-                            {parseFloat(c.current_due || c.current_balance || 0) > 0 && (
-                              <span className="billing-customer-due">
-                                {t('billing.due')}: {formatCurrency(c.current_due || c.current_balance || 0)}
-                              </span>
-                            )}
+                            <div className="bil2-cdav">{(c.name || 'C').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="bil2-cdname">{c.name}</div>
+                              <div className="bil2-cdphone">{c.phone || ''}</div>
+                            </div>
+                            <div className={`bil2-cddue ${dueAmt > 0 ? 'has' : 'none'}`}>{dueAmt > 0 ? fmt(dueAmt) : 'Clear'}</div>
                           </div>
-                        ))}
+                        );
+                      })}
+                      <div
+                        className="bil2-cdcreate"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setShowCustomerDropdown(false);
+                          setShowNewCustomerModal(true);
+                        }}
+                      >
+                        <div className="bil2-cdcreateico">+</div>
+                        <span className="bil2-cdcreatelbl">Create new customer</span>
+                      </div>
+                      <div
+                        className="bil2-cdrow"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedCustomer(null);
+                          setCustomerName('');
+                          setCustomerSearchQuery('');
+                          setShowCustomerDropdown(false);
+                        }}
+                      >
+                        <div className="bil2-cdav">CC</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="bil2-cdname">{t('billing.cashCustomer')}</div>
+                          <div className="bil2-cdphone">Walk-in</div>
+                        </div>
+                        <div className="bil2-cddue none">Clear</div>
                       </div>
                     </div>
-                  </>
-                )}
+                  ) : null}
+                </div>
+                <span className="bil2-itemcount">{invoiceItems.length} items</span>
               </div>
-              {!selectedCustomer && (
-                <input
-                  type="text"
-                  className="billing-customer-name-input"
-                  placeholder={t('billing.enterCustomerName')}
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
+            </div>
+
+            <div className="bil2-thead" style={{ display: invoiceItems.length ? 'grid' : 'none' }}>
+              <div className="bil2-th">Product</div>
+              <div className="bil2-th" style={{ textAlign: 'center' }}>
+                Qty
+              </div>
+              <div className="bil2-th" style={{ textAlign: 'center' }}>
+                Unit Price
+              </div>
+              <div className="bil2-th" style={{ textAlign: 'right', paddingRight: 4 }}>
+                Total
+              </div>
+              <div />
+            </div>
+
+            <div className="bil2-scroll">
+              {invoiceItems.length === 0 ? (
+                <div className="bil2-empty">
+                  <div className="bil2-emptyt">No items yet</div>
+                  <div className="bil2-emptys">Search products above or press Enter to add first result</div>
+                  <div className="bil2-emptys">
+                    <span className="bil2-kbd">Enter</span> first result · <span className="bil2-kbd">Ctrl+T</span> new bill
+                  </div>
+                </div>
+              ) : (
+                invoiceItems.map((item, index) => {
+                  const prod = products.find((p) => p.product_id === item.product_id);
+                  const rowAvail = prod != null ? parseFloat(prod.quantity_in_stock) || 0 : parseFloat(item.stock_available) || 0;
+                  const priceType = itemPriceTypes[item.product_id] || 'retail';
+                  const qtyNum = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+                  return (
+                    <div className="bil2-row" key={item.product_id}>
+                      <div style={{ minWidth: 0, paddingRight: 8 }}>
+                        <div className="bil2-itname">{item.product_name}</div>
+                        <div className="bil2-itsku">
+                          {rowAvail} {item.unit_type || 'pcs'} in stock
+                        </div>
+                      </div>
+                      <div className="bil2-qtywrap">
+                        <button type="button" className="bil2-qtybtn" onClick={() => handleQuantityChange(index, Math.max(0.01, qtyNum - 1))}>
+                          −
+                        </button>
+                        <input
+                          className="bil2-qtynum"
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={rowAvail}
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(index, e.target.value)}
+                        />
+                        <button type="button" className="bil2-qtybtn" onClick={() => handleQuantityChange(index, qtyNum + 1)}>
+                          +
+                        </button>
+                      </div>
+                      <div className="bil2-pricewrap">
+                        <select className="bil2-ptype" value={priceType} onChange={(e) => handlePriceTypeChange(index, e.target.value)}>
+                          <option value="retail">{t('billing.retail')}</option>
+                          <option value="wholesale">{t('billing.wholesale')}</option>
+                          {prod?.special_price ? <option value="special">{t('billing.special')}</option> : null}
+                        </select>
+                        <input className="bil2-price" type="number" step="0.01" min="0" value={item.selling_price} onChange={(e) => handlePriceChange(index, e.target.value)} />
+                      </div>
+                      <div className="bil2-total">{fmt(qtyNum * (parseFloat(item.selling_price) || 0))}</div>
+                      <button type="button" className="bil2-del" onClick={() => handleRemoveItem(index)} title="Remove">
+                        ×
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
-          </div>
 
-          <div className="billing-items-table-container">
-            <table className="billing-items-table">
-              <thead>
-                <tr>
-                  <th>{t('billing.productName')}</th>
-                  <th>{t('billing.qty')}</th>
-                  <th>{t('billing.price')}</th>
-                  <th>{t('common.total')}</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoiceItems.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="billing-empty-items">
-                      <div>{t('billing.noItemsInBill')}</div>
-                    </td>
-                  </tr>
-                ) : (
-                  invoiceItems.map((item, index) => {
-                    const product = products.find(p => p.product_id === item.product_id);
-                    const priceType = itemPriceTypes[item.product_id] || 'retail';
-                    const rowAvail = product != null ? parseFloat(product.quantity_in_stock) || 0 : parseFloat(item.stock_available) || 0;
-                    const qtyNum = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-                    const stockWarning = qtyNum > rowAvail;
-                    
-                    return (
-                      <tr key={index} className={stockWarning ? 'billing-item-low-stock' : ''}>
-                        <td>
-                          <div className="billing-item-name">{item.product_name}</div>
-                          {stockWarning && (
-                            <div className="billing-stock-warning">
-                              {STOCK_ERR(rowAvail)}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            max={rowAvail}
-                            className="billing-qty-input"
-                            value={item.quantity}
-                            onChange={(e) => handleQuantityChange(index, e.target.value)}
-                            onBlur={(e) => {
-                              // Ensure minimum quantity on blur
-                              const qty = parseFloat(e.target.value);
-                              if (!qty || qty < 0.01) {
-                                handleQuantityChange(index, 1);
-                              }
-                            }}
-                          />
-                        </td>
-                        <td>
-                          <div className="billing-price-controls">
-                            <select
-                              className="billing-price-type-select"
-                              value={priceType}
-                              onChange={(e) => handlePriceTypeChange(index, e.target.value)}
-                            >
-                              <option value="retail">{t('billing.retail')}</option>
-                              <option value="wholesale">{t('billing.wholesale')}</option>
-                              {product?.special_price && <option value="special">{t('billing.special')}</option>}
-                            </select>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              className="billing-price-input"
-                              value={item.selling_price}
-                              onChange={(e) => handlePriceChange(index, e.target.value)}
-                            />
-                          </div>
-                        </td>
-                        <td className="billing-item-total">
-                          {formatCurrency(item.quantity * item.selling_price)}
-                        </td>
-                        <td>
-                          <button
-                            className="billing-remove-btn-text"
-                            onClick={() => handleRemoveItem(index)}
-                          >
-                            {t('billing.remove')}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+            <div className="bil2-foot" style={{ display: invoiceItems.length ? 'flex' : 'none' }}>
+              <span className="bil2-footlbl">Subtotal</span>
+              <span className="bil2-footval">{fmt(subtotal)}</span>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE - Bill Summary */}
-        <div className="billing-summary-section">
-          <div className="billing-summary-header">
-            <h3>{t('billing.billSummary')}</h3>
+        <div className="bil2-right">
+          <div className="bil2-invhd">
+            <span className="bil2-invnum">{invoiceNumber || 'INV-—'}</span>
+            <span className={`bil2-ist ${invStatus}`}>{invStatus === 'saved' ? 'Saved' : invStatus === 'credit' ? 'Credit' : 'Draft'}</span>
           </div>
 
-          <div className="billing-summary-content">
-            <div className="billing-summary-row">
-              <span className="billing-summary-label">{t('billing.subtotal')}:</span>
-              <span className="billing-summary-value">{formatCurrency(subtotal)}</span>
-            </div>
-
-            <div className="billing-summary-row">
-              <label className="billing-summary-label">{t('billing.discount')}:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="billing-discount-input"
-                value={discount}
-                onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div className="billing-summary-row billing-grand-total">
-              <span className="billing-summary-label">{t('billing.grandTotal')}:</span>
-              <span className="billing-summary-value">{formatCurrency(grandTotal)}</span>
-            </div>
-
-            <div className="billing-summary-row">
-              <label className="billing-summary-label">{t('billing.paidAmount')}:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="billing-paid-input"
-                value={paidAmount}
-                onChange={(e) => {
-                  const paid = Math.max(0, parseFloat(e.target.value) || 0);
-                  setPaidAmount(paid);
-                }}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div className="billing-summary-row billing-notes-row">
-              <label className="billing-summary-label">{t('billing.invoiceNote')}:</label>
-              <textarea
-                className="billing-sale-notes"
-                rows={2}
-                value={saleNotes}
-                onChange={(e) => setSaleNotes(e.target.value)}
-                placeholder={t('billing.invoiceNotePlaceholder')}
-              />
-            </div>
-
-            {paid > 0 && (
-              <div className="billing-summary-row billing-paid-display">
-                <span className="billing-summary-label">{t('billing.amountPaid')}:</span>
-                <span className="billing-summary-value">{formatCurrency(paid)}</span>
+          <div className="bil2-rp">
+            <div>
+              <div className="bil2-seclbl" style={{ marginBottom: 8 }}>
+                Payment Method
               </div>
-            )}
-
-            {change > 0 && (
-              <div className="billing-summary-row billing-change-display">
-                <span className="billing-summary-label">{t('billing.changeToReturn')}:</span>
-                <span className="billing-summary-value">{formatCurrency(change)}</span>
+              <div className="bil2-payrow">
+                <button type="button" className={`bil2-pt ${paymentMode === 'cash' ? 'on' : ''}`} onClick={() => setPaymentMode('cash')}>
+                  Cash
+                </button>
+                <button type="button" className={`bil2-pt ${paymentMode === 'card' ? 'on' : ''}`} onClick={() => setPaymentMode('card')}>
+                  Card
+                </button>
+                <button type="button" className={`bil2-pt ${paymentMode === 'transfer' ? 'on' : ''}`} onClick={() => setPaymentMode('transfer')}>
+                  Transfer
+                </button>
               </div>
-            )}
+            </div>
 
-            {remainingDue > 0 && (
-              <div className="billing-summary-row billing-remaining-due">
-                <span className="billing-summary-label">{t('billing.remainingDue')}:</span>
-                <span className="billing-summary-value">{formatCurrency(remainingDue)}</span>
-              </div>
-            )}
+            <div className="bil2-sep" />
 
-            {remainingDue === 0 && grandTotal > 0 && (
-              <div className="billing-summary-row billing-paid-full">
-                <span className="billing-summary-label">✅ {t('billing.fullyPaid')}</span>
+            <div>
+              <div className="bil2-seclbl" style={{ marginBottom: 8 }}>
+                Sale Type
               </div>
-            )}
+              <div className="bil2-cmrow">
+                <button
+                  type="button"
+                  className={`bil2-cm ${creditMode === 'full' ? 'on' : ''}`}
+                  onClick={() => {
+                    setCreditMode('full');
+                    if (!selectedCustomer) return;
+                    setPaidAmount(grandTotal);
+                  }}
+                >
+                  Full Payment
+                </button>
+                <button
+                  type="button"
+                  className={`bil2-cm ${creditMode === 'partial' ? 'on' : ''}`}
+                  onClick={() => {
+                    if (!selectedCustomer) {
+                      alert(t('billing.selectCustomerForCredit'));
+                      return;
+                    }
+                    setCreditMode('partial');
+                    setPaidAmount(Math.min(parseFloat(paidAmount) || 0, grandTotal));
+                  }}
+                >
+                  Partial
+                </button>
+                <button
+                  type="button"
+                  className={`bil2-cm ${creditMode === 'credit' ? 'on' : ''}`}
+                  onClick={() => {
+                    if (!selectedCustomer) {
+                      alert(t('billing.selectCustomerForCredit'));
+                      return;
+                    }
+                    setCreditMode('credit');
+                    setPaidAmount(0);
+                  }}
+                >
+                  Full Credit
+                </button>
+              </div>
+            </div>
+
+            {selectedCustomer && creditMode !== 'full' ? (
+              <div className="bil2-banner">
+                <div>
+                  <strong>{creditMode === 'credit' ? 'Credit Sale' : 'Partial Payment'}</strong>
+                  <span>
+                    {creditMode === 'credit'
+                      ? 'Full amount will be added to customer outstanding balance'
+                      : 'Remaining balance will be added to customer account'}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="bil2-sep" />
+
+            <div className="bil2-seclbl">Bill Summary</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="bil2-sumrow">
+                <span className="bil2-sl">Subtotal</span>
+                <span className="bil2-sv">{fmt(subtotal)}</span>
+              </div>
+              <div className="bil2-sumrow">
+                <span className="bil2-sl">Discount</span>
+                <div className="bil2-discctrl">
+                  <button type="button" className="bil2-disctog">
+                    PKR
+                  </button>
+                  <input className="bil2-discinp" type="number" value={discount} min={0} onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bil2-grand">
+              <span>Grand Total</span>
+              <span>{fmt(grandTotal)}</span>
+            </div>
+
+            <div className="bil2-sep" />
+
+            {showPaidSection ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                <div className="bil2-paidrow">
+                  <span className="bil2-sl">Paid Now</span>
+                  <input
+                    className="bil2-paidinp"
+                    type="number"
+                    value={paidAmount}
+                    min={0}
+                    max={grandTotal}
+                    onChange={(e) => setPaidAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                    disabled={!selectedCustomer && grandTotal > 0}
+                  />
+                </div>
+                {quickPays.length ? (
+                  <div className="bil2-qp">
+                    {quickPays.map((v) => (
+                      <button key={v} type="button" className="bil2-qpbtn" onClick={() => setPaidAmount(v)}>
+                        {v === grandTotal ? 'Exact' : fmt(v)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div
+              className={`bil2-bal ${
+                isFullCredit ? 'credit' : due > 0.00001 ? (creditMode === 'partial' ? 'credit' : 'due') : change > 0.00001 ? 'change' : 'zero'
+              }`}
+            >
+              <span className="lbl">{isFullCredit ? 'ON CREDIT' : due > 0.00001 ? creditMode === 'partial' ? 'CREDIT OUTSTANDING' : 'BALANCE DUE' : change > 0.00001 ? 'CHANGE RETURN' : 'SETTLED ✓'}</span>
+              <span className="val">{fmt(isFullCredit ? grandTotal : due > 0.00001 ? due : change > 0.00001 ? change : 0)}</span>
+            </div>
+
+            <div className="bil2-sep" />
+
+            <div>
+              <div className="bil2-seclbl" style={{ marginBottom: 7 }}>
+                Note
+              </div>
+              <textarea className="bil2-note" value={saleNotes} onChange={(e) => setSaleNotes(e.target.value)} placeholder={t('billing.invoiceNotePlaceholder')} />
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="billing-action-buttons">
-            <button
-              className="billing-btn billing-btn-save"
-              onClick={() => handleSaveInvoice(false)}
-              disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}
-            >
-              {saving ? t('common.loading') : t('common.save')}
+          <div className="bil2-actions">
+            <button type="button" className="bil2-act bil2-save" onClick={() => handleSaveInvoice(false)} disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}>
+              {saving ? t('common.loading') : 'Save Invoice'}
             </button>
-            <button
-              className="billing-btn billing-btn-save-print"
-              onClick={() => handleSaveInvoice(true)}
-              disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}
-            >
-              {saving ? t('common.loading') : t('billing.saveAndPrint')}
+            <button type="button" className="bil2-act bil2-print" onClick={() => handleSaveInvoice(true)} disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}>
+              {saving ? t('common.loading') : 'Save & Print'}
             </button>
-            <button
-              className="billing-btn billing-btn-cancel"
-              onClick={handleCancelBill}
-              disabled={invoiceItems.length === 0}
-            >
-              {t('common.cancel')}
+            <button type="button" className="bil2-act bil2-cancel" onClick={handleCancelBill} disabled={invoiceItems.length === 0}>
+              Cancel Bill
             </button>
           </div>
         </div>
       </div>
 
-      {showNewCustomerModal && (
-        <div className="modal-overlay" onClick={() => !creatingCustomer && setShowNewCustomerModal(false)}>
-          <div className="modal billing-new-customer-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{t('billing.addNewCustomer')}</h2>
-              <button type="button" className="modal-close" onClick={() => setShowNewCustomerModal(false)} disabled={creatingCustomer}>
-                ×
-              </button>
-            </div>
-            <div className="billing-new-customer-form">
-              <label className="form-label">{t('billing.customerName')} *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newCustomerName}
-                onChange={(e) => setNewCustomerName(e.target.value)}
-                autoFocus
-              />
-              <label className="form-label">{t('billing.phoneRequired')} *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newCustomerPhone}
-                onChange={(e) => setNewCustomerPhone(e.target.value)}
-              />
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowNewCustomerModal(false)} disabled={creatingCustomer}>
-                  {t('common.cancel')}
-                </button>
-                <button type="button" className="btn btn-primary" onClick={handleCreateCustomerQuick} disabled={creatingCustomer}>
-                  {creatingCustomer ? t('common.loading') : t('common.save')}
-                </button>
+      {showNewCustomerModal
+        ? portal(
+            <div className="bil2-ov" onMouseDown={() => !creatingCustomer && setShowNewCustomerModal(false)}>
+              <div className="bil2-modal" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="bil2-mhd">
+                  <div>
+                    <div className="bil2-mt">{t('billing.addNewCustomer')}</div>
+                    <div className="bil2-ms">They'll be added to your customer list</div>
+                  </div>
+                  <button type="button" className="bil2-mx" onClick={() => setShowNewCustomerModal(false)} disabled={creatingCustomer}>
+                    ×
+                  </button>
+                </div>
+                <div className="bil2-mbody">
+                  <div className="bil2-fi">
+                    <label>{t('billing.customerName')} *</label>
+                    <input value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} autoFocus />
+                  </div>
+                  <div className="bil2-fi">
+                    <label>{t('billing.phoneRequired')} *</label>
+                    <input value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} />
+                  </div>
+                </div>
+                <div className="bil2-mft">
+                  <button type="button" className="bil2-btnc" onClick={() => setShowNewCustomerModal(false)} disabled={creatingCustomer}>
+                    {t('common.cancel')}
+                  </button>
+                  <button type="button" className="bil2-btns" onClick={handleCreateCustomerQuick} disabled={creatingCustomer}>
+                    {creatingCustomer ? t('common.loading') : t('common.save')}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        : null}
     </div>
   );
 };
