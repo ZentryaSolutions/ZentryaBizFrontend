@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowLeft,
   faArrowDownWideShort,
   faArrowUpWideShort,
   faArrowsUpDown,
@@ -254,14 +253,6 @@ const Inventory = ({ readOnly = false }) => {
     setSearchQuery('');
   };
 
-  const handleInlineBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate(withCurrentScope(location.pathname, '/app'));
-  };
-
   const exportCsv = () => {
     const rows = filteredProducts.map((p) => ({
       Product: p.item_name_english || p.name || '',
@@ -311,12 +302,6 @@ const Inventory = ({ readOnly = false }) => {
   return (
     <div className="content-container inv2 inv3">
       <style>{inventoryCustomStyles}</style>
-      <nav className="inv3-breadcrumb" aria-label={t('inventory.title')}>
-        <button type="button" className="inv3-breadcrumbPill" onClick={handleInlineBack}>
-          <FontAwesomeIcon icon={faArrowLeft} />
-          {t('common.back')}
-        </button>
-      </nav>
 
       <div className="inv3-topCards">
         <div className="inv3-card">

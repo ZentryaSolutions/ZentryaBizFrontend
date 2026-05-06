@@ -11,6 +11,7 @@ import {
   supplierPaymentsAPI,
 } from '../services/api';
 import { zbKeys } from './queryKeys';
+import { defaultMonthlyReportParams } from './reportsQueryUtils';
 
 /**
  * Lists: newest created or updated first (stable tie-break by numeric id descending).
@@ -78,7 +79,7 @@ export async function fetchSettingsDoc() {
 }
 
 export async function fetchSalesList() {
-  const response = await salesAPI.getAll();
+  const response = await salesAPI.getAll({ limit: 1000 });
   const payload = response?.data;
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -157,3 +158,62 @@ export const DETAIL_WARM_MAX = {
   suppliers: 60,
 };
 export const DETAIL_PREFETCH_CONCURRENCY = 6;
+
+/**
+ * TanStack prefetch task defs for Reports (default "Monthly" range).
+ * Failures are ignored by bootstrap (allSettled); non-admin users may get 403 on each.
+ */
+export function reportsMonthlyPrefetchTaskDefs(shopId) {
+  if (shopId == null || String(shopId) === '') return [];
+  const p = defaultMonthlyReportParams();
+  const keys = zbKeys(shopId);
+  return [
+    {
+      queryKey: keys.reportsDashSummary(p),
+      queryFn: () => reportsAPI.getDashboardSummary(p).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsSalesSummary({ ...p, product_id: '' }),
+      queryFn: () => reportsAPI.getSalesSummary(p).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsSalesInvoices({ ...p, product_id: '' }),
+      queryFn: () => reportsAPI.getSalesInvoices(p).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsProfit(p),
+      queryFn: () => reportsAPI.getProfit(p).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsExpensesSummary(p),
+      queryFn: () => reportsAPI.getExpensesSummary(p).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsCustomersAnalytics(p.start_date, p.end_date),
+      queryFn: () =>
+        reportsAPI
+          .getCustomersAnalytics({ start_date: p.start_date, end_date: p.end_date })
+          .then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsSuppliersAnalytics(p.start_date, p.end_date),
+      queryFn: () =>
+        reportsAPI
+          .getSuppliersAnalytics({ start_date: p.start_date, end_date: p.end_date })
+          .then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsCustomersDue(),
+      queryFn: () =>
+        reportsAPI.getCustomersDue({ balance_greater_than_zero: 'false' }).then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsSupplierPayables(),
+      queryFn: () => reportsAPI.getSuppliersPayable().then((r) => r.data),
+    },
+    {
+      queryKey: keys.reportsStockLow(5),
+      queryFn: () => reportsAPI.getStockLow({ min_quantity: 5 }).then((r) => r.data),
+    },
+  ];
+}

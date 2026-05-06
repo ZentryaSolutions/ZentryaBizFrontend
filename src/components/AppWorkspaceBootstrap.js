@@ -11,6 +11,7 @@ import {
   fetchCustomerDetailPack,
   fetchProductDetailPack,
   fetchSupplierDetailPack,
+  reportsMonthlyPrefetchTaskDefs,
   DETAIL_WARM_MAX,
   DETAIL_PREFETCH_CONCURRENCY,
 } from '../lib/workspaceQueries';
@@ -31,7 +32,7 @@ function WorkspaceLoadingOverlay() {
         />
         <p className="zb-workspace-boot__brand">Zentrya Biz</p>
         <p className="zb-workspace-boot__title">Preparing your workspace</p>
-        <p className="zb-workspace-boot__sub">Syncing products, sales, and settings.</p>
+        <p className="zb-workspace-boot__sub">Syncing products, sales, reports, and settings.</p>
 
         <div className="zb-boot-viz" aria-hidden>
           <div className="zb-boot-viz__glow" />
@@ -73,6 +74,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
       { queryKey: keys.settingsDoc(), queryFn: fetchSettingsDoc },
       { queryKey: keys.salesList(), queryFn: fetchSalesList },
       { queryKey: keys.purchasesList(), queryFn: fetchPurchasesList },
+      ...reportsMonthlyPrefetchTaskDefs(shopId),
     ];
 
     (async () => {

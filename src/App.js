@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './App.css';
 import { ZbWorkspaceDashboardStyles } from './components/zbDashboardStyles';
@@ -48,13 +48,12 @@ import { appBasePath, extractAppScope, isLegacyAppPath } from './utils/appRouteS
 // Inner component that uses location (must be inside Router)
 function AppContentWithRouter() {
   const location = useLocation();
-  const navigate = useNavigate();
-  return <AppContent location={location} navigate={navigate} />;
+  return <AppContent location={location} />;
 }
 
 // Inner App component (auth + app shell)
-function AppContent({ location, navigate }) {
-  const { i18n, t } = useTranslation();
+function AppContent({ location }) {
+  const { i18n } = useTranslation();
   const { user, loading: authLoading, activeShopId, profile } = useAuth();
   /** Server/LAN read-only (client mode) */
   const [connectionReadOnly, setConnectionReadOnly] = useState(false);
@@ -77,18 +76,6 @@ function AppContent({ location, navigate }) {
     setRefreshTrigger(prev => prev + 1);
     // Force re-fetch of data by updating key prop on components
     window.dispatchEvent(new Event('data-refresh'));
-  };
-
-  const handleGlobalBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate(`${scopedBase}/app`);
-  };
-
-  const handleGoMainPage = () => {
-    navigate(shopsPath(user?.id), { replace: false });
   };
 
   // Show loading screen while checking auth
@@ -182,10 +169,9 @@ function AppContent({ location, navigate }) {
   const scopedBase = appBasePath(user.id, activeShopId);
   const scopeInPath = extractAppScope(location?.pathname || '');
   const onLegacyAppPath = isLegacyAppPath(location?.pathname || '');
-  const hideBackRow =
-    /\/app(?:\/|$)/.test(location?.pathname || '') ||
-    /\/(?:suppliers|customers)(?:\/|$)|\/inventory(?:\/product\/[^/]+)?(?:\/)?$/.test(location?.pathname || '');
-  const compactTopSpacing = /\/(?:suppliers|customers|inventory)(?:\/|$)/.test(location?.pathname || '');
+  const compactTopSpacing = /\/(?:suppliers|customers|inventory|purchases|sales)(?:\/|$)/.test(
+    location?.pathname || ''
+  );
 
   if (scopeInPath) {
     if (scopeInPath.userId !== sessionUid || String(scopeInPath.shopId) !== String(activeShopId)) {
@@ -235,18 +221,6 @@ function AppContent({ location, navigate }) {
         </div>
       )}
       <main className={`main-content${compactTopSpacing ? ' main-content--compact-top' : ''}`}>
-        {!hideBackRow ? (
-          <div className="app-back-row">
-            <div className="app-back-row__inner">
-              <button type="button" className="app-back-btn" onClick={handleGlobalBack}>
-                ← {t('common.back')}
-              </button>
-              <button type="button" className="app-mainpage-btn" onClick={handleGoMainPage}>
-                My Shops
-              </button>
-            </div>
-          </div>
-        ) : null}
         <ErrorBoundary>
           <Routes>
             <Route path="/:uid/:shopId/app" element={<Dashboard key={refreshTrigger} readOnly={readOnlyMode} />} />
@@ -261,11 +235,13 @@ function AppContent({ location, navigate }) {
             <Route path="/:uid/:shopId/customers" element={<Customers key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/categories" element={<Categories key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/purchases" element={<Purchases key={refreshTrigger} readOnly={readOnlyMode} />} />
-            <Route path="/:uid/:shopId/expenses" element={<Expenses key={refreshTrigger} readOnly={readOnlyMode} />} />
+            {/* No key={refreshTrigger}: remount reset filters to Daily and hid monthly data after save/refresh */}
+            <Route path="/:uid/:shopId/expenses" element={<Expenses readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/rate-list" element={<RateList key={readOnlyMode} />} />
             <Route path="/:uid/:shopId/invoices" element={<Invoices key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/sales" element={<Sales key={refreshTrigger} readOnly={readOnlyMode} />} />
-            <Route path="/:uid/:shopId/reports" element={<Reports key={refreshTrigger} readOnly={readOnlyMode} />} />
+            {/* Same as expenses: avoid remount clearing tab/period state on refreshTrigger */}
+            <Route path="/:uid/:shopId/reports" element={<Reports readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/users" element={<Users key={refreshTrigger} />} />
             <Route path="/:uid/:shopId/settings" element={<Settings key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="*" element={<Navigate to={`${scopedBase}/app`} replace />} />

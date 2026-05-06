@@ -3,10 +3,10 @@ import React from 'react';
 /** Injected stylesheet (avoids blocked static CSS paths in tooling). */
 const ZB_SHELL_AND_DASH_CSS = `
 /* shell */
-.zb-workspace-shell{font-family:'DM Sans',-apple-system,sans-serif;background:#fdfcf8;color:#14120e;--sidebar-width:220px;--header-height:52px}
+.zb-workspace-shell{font-family:'DM Sans',-apple-system,sans-serif;background:#F2F1ED;color:#14120e;--sidebar-width:220px;--header-height:52px}
 /* App root: lock viewport + row; main column scrolls (avoid clipping dashboard below KPIs) */
 .zb-workspace-shell.app{height:100vh;max-height:100vh;overflow:hidden;display:flex!important;flex-direction:row!important;align-items:stretch;width:100%}
-.zb-workspace-shell .zb-main-col{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;margin-left:220px;overflow:hidden}
+.zb-workspace-shell .zb-main-col{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;margin-left:220px;overflow:hidden;background:#F2F1ED}
 @media(max-width:1024px){.zb-workspace-shell .zb-main-col{margin-left:0}}
 .zb-workspace-shell .sidebar-backdrop{animation:none!important;transition:none!important}
 .zb-workspace-shell .sidebar{top:0;height:100vh;height:100dvh;width:220px!important;max-width:220px!important;background:#fff;border-right:1px solid #e8e5df;box-shadow:none;display:flex;flex-direction:column;overflow:hidden;transition:none!important}
@@ -18,7 +18,37 @@ const ZB_SHELL_AND_DASH_CSS = `
   }
   .zb-workspace-shell aside.sidebar:hover,.zb-workspace-shell aside.sidebar:focus-within{width:220px!important;max-width:220px!important;box-shadow:none!important}
 }
-.zb-workspace-shell .main-content{margin-left:0;background:#fdfcf8;padding-top:0;flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.zb-workspace-shell .main-content{margin-left:0;background:#F2F1ED;padding-top:0;flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+/* Expenses: extra air below sticky header + match workspace canvas */
+.zb-workspace-shell .zx-exp-root{padding-top:40px!important;background:#F2F1ED!important;--zx-bg:#F2F1ED}
+@media(max-width:900px){.zb-workspace-shell .zx-exp-root{padding-top:28px!important}}
+/* Expenses: period selector — single pill bar (label | buttons | calendar summary) */
+.zb-workspace-shell .zx-exp-toolbar{background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;margin-bottom:16px!important}
+.zb-workspace-shell .zx-exp-period-shell{
+  display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;
+  background:#fff;border:1px solid #e5e7eb;border-radius:999px;
+  padding:7px 10px 7px 18px;
+  box-shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+}
+.zb-workspace-shell .zx-exp-period-label{font-size:13px;font-weight:600;color:#9ca3af;letter-spacing:.01em;white-space:nowrap;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.zb-workspace-shell .zx-exp-period-vbar{width:1px;height:22px;background:#e5e7eb;flex-shrink:0}
+.zb-workspace-shell .zx-exp-period-btns{display:flex;align-items:center;flex-wrap:wrap;gap:7px;flex:1;min-width:min(280px,100%)}
+.zb-workspace-shell .zx-exp-period-shell .zx-exp-pill{
+  padding:7px 14px;font-size:13px;font-weight:600;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#4b5563;cursor:pointer;line-height:1.2
+}
+.zb-workspace-shell .zx-exp-period-shell .zx-exp-pill:hover{border-color:#d1d5db;color:#374151;background:#fafafa}
+.zb-workspace-shell .zx-exp-period-shell .zx-exp-pill.is-active{
+  background:#5146e5!important;border-color:#5146e5!important;color:#fff!important;box-shadow:none
+}
+.zb-workspace-shell .zx-exp-period-shell .zx-exp-range-chip{
+  margin-left:auto;display:inline-flex;align-items:center;gap:7px;
+  padding:7px 12px;font-size:12px;font-weight:600;color:#6b7280;
+  background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;white-space:nowrap
+}
+.zb-workspace-shell .zx-exp-period-shell .zx-exp-range-chip svg{opacity:.75;font-size:13px}
+.zb-workspace-shell .zx-exp-custom-row{margin-top:12px;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px}
+.zb-workspace-shell .zx-exp-strip{margin-top:12px}
 /* Kill legacy "icon rail" collapse: always show full labels (image 2) */
 .zb-workspace-shell aside.sidebar .menu-label,.zb-workspace-shell aside.sidebar:not(:hover):not(:focus-within) .menu-label,.zb-workspace-shell aside.sidebar:hover .menu-label,.zb-workspace-shell aside.sidebar:focus-within .menu-label{
   opacity:1!important;max-width:none!important;overflow:visible!important;white-space:normal!important;pointer-events:auto!important;margin:0!important;padding:0!important;display:block!important;
@@ -27,20 +57,30 @@ const ZB_SHELL_AND_DASH_CSS = `
 .zb-workspace-shell aside.sidebar .menu-item,.zb-workspace-shell aside.sidebar:not(:hover) .menu-item{justify-content:flex-start!important}
 /* Sidebar: no motion — kill legacy Sidebar.css transitions/transforms inside rail */
 .zb-workspace-shell aside.sidebar,.zb-workspace-shell aside.sidebar *{transition:none!important;animation:none!important}
-.zb-workspace-shell .app-header.zb-topbar{position:sticky;top:0;z-index:1200;height:52px;background:#fff;border-bottom:1px solid #e8e5df;display:flex;align-items:center;padding:0 22px;gap:12px}
+.zb-workspace-shell .app-header.zb-topbar{position:sticky;top:0;z-index:1200;min-height:52px;height:auto;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 22px 0 24px;gap:14px;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .zb-workspace-shell .app-header.zb-topbar .header-brand,.zb-workspace-shell .app-header.zb-topbar .header-brandLogo{display:none}
-.zb-workspace-shell .zb-tb-myshops{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #e5e2db;border-radius:8px;background:transparent;font-size:12px;font-weight:600;color:#6b6760;cursor:pointer;font-family:inherit}
-.zb-workspace-shell .zb-tb-divider{width:1px;height:14px;background:#e8e5df}
-.zb-workspace-shell .zb-tb-title{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:700;color:#14120e}
-.zb-workspace-shell .zb-tb-fill{flex:1}
+@media(min-width:1025px){.zb-workspace-shell .header-menu-toggle{display:none!important}}
+.zb-workspace-shell .zb-tb-myshops{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit;line-height:1;white-space:nowrap}
+.zb-workspace-shell .zb-tb-myshops:hover{background:#f9fafb;border-color:#d1d5db;color:#374151}
+.zb-workspace-shell .zb-tb-myshops svg{font-size:11px;color:#9ca3af}
+.zb-workspace-shell .zb-tb-divider{width:1px;height:22px;background:#e5e7eb;flex-shrink:0}
+.zb-workspace-shell .zb-tb-title{font-size:17px;font-weight:700;color:#111827;letter-spacing:-.02em;line-height:1.2;margin:0}
+.zb-workspace-shell .zb-tb-fill{flex:1;min-width:8px}
 .zb-workspace-shell .zb-tb-live{display:flex;align-items:center;gap:6px;font-size:12px;color:#15803d;font-weight:500}
 .zb-workspace-shell .zb-tb-live-dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:zb-pulse 2s infinite}
 @keyframes zb-pulse{0%,100%{opacity:1}50%{opacity:.45}}
-.zb-workspace-shell .header-left{display:flex;align-items:center;gap:12px;flex:0 1 auto}
-.zb-workspace-shell .header-menu-toggle{font-size:1rem}
-.zb-workspace-shell .notifications-container button.notification-button{width:28px;height:28px;border-radius:50%;background:#f4f3ef;border:none;color:#6b6760}
-.zb-workspace-shell .zb-tb-shop-label{font-size:12px;color:#9c9890;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zb-workspace-shell .header-left{display:flex;align-items:center;gap:14px;flex:0 1 auto}
+.zb-workspace-shell .zb-tb-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.zb-workspace-shell .header-menu-toggle{font-size:1.125rem;color:#374151;background:transparent;border:none;padding:8px;border-radius:8px;cursor:pointer}
+.zb-workspace-shell .header-menu-toggle:hover{background:#f3f4f6}
+.zb-workspace-shell .notifications-container button.notifications-icon-btn{width:40px;height:40px;border-radius:50%;background:#f4f4f5;border:none;color:#6b7280;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.zb-workspace-shell .notifications-container button.notifications-icon-btn:hover{background:#ececee;color:#374151}
+.zb-workspace-shell .notifications-container .notifications-icon-btn{position:relative}
+.zb-workspace-shell .notifications-container .notification-badge{position:absolute;top:8px;right:8px;min-width:8px;width:8px;height:8px;padding:0;margin:0;background:#ef4444;border:none;border-radius:50%;font-size:0;line-height:0;color:transparent;overflow:hidden;text-indent:-999px;box-sizing:content-box;border:2px solid #fff;display:block}
+.zb-workspace-shell .zb-tb-shop-label{font-size:14px;font-weight:500;color:#6b7280;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .zb-workspace-shell .zb-tb-av-mini{width:28px;height:28px;border-radius:50%;background:#4f46e5;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.zb-workspace-shell .profile-avatar-btn.profile-avatar-btn--workspace{width:38px;height:38px;border-radius:50%;padding:0;border:none;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;line-height:1}
+.zb-workspace-shell .profile-avatar-btn.profile-avatar-btn--workspace:hover{filter:brightness(1.06)}
 .zb-sidebar-brand{padding:9px 11px 8px;border-bottom:1px solid #e8e5df;display:flex;align-items:center;gap:9px;flex-shrink:0}
 .zb-sb-logo-wrap{width:32px;height:32px;border-radius:8px;background:#fff;border:1px solid #e8e5df;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .zb-sb-logo-img{width:100%;height:100%;object-fit:contain;padding:2px;display:block}

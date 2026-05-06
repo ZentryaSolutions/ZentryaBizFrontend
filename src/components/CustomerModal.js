@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './SupplierModal.css';
 import './CustomerModal.custom.css';
+
+const CUSTOMER_MODAL_Z = 10060;
 
 const CustomerModal = ({ customer, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -23,6 +26,14 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
       });
     }
   }, [customer]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -87,12 +98,31 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
     }
   };
 
-  return (
-    <div className="modal-overlay customer-modal-overlay" onClick={onClose}>
+  const overlay = (
+    <div
+      className="customer-modal-overlay zb-customer-modal-overlay"
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: CUSTOMER_MODAL_Z,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
+        boxSizing: 'border-box',
+        background: 'rgba(17, 24, 39, 0.5)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
       <div className="modal supplier-modal supplier-modal--wide customer-modal-shell" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header customer-modal-header">
           <h2>{customer ? 'Edit Customer' : 'Add New Customer'}</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="supplier-form">
@@ -153,7 +183,6 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
               <div className="form-hint">Amount customer already owes when added</div>
               {errors.previous_due && <div className="error-text">{errors.previous_due}</div>}
             </div>
-
           </div>
 
           <div className="modal-actions customer-modal-actions">
@@ -168,6 +197,9 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(overlay, document.body);
 };
 
 export default CustomerModal;

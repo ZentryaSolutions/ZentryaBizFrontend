@@ -4,16 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBagShopping,
-  faCartShopping,
+  faBox,
   faChartColumn,
   faCircleUser,
-  faClipboardList,
   faDollarSign,
   faFileInvoice,
   faGear,
   faShop,
   faTableCells,
-  faTags,
   faTruck,
   faUser,
 } from '@fortawesome/free-solid-svg-icons';
@@ -110,11 +108,18 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
     return () => window.removeEventListener('zb-shop-display-updated', onUpd);
   }, [reloadShopLabel]);
 
-  /** Reference UI: grid dashboard, invoice, bag inventory; storefront sales, dollar expenses; truck suppliers; Users vs Customers icons differ */
+  /** Nav order matches workspace shell: MAIN → PEOPLE → FINANCE → SETTINGS */
   const menuMain = [
     { id: 'dashboard', labelKey: 'menu.dashboard', path: '/app', icon: faTableCells },
     { id: 'billing', labelKey: 'menu.billing', path: '/billing', icon: faFileInvoice },
-    { id: 'products', labelKey: 'menu.products', path: '/inventory', icon: faBagShopping },
+    {
+      id: 'purchases',
+      labelKey: 'menu.purchases',
+      path: '/purchases',
+      icon: faBagShopping,
+      adminOnly: true,
+    },
+    { id: 'inventory', labelKey: 'menu.inventory', path: '/inventory', icon: faBox },
   ];
 
   const menuPeople = [
@@ -131,13 +136,6 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
   const menuFinance = [
     { id: 'sales', labelKey: 'menu.sales', path: '/sales', icon: faShop },
     {
-      id: 'purchases',
-      labelKey: 'menu.purchases',
-      path: '/purchases',
-      icon: faCartShopping,
-      adminOnly: true,
-    },
-    {
       id: 'expenses',
       labelKey: 'menu.expenses',
       path: '/expenses',
@@ -153,9 +151,7 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
     },
   ];
 
-  const menuTail = [
-    { id: 'categories', labelKey: 'menu.categories', path: '/categories', icon: faTags },
-    { id: 'rate-list', labelKey: 'menu.rateList', path: '/rate-list', icon: faClipboardList },
+  const menuSettings = [
     { id: 'users', labelKey: 'menu.users', path: '/users', icon: faUser, adminOnly: true },
     { id: 'settings', labelKey: 'menu.settings', path: '/settings', icon: faGear },
   ];
@@ -253,7 +249,7 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
           </SectionNav>
 
           <SectionNav label="Settings">
-            {filterItems(menuTail).map((item) => (
+            {filterItems(menuSettings).map((item) => (
               <NavBtn key={item.id} item={item} isActive={isActive} onNav={handleNav} />
             ))}
           </SectionNav>

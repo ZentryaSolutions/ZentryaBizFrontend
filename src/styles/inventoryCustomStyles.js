@@ -1,9 +1,7 @@
 export const inventoryCustomStyles = `
-.inv3{max-width:100%!important;padding:4px 16px 24px!important;background:#f6f5f1!important;color:#111827;font-family:Manrope,Inter,system-ui,-apple-system,sans-serif}
-.inv3-breadcrumb{display:flex;align-items:center;gap:8px;margin-bottom:4px;min-height:0}
-.inv3-breadcrumbPill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e1d6;background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;color:#374151;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.inv3-breadcrumbPill:hover{background:#faf9f5;border-color:#ddd8cc}
-.inv3-topCards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.inv3{max-width:100%!important;padding:0 16px 20px!important;background:#f6f5f1!important;color:#111827;font-family:Manrope,Inter,system-ui,-apple-system,sans-serif}
+.zb-workspace-shell .main-content--compact-top .content-container.inv3{padding-top:0!important;margin-top:0!important}
+.inv3-topCards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:0;margin-bottom:12px}
 .inv3-card{background:#fff;border:1px solid #ece9df;border-radius:14px;padding:14px 14px 12px;box-shadow:0 2px 10px rgba(17,24,39,.03)}
 .inv3-cardHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .inv3-pill{font-size:10px;font-weight:700;color:#22a06b;background:#eefaf3;border-radius:999px;padding:2px 8px}

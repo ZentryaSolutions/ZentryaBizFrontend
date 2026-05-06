@@ -19,5 +19,53 @@ export function zbKeys(shopId) {
     productDetailPack: (productId) => ['zb', sid, 'productPack', String(productId)],
     /** Single cached payload for SupplierDetailView */
     supplierDetailPack: (supplierId) => ['zb', sid, 'supplierPack', String(supplierId)],
+
+    /** Reports — keys must align with params sent from Reports.js + workspace prefetch */
+    reportsDashSummary: (p) =>
+      ['zb', sid, 'reports', 'dashSummary', p?.period ?? '', p?.start_date ?? '', p?.end_date ?? ''],
+    reportsSalesSummary: (p) =>
+      [
+        'zb',
+        sid,
+        'reports',
+        'salesSummary',
+        p?.period ?? '',
+        p?.start_date ?? '',
+        p?.end_date ?? '',
+        p?.product_id != null && p.product_id !== '' ? String(p.product_id) : '',
+      ],
+    reportsSalesInvoices: (p) =>
+      [
+        'zb',
+        sid,
+        'reports',
+        'salesInvoices',
+        p?.period ?? '',
+        p?.start_date ?? '',
+        p?.end_date ?? '',
+        p?.product_id != null && p.product_id !== '' ? String(p.product_id) : '',
+      ],
+    reportsSalesByProduct: (p) =>
+      [
+        'zb',
+        sid,
+        'reports',
+        'salesByProduct',
+        p?.period ?? '',
+        p?.start_date ?? '',
+        p?.end_date ?? '',
+        p?.product_id != null && p.product_id !== '' ? String(p.product_id) : '',
+      ],
+    reportsProfit: (p) =>
+      ['zb', sid, 'reports', 'profit', p?.period ?? '', p?.start_date ?? '', p?.end_date ?? ''],
+    reportsExpensesSummary: (p) =>
+      ['zb', sid, 'reports', 'expensesSummary', p?.period ?? '', p?.start_date ?? '', p?.end_date ?? ''],
+    reportsExpensesList: (p) =>
+      ['zb', sid, 'reports', 'expensesList', p?.period ?? '', p?.start_date ?? '', p?.end_date ?? ''],
+    reportsCustomersAnalytics: (start, end) => ['zb', sid, 'reports', 'custAnalytics', String(start), String(end)],
+    reportsSuppliersAnalytics: (start, end) => ['zb', sid, 'reports', 'supAnalytics', String(start), String(end)],
+    reportsCustomersDue: () => ['zb', sid, 'reports', 'customersDue'],
+    reportsSupplierPayables: () => ['zb', sid, 'reports', 'supplierPayables'],
+    reportsStockLow: (minQty) => ['zb', sid, 'reports', 'stockLow', String(minQty ?? 5)],
   };
 }

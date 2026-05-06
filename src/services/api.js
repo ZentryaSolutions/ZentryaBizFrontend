@@ -120,6 +120,9 @@ export const reportsAPI = {
   // New endpoints
   getDashboardSummary: (params) => api.get('/reports/dashboard-summary', { params }),
   getSalesSummary: (params) => api.get('/reports/sales-summary', { params }),
+  getSalesInvoices: (params) => api.get('/reports/sales-invoices', { params }),
+  getCustomersAnalytics: (params) => api.get('/reports/customers-analytics', { params }),
+  getSuppliersAnalytics: (params) => api.get('/reports/suppliers-analytics', { params }),
   getSalesByProduct: (params) => api.get('/reports/sales-by-product', { params }),
   getProfit: (params) => api.get('/reports/profit', { params }),
   getExpensesSummary: (params) => api.get('/reports/expenses-summary', { params }),

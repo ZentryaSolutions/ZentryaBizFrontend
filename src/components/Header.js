@@ -28,7 +28,7 @@ function workspaceTitle(pathname) {
   if (p.includes('/categories')) return 'Categories';
   if (p.includes('/users')) return 'Users';
   if (p.includes('/settings')) return 'Settings';
-  return 'Zentrya Biz';
+  return 'Workspace';
 }
 
 const Header = ({ onMenuClick }) => {
@@ -100,6 +100,7 @@ const Header = ({ onMenuClick }) => {
   }
 
   const displayUserName = user?.full_name || user?.name || user?.username || 'User';
+  const pageTitle = workspaceTitle(location.pathname);
 
   return (
     <header className="app-header zb-topbar">
@@ -122,26 +123,21 @@ const Header = ({ onMenuClick }) => {
           data-navigation="true"
           title={t('app.myShops', { defaultValue: 'My Shops' })}
         >
-          <FontAwesomeIcon icon={faChevronLeft} style={{ width: '0.65rem' }} aria-hidden />
-          My Shops
+          <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
+          {t('app.myShops', { defaultValue: 'My Shops' })}
         </button>
         <span className="zb-tb-divider" aria-hidden />
-        <span className="zb-tb-title">{workspaceTitle(location.pathname)}</span>
+        <span className="zb-tb-title">{pageTitle}</span>
       </div>
 
       <div className="zb-tb-fill" />
 
-      <div className="header-right">
-        <div className="zb-tb-live">
-          <span className="zb-tb-live-dot" aria-hidden />
-          Live
-        </div>
-        <span className="zb-tb-divider" aria-hidden />
+      <div className="header-right zb-tb-right">
         <Notifications />
         <span className="zb-tb-shop-label" title={storeName}>
           {storeName || 'Shop'}
         </span>
-        <ProfileMenu user={user} profileLabel={displayUserName} />
+        <ProfileMenu user={user} profileLabel={displayUserName} workspaceNav />
       </div>
     </header>
   );

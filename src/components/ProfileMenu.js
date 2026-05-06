@@ -13,7 +13,7 @@ function profileDisplayLabel(user, profileLabel) {
   return user?.full_name || user?.name || user?.username || 'User';
 }
 
-const ProfileMenu = ({ user, profileLabel }) => {
+const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,13 +81,17 @@ const ProfileMenu = ({ user, profileLabel }) => {
       >
         <button
           type="button"
-          className="profile-avatar-btn profile-avatar-btn--icon"
+          className={`profile-avatar-btn profile-avatar-btn--icon${workspaceNav ? ' profile-avatar-btn--workspace' : ''}`}
           onClick={() => setIsOpen(!isOpen)}
           aria-label={t('header.profileMenu')}
           aria-expanded={isOpen}
           data-navigation="true"
         >
-          <FontAwesomeIcon icon={faCircleUser} className="profile-avatar-icon" aria-hidden />
+          {workspaceNav ? (
+            getInitials(user?.full_name || user?.name || user?.username || 'U')
+          ) : (
+            <FontAwesomeIcon icon={faCircleUser} className="profile-avatar-icon" aria-hidden />
+          )}
         </button>
         <div className="profile-hover-card" role="tooltip">
           <div className="profile-hover-name">{profileDisplayLabel(user, profileLabel)}</div>

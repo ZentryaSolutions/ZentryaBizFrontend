@@ -1,14 +1,51 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBagShopping,
+  faCircleCheck,
+  faClock,
+  faDollarSign,
+  faEye,
+  faMagnifyingGlass,
+  faPenToSquare,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 import { purchasesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { fetchInventoryBundle, fetchPurchasesList } from '../lib/workspaceQueries';
+import { purchasesWorkspaceStyles } from '../styles/purchasesWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import PurchaseModal from './PurchaseModal';
 import './Purchases.css';
+
+function purchaseInThisMonth(dateStr) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
+}
+
+function enrichPurchase(p) {
+  const total = Number(p.total_amount) || 0;
+  const pt = String(p.payment_type || 'cash').toLowerCase();
+  const isCash = pt === 'cash';
+  return {
+    ...p,
+    _paid: isCash ? total : 0,
+    _balance: isCash ? 0 : total,
+    _status: isCash ? 'paid' : 'pending',
+  };
+}
+
+function formatOrderRef(id) {
+  const n = Number(id);
+  const s = Number.isFinite(n) ? String(n) : String(id);
+  return `PO-${s.padStart(3, '0')}`;
+}
 
 const Purchases = ({ readOnly = false }) => {
   const { t } = useTranslation();
@@ -40,14 +77,15 @@ const Purchases = ({ readOnly = false }) => {
     if (!purchasesErr || !purchasesQueryErr) return null;
     return purchasesQueryErr.response?.data?.error || t('purchases.failedToLoad');
   }, [purchasesErr, purchasesQueryErr, t]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [viewingPurchase, setViewingPurchase] = useState(null);
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [supplierSearch, setSupplierSearch] = useState('');
-  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const invalidatePurchasesAndStock = async () => {
     await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).purchasesList() });
@@ -73,41 +111,71 @@ const Purchases = ({ readOnly = false }) => {
     }
   };
 
-  const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
+  const formatCurrency = (amount) => `PKR ${Number(amount || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   const formatDate = (date) => new Date(date).toLocaleDateString();
 
-  // Filter purchases by supplier
+  const enriched = useMemo(() => purchases.map(enrichPurchase), [purchases]);
+
+  const metrics = useMemo(() => {
+    let ordersThisMonth = 0;
+    let totalPurchased = 0;
+    let outstanding = 0;
+    let totalPaid = 0;
+    enriched.forEach((p) => {
+      const total = Number(p.total_amount) || 0;
+      if (purchaseInThisMonth(p.date)) ordersThisMonth += 1;
+      totalPurchased += total;
+      totalPaid += p._paid;
+      outstanding += p._balance;
+    });
+    return { ordersThisMonth, totalPurchased, outstanding, totalPaid };
+  }, [enriched]);
+
   const filteredPurchases = useMemo(() => {
-    if (!selectedSupplier) {
-      return purchases;
-    }
-    return purchases.filter(p => p.supplier_id === selectedSupplier);
-  }, [purchases, selectedSupplier]);
+    const q = searchQuery.trim().toLowerCase();
+    const digits = q.replace(/\D/g, '');
+    return enriched.filter((p) => {
+      if (paymentFilter !== 'all' && String(p.payment_type).toLowerCase() !== paymentFilter) return false;
+      if (statusFilter !== 'all' && p._status !== statusFilter) return false;
+      if (!q) return true;
+      const name = (p.supplier_name || '').toLowerCase();
+      const idStr = String(p.purchase_id);
+      const ref = formatOrderRef(p.purchase_id).toLowerCase();
+      if (name.includes(q)) return true;
+      if (digits && idStr.includes(digits)) return true;
+      if (q && ref.includes(q.replace(/\s/g, ''))) return true;
+      return false;
+    });
+  }, [enriched, searchQuery, paymentFilter, statusFilter]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedPurchases = filteredPurchases.slice(startIndex, endIndex);
+  const paginatedPurchases = filteredPurchases.slice(startIndex, startIndex + itemsPerPage);
 
-  // Reset to page 1 when supplier filter changes
+  const tableTotalValue = useMemo(
+    () => filteredPurchases.reduce((s, p) => s + (Number(p.total_amount) || 0), 0),
+    [filteredPurchases]
+  );
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSupplier]);
+  }, [searchQuery, paymentFilter, statusFilter]);
 
   if (loading) {
     return (
-      <div className="content-container">
-        <PageLoadingCenter message="Loading purchases…" />
+      <div className="content-container purchases-page">
+        <PageLoadingCenter message={`${t('common.loading')} ${t('purchases.title').toLowerCase()}…`} />
       </div>
     );
   }
 
   if (viewingPurchase && !editingPurchase) {
     return (
-      <PurchaseDetailView 
+      <PurchaseDetailView
         purchase={viewingPurchase}
-        onClose={() => { setViewingPurchase(null); }}
+        onClose={() => {
+          setViewingPurchase(null);
+        }}
         onDelete={handleDelete}
         onEdit={() => setEditingPurchase(viewingPurchase)}
         readOnly={readOnly}
@@ -126,215 +194,201 @@ const Purchases = ({ readOnly = false }) => {
           setEditingPurchase(null);
           setViewingPurchase(null);
         }}
-        onClose={() => { setEditingPurchase(null); setViewingPurchase(null); }}
+        onClose={() => {
+          setEditingPurchase(null);
+          setViewingPurchase(null);
+        }}
       />
     );
   }
 
+  const fromRow = filteredPurchases.length === 0 ? 0 : startIndex + 1;
+  const toRow = startIndex + paginatedPurchases.length;
+
   return (
-    <div className="content-container purchases-page">
-      <header className="purchases-page__header">
-        <div className="purchases-page__titles">
-          <h1 className="page-title">{t('purchases.title')}</h1>
-          <p className="page-subtitle">{t('purchases.subtitle')}</p>
+    <div className="content-container purchases-page pur2">
+      <style>{purchasesWorkspaceStyles}</style>
+
+      <header className="pur2-hd">
+        <div>
+          <h1 className="pur2-title">{t('purchases.title')}</h1>
+          <p className="pur2-sub">{t('purchases.subtitle')}</p>
         </div>
         {!readOnly ? (
-          <div className="purchases-page__header-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}>
-              + {t('purchases.newPurchase')}
-            </button>
-          </div>
+          <button type="button" className="pur2-new" onClick={() => setModalOpen(true)}>
+            + {t('purchases.newPurchase')}
+          </button>
         ) : null}
       </header>
 
-      {error && <div className="error-message">{error}</div>}
+      {error ? <div className="pur2-err">{error}</div> : null}
 
-      {/* Supplier Filter */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, maxWidth: '400px', position: 'relative' }}>
-              <label className="form-label" style={{ marginBottom: '8px', display: 'block', fontSize: '13px' }}>{t('purchases.filterBySupplier')}</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder={t('purchases.searchSupplier')}
-                value={supplierSearch || (selectedSupplier ? (suppliers.find(s => s.supplier_id === selectedSupplier)?.name || '') : '')}
-                onChange={(e) => {
-                  setSupplierSearch(e.target.value);
-                  setShowSupplierDropdown(true);
-                  if (!e.target.value) {
-                    setSelectedSupplier(null);
-                  }
-                }}
-                onFocus={() => setShowSupplierDropdown(true)}
-                style={{ fontSize: '14px', width: '100%' }}
-              />
-              {showSupplierDropdown && (
-                <>
-                  <div 
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      zIndex: 1000,
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                      marginTop: '4px'
-                    }}
-                  >
-                    <div
-                      onClick={() => {
-                        setSelectedSupplier(null);
-                        setSupplierSearch('');
-                        setShowSupplierDropdown(false);
-                      }}
-                      style={{
-                        padding: '10px 12px',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #f1f5f9',
-                        transition: 'background-color 0.2s',
-                        fontWeight: selectedSupplier === null ? '600' : '400'
-                      }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f8fafc'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                    >
-                      <div>{t('purchases.allSuppliers')}</div>
-                    </div>
-                    {suppliers
-                      .filter(s => !supplierSearch || s.name.toLowerCase().includes(supplierSearch.toLowerCase()))
-                      .map(s => (
-                        <div
-                          key={s.supplier_id}
-                          onClick={() => {
-                            setSelectedSupplier(s.supplier_id);
-                            setSupplierSearch(s.name);
-                            setShowSupplierDropdown(false);
-                          }}
-                          style={{
-                            padding: '10px 12px',
-                            cursor: 'pointer',
-                            borderBottom: '1px solid #f1f5f9',
-                            transition: 'background-color 0.2s',
-                            backgroundColor: selectedSupplier === s.supplier_id ? '#eff6ff' : '#ffffff',
-                            fontWeight: selectedSupplier === s.supplier_id ? '600' : '400'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (selectedSupplier !== s.supplier_id) {
-                              e.target.style.backgroundColor = '#f8fafc';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (selectedSupplier !== s.supplier_id) {
-                              e.target.style.backgroundColor = '#ffffff';
-                            } else {
-                              e.target.style.backgroundColor = '#eff6ff';
-                            }
-                          }}
-                        >
-                          <div style={{ fontWeight: '500' }}>{s.name}</div>
-                          {s.contact_number && (
-                            <div style={{ fontSize: '12px', color: '#64748b' }}>{s.contact_number}</div>
-                          )}
-                        </div>
-                      ))}
-                    {suppliers.filter(s => !supplierSearch || s.name.toLowerCase().includes(supplierSearch.toLowerCase())).length === 0 && (
-                      <div style={{ padding: '12px', color: '#94a3b8', textAlign: 'center' }}>{t('suppliers.noSuppliers')}</div>
-                    )}
-                  </div>
-                  <div 
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                    onClick={() => setShowSupplierDropdown(false)}
-                  />
-                </>
-              )}
-            </div>
-            {selectedSupplier && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => {
-                  setSelectedSupplier(null);
-                  setSupplierSearch('');
-                }}
-              >
-                {t('common.clearFilters')}
-              </button>
-            )}
+      <div className="pur2-kpis">
+        <div className="pur2-kpi pur2-kpi--blue">
+          <div className="pur2-kpi-h">
+            <span className="pur2-kpi-lbl">{t('purchases.totalOrders')}</span>
+            <span className="pur2-kpi-ico" aria-hidden>
+              <FontAwesomeIcon icon={faBagShopping} />
+            </span>
           </div>
+          <div className="pur2-kpi-val">{metrics.ordersThisMonth}</div>
+          <div className="pur2-kpi-sub">{t('purchases.thisMonth')}</div>
+        </div>
+        <div className="pur2-kpi pur2-kpi--ink">
+          <div className="pur2-kpi-h">
+            <span className="pur2-kpi-lbl">{t('purchases.totalPurchased')}</span>
+            <span className="pur2-kpi-ico" aria-hidden>
+              <FontAwesomeIcon icon={faDollarSign} />
+            </span>
+          </div>
+          <div className="pur2-kpi-val">{formatCurrency(metrics.totalPurchased)}</div>
+          <div className="pur2-kpi-sub">{t('purchases.acrossAllOrders')}</div>
+        </div>
+        <div className="pur2-kpi pur2-kpi--red">
+          <div className="pur2-kpi-h">
+            <span className="pur2-kpi-lbl">{t('purchases.outstandingPayable')}</span>
+            <span className="pur2-kpi-ico" aria-hidden>
+              <FontAwesomeIcon icon={faClock} />
+            </span>
+          </div>
+          <div className="pur2-kpi-val">{formatCurrency(metrics.outstanding)}</div>
+          <div className="pur2-kpi-sub">{t('purchases.creditNotPaid')}</div>
+        </div>
+        <div className="pur2-kpi pur2-kpi--green">
+          <div className="pur2-kpi-h">
+            <span className="pur2-kpi-lbl">{t('purchases.totalPaidLabel')}</span>
+            <span className="pur2-kpi-ico" aria-hidden>
+              <FontAwesomeIcon icon={faCircleCheck} />
+            </span>
+          </div>
+          <div className="pur2-kpi-val">{formatCurrency(metrics.totalPaid)}</div>
+          <div className="pur2-kpi-sub">{t('purchases.clearedPayments')}</div>
         </div>
       </div>
 
-      <div className="card">
-        <table className="purchases-table">
-          <thead>
-            <tr>
-              <th>{t('purchases.purchaseId', { defaultValue: 'Purchase ID' })}</th>
-              <th>{t('purchases.supplier')}</th>
-              <th>{t('purchases.purchaseDate')}</th>
-              <th>{t('purchases.items', { defaultValue: 'Items' })}</th>
-              <th>{t('purchases.totalAmount')}</th>
-              <th>{t('purchases.paymentType')}</th>
-              <th>{t('common.actions', { defaultValue: 'Actions' })}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedPurchases.length === 0 ? (
+      <section className="pur2-shell" aria-label={t('purchases.purchaseOrders')}>
+        <div className="pur2-shell-hd">
+          <h2 className="pur2-shell-tit">{t('purchases.purchaseOrders')}</h2>
+          <span className="pur2-badge">{t('purchases.ordersBadge', { count: filteredPurchases.length })}</span>
+        </div>
+
+        <div className="pur2-toolbar">
+          <div className="pur2-search-wrap">
+            <FontAwesomeIcon icon={faMagnifyingGlass} />
+            <input
+              type="search"
+              className="pur2-search"
+              placeholder={t('purchases.searchOrders')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <select className="pur2-select" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} aria-label={t('purchases.paymentType')}>
+            <option value="all">{t('purchases.allPaymentTypes')}</option>
+            <option value="cash">Cash</option>
+            <option value="credit">Credit</option>
+          </select>
+          <select className="pur2-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label={t('purchases.status')}>
+            <option value="all">{t('purchases.allStatuses')}</option>
+            <option value="paid">{t('purchases.paidStatus')}</option>
+            <option value="pending">{t('purchases.pendingStatus')}</option>
+          </select>
+        </div>
+
+        <div className="pur2-table-wrap">
+          <table className="pur2-table">
+            <thead>
               <tr>
-                <td colSpan="7" className="empty-state">
-                  {selectedSupplier 
-                    ? t('purchases.noPurchasesForSupplier', { supplier: suppliers.find(s => s.supplier_id === selectedSupplier)?.name || t('purchases.selectedSupplier') }) 
-                    : t('purchases.noPurchases')}
-                </td>
+                <th>{t('purchases.orderId')}</th>
+                <th>{t('purchases.supplier')}</th>
+                <th>{t('purchases.purchaseDate')}</th>
+                <th>{t('purchases.items')}</th>
+                <th>{t('purchases.totalAmount')}</th>
+                <th>{t('purchases.paid')}</th>
+                <th>{t('purchases.balance')}</th>
+                <th>{t('purchases.paymentType')}</th>
+                <th>{t('purchases.status')}</th>
+                <th>{t('purchases.actions')}</th>
               </tr>
-            ) : (
-              paginatedPurchases.map(purchase => (
-                <tr key={purchase.purchase_id}>
-                  <td>#{purchase.purchase_id}</td>
-                  <td>{purchase.supplier_name || 'N/A'}</td>
-                  <td>{formatDate(purchase.date)}</td>
-                  <td>{purchase.item_count || 0}</td>
-                  <td>{formatCurrency(purchase.total_amount)}</td>
-                  <td><span className={`payment-badge ${purchase.payment_type}`}>{purchase.payment_type}</span></td>
-                  <td>
-                    <div className="actions-cell">
-                      <button type="button" className="btn-view" onClick={() => handleView(purchase.purchase_id)}>
-                        {t('common.view', { defaultValue: 'View' })}
-                      </button>
-                      {!readOnly ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn-edit"
-                            onClick={async () => {
-                              try {
-                                const response = await purchasesAPI.getById(purchase.purchase_id);
-                                setEditingPurchase(response.data);
-                              } catch (err) {
-                                alert(t('purchases.failedToLoadForEdit'));
-                              }
-                            }}
-                          >
-                            {t('common.edit', { defaultValue: 'Edit' })}
-                          </button>
-                          <button type="button" className="btn-delete" onClick={() => handleDelete(purchase.purchase_id)}>
-                            {t('common.delete', { defaultValue: 'Delete' })}
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
+            </thead>
+            <tbody>
+              {paginatedPurchases.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="pur2-empty">
+                    {t('purchases.noPurchases')}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        
-        {filteredPurchases.length > 0 && (
+              ) : (
+                paginatedPurchases.map((purchase) => (
+                  <tr key={purchase.purchase_id}>
+                    <td>
+                      <button type="button" className="pur2-link" onClick={() => handleView(purchase.purchase_id)}>
+                        #{formatOrderRef(purchase.purchase_id)}
+                      </button>
+                    </td>
+                    <td className="pur2-sup">{purchase.supplier_name || '—'}</td>
+                    <td className="pur2-date">{formatDate(purchase.date)}</td>
+                    <td>
+                      <span className="pur2-items-badge">{purchase.item_count ?? 0}</span>
+                    </td>
+                    <td className="pur2-amt">{formatCurrency(purchase.total_amount)}</td>
+                    <td className="pur2-paid">{formatCurrency(purchase._paid)}</td>
+                    <td className={purchase._balance > 0 ? 'pur2-bal' : 'pur2-bal0'}>{formatCurrency(purchase._balance)}</td>
+                    <td>
+                      <span className="pur2-pay">{purchase.payment_type}</span>
+                    </td>
+                    <td>
+                      <span className={`pur2-st pur2-st--${purchase._status === 'paid' ? 'paid' : purchase._status === 'partial' ? 'partial' : 'pending'}`}>
+                        {purchase._status === 'paid' ? t('purchases.paidStatus') : t('purchases.pendingStatus')}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="pur2-actions">
+                        <button type="button" className="pur2-iconbtn" title={t('common.view')} onClick={() => handleView(purchase.purchase_id)}>
+                          <FontAwesomeIcon icon={faEye} />
+                        </button>
+                        {!readOnly ? (
+                          <>
+                            <button
+                              type="button"
+                              className="pur2-iconbtn"
+                              title={t('common.edit')}
+                              onClick={async () => {
+                                try {
+                                  const response = await purchasesAPI.getById(purchase.purchase_id);
+                                  setEditingPurchase(response.data);
+                                } catch (err) {
+                                  alert(t('purchases.failedToLoadForEdit'));
+                                }
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} />
+                            </button>
+                            <button type="button" className="pur2-iconbtn pur2-iconbtn--del" title={t('common.delete')} onClick={() => handleDelete(purchase.purchase_id)}>
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="pur2-foot">
+          <div className="pur2-foot-total">
+            {t('purchases.totalValueLabel')} <strong>{formatCurrency(tableTotalValue)}</strong>
+          </div>
+          <div className="pur2-foot-meta">
+            {t('purchases.showingRange', { from: fromRow, to: toRow, total: filteredPurchases.length })}
+          </div>
+        </div>
+
+        {filteredPurchases.length > 0 ? (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -346,10 +400,10 @@ const Purchases = ({ readOnly = false }) => {
               setCurrentPage(1);
             }}
           />
-        )}
-      </div>
+        ) : null}
+      </section>
 
-      {modalOpen && (
+      {modalOpen ? (
         <PurchaseModal
           suppliers={suppliers}
           products={products}
@@ -359,29 +413,31 @@ const Purchases = ({ readOnly = false }) => {
           }}
           onClose={() => setModalOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   );
 };
 
 const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) => {
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
-  const formatDate = (date) => new Date(date).toLocaleDateString('en-PK', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const formatDate = (date) =>
+    new Date(date).toLocaleDateString('en-PK', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <div className="content-container">
       <div className="page-header">
         <h1 className="page-title">Purchase Details</h1>
-        <button className="btn btn-secondary" onClick={onClose}>← Back to Purchases</button>
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          ← Back to Purchases
+        </button>
       </div>
 
-      {/* Purchase Information Card */}
       <div className="card" style={{ marginBottom: '20px' }}>
         <div className="card-header">
           <h2>Purchase Information</h2>
@@ -420,7 +476,6 @@ const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) =
         </div>
       </div>
 
-      {/* Items Table */}
       <div className="card">
         <div className="card-header">
           <h2>Purchase Items</h2>
@@ -439,42 +494,51 @@ const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) =
               {purchase.items && purchase.items.length > 0 ? (
                 purchase.items.map((item, idx) => (
                   <tr key={idx}>
-                    <td><strong>{item.item_name || 'N/A'}</strong></td>
+                    <td>
+                      <strong>{item.item_name || 'N/A'}</strong>
+                    </td>
                     <td>{item.quantity}</td>
                     <td>{formatCurrency(item.cost_price)}</td>
-                    <td><strong>{formatCurrency(item.subtotal)}</strong></td>
+                    <td>
+                      <strong>{formatCurrency(item.subtotal)}</strong>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="empty-state">No items found</td>
+                  <td colSpan="4" className="empty-state">
+                    No items found
+                  </td>
                 </tr>
               )}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan="3" style={{ textAlign: 'right', fontWeight: '700' }}>Total:</td>
-                <td style={{ fontWeight: '700', fontSize: '18px', color: '#059669' }}>
-                  {formatCurrency(purchase.total_amount)}
+                <td colSpan="3" style={{ textAlign: 'right', fontWeight: '700' }}>
+                  Total:
                 </td>
+                <td style={{ fontWeight: '700', fontSize: '18px', color: '#059669' }}>{formatCurrency(purchase.total_amount)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      {/* Actions */}
       {!readOnly && (
         <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-          <button className="btn btn-primary" onClick={onEdit}>
+          <button type="button" className="btn btn-primary" onClick={onEdit}>
             Edit Purchase
           </button>
-          <button className="btn btn-danger" onClick={() => {
-            if (window.confirm('Are you sure you want to delete this purchase? This will reverse stock updates.')) {
-              onDelete(purchase.purchase_id);
-              onClose();
-            }
-          }}>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this purchase? This will reverse stock updates.')) {
+                onDelete(purchase.purchase_id);
+                onClose();
+              }
+            }}
+          >
             Delete Purchase
           </button>
         </div>
@@ -484,4 +548,3 @@ const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) =
 };
 
 export default Purchases;
-
