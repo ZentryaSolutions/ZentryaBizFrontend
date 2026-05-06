@@ -1005,5 +1005,5 @@
     "restartRequired": "The application will restart automatically after installation.",
     "updateError": "Update Error",
     "updateErrorMessage": "An error occurred while updating. Please try again later."
-  }
+                 }
 }

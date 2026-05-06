@@ -210,7 +210,7 @@ const Reports = () => {
   const chartExpenseDonutInst = useRef(null);
   const canvasExpenseVsRef = useRef(null);
   const chartExpenseVsInst = useRef(null);
-
+  
   // Dashboard data
   const [dashboardData, setDashboardData] = useState(null);
   
@@ -228,7 +228,7 @@ const Reports = () => {
   const [salesInvoices, setSalesInvoices] = useState(null);
   const [customersAnalytics, setCustomersAnalytics] = useState(null);
   const [suppliersAnalytics, setSuppliersAnalytics] = useState(null);
-
+  
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -792,7 +792,7 @@ const Reports = () => {
         ? await queryClient.fetchQuery({
             queryKey: zbk.reportsSalesSummary(params),
             queryFn: async () => {
-              const response = await reportsAPI.getSalesSummary(params);
+      const response = await reportsAPI.getSalesSummary(params);
               return response.data;
             },
             staleTime: REPORTS_RQ_STALE_MS,
@@ -900,7 +900,7 @@ const Reports = () => {
         ? await queryClient.fetchQuery({
             queryKey: zbk.reportsSalesByProduct(params),
             queryFn: async () => {
-              const response = await reportsAPI.getSalesByProduct(params);
+      const response = await reportsAPI.getSalesByProduct(params);
               return response.data;
             },
             staleTime: REPORTS_RQ_STALE_MS,
@@ -950,7 +950,7 @@ const Reports = () => {
         ? await queryClient.fetchQuery({
             queryKey: zbk.reportsCustomersDue(),
             queryFn: async () => {
-              const response = await reportsAPI.getCustomersDue(params);
+      const response = await reportsAPI.getCustomersDue(params);
               return response.data;
             },
             staleTime: REPORTS_RQ_STALE_MS,
@@ -1190,13 +1190,13 @@ const Reports = () => {
             <div className="rep-v">{formatCurrency(dashboardData.totalSales)}</div>
             <div className="rep-sec-sub" style={{ marginTop: 6 }}>
               {invN} {t('reports.numberOfInvoices').toLowerCase()}
-            </div>
+          </div>
           </button>
           <button type="button" className="rep-ins-card" onClick={() => handleCardClick('profit')}>
             <div className="rep-k">{t('reports.netProfit')}</div>
             <div className={`rep-v ${dashboardData.netProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
               {formatCurrency(dashboardData.netProfit)}
-            </div>
+          </div>
             <div className="rep-sec-sub" style={{ marginTop: 6 }}>{marginPct}% margin</div>
           </button>
           <button type="button" className="rep-ins-card" onClick={() => { setActiveTab('expenses'); setExpenseSubTab('summary'); }}>
@@ -1209,8 +1209,8 @@ const Reports = () => {
             <div className="rep-v">{formatCurrency(dashboardData.creditGiven)}</div>
             <div className="rep-sec-sub" style={{ marginTop: 6 }}>{creditShare}% of sales on credit</div>
           </button>
-        </div>
-
+          </div>
+          
         <div className="rep-kpi-grid">
           <button type="button" className="rep-kpi-card rep-accent-blue" onClick={() => { setActiveTab('sales'); setSalesSubTab('summary'); }}>
             <div className="rep-k">{t('reports.totalSales')}</div>
@@ -1229,8 +1229,8 @@ const Reports = () => {
             </div>
             <div className="rep-sec-sub" style={{ marginTop: 4 }}>{marginPct}% margin</div>
           </button>
-        </div>
-
+          </div>
+          
         <div className="rep-dash-grid">
           <div className="rep-chart-card">
             <h3 className="rep-chart-h">{t('reports.sales')}</h3>
@@ -1291,8 +1291,8 @@ const Reports = () => {
               </button>
             </div>
           </div>
-        </div>
-
+          </div>
+          
         <div className="reports-v2-chart-grid" style={{ marginTop: 16 }}>
           <div className="reports-v2-chart-card">
             <h4>
@@ -1828,28 +1828,28 @@ const Reports = () => {
                   const col = parseFloat(customer.total_paid) || 0;
                   const last = customer.last_payment_date || customer.last_purchase_date;
                   return (
-                    <tr key={customer.customer_id}>
+                  <tr key={customer.customer_id}>
                       <td>{idx + 1}</td>
-                      <td>{customer.customer_name}</td>
-                      <td>{customer.mobile_number || '-'}</td>
+                    <td>{customer.customer_name}</td>
+                    <td>{customer.mobile_number || '-'}</td>
                       <td>{formatCurrency(cg)}</td>
                       <td className="profit-positive">{formatCurrency(col)}</td>
-                      <td className="profit-negative">{formatCurrency(customer.total_due)}</td>
+                    <td className="profit-negative">{formatCurrency(customer.total_due)}</td>
                       <td>{last ? formatDate(last) : '—'}</td>
                       <td><span className={`rep-badge ${st.cls}`}>{st.label}</span></td>
-                      <td>
-                        <button
+                    <td>
+                      <button 
                           type="button"
-                          className="btn btn-sm btn-primary"
-                          onClick={() => {
-                            setSelectedCustomer(customer.customer_id);
-                            setCustomerSubTab('history');
-                          }}
-                        >
+                        className="btn btn-sm btn-primary"
+                        onClick={() => {
+                          setSelectedCustomer(customer.customer_id);
+                          setCustomerSubTab('history');
+                        }}
+                      >
                           View history
-                        </button>
-                      </td>
-                    </tr>
+                      </button>
+                    </td>
+                  </tr>
                   );
                 })
               )}
@@ -2208,25 +2208,25 @@ const Reports = () => {
                   const tp = parseFloat(supplier.total_credit_purchases) || 0;
                   const paid = parseFloat(supplier.total_paid) || 0;
                   return (
-                    <tr key={supplier.supplier_id}>
+                  <tr key={supplier.supplier_id}>
                       <td>{idx + 1}</td>
-                      <td>{supplier.name}</td>
+                    <td>{supplier.name}</td>
                       <td>{formatCurrency(tp)}</td>
                       <td className="profit-positive">{formatCurrency(paid)}</td>
                       <td className="profit-negative">{formatCurrency(Math.abs(bal))}</td>
                       <td>{supplier.last_purchase_date ? formatDate(supplier.last_purchase_date) : '—'}</td>
                       <td><span className={`rep-badge ${st.cls}`}>{st.label}</span></td>
-                      <td>
-                        <button
+                    <td>
+                      <button 
                           type="button"
-                          className="btn btn-sm btn-primary"
-                          onClick={() => {
-                            setSelectedSupplierForHistory(supplier.supplier_id);
-                            setSupplierSubTab('history');
-                          }}
-                        >
-                          {t('reports.viewHistory')}
-                        </button>
+                        className="btn btn-sm btn-primary"
+                        onClick={() => {
+                          setSelectedSupplierForHistory(supplier.supplier_id);
+                          setSupplierSubTab('history');
+                        }}
+                      >
+                        {t('reports.viewHistory')}
+                      </button>
                       </td>
                     </tr>
                   );
@@ -2542,7 +2542,7 @@ const Reports = () => {
           <div className="rep-kpi-mini rep-accent-amber">
             <div className="tk">Largest category</div>
             <div className="tv" style={{ fontSize: '1rem' }}>{topCat.category}</div>
-          </div>
+        </div>
           <div className="rep-kpi-mini rep-accent-green">
             <div className="tk">% of sales</div>
             <div className="tv">{pctOfSales}%</div>
@@ -2746,7 +2746,7 @@ const Reports = () => {
                     <tr key={product.product_id}>
                       <td style={{ fontWeight: 700 }}>{product.product_name}</td>
                       <td className={crit ? 'profit-negative' : ''}>{product.current_qty}</td>
-                      <td>{product.minimum_qty}</td>
+                    <td>{product.minimum_qty}</td>
                       <td>
                         <div className="rep-collect-bar" style={{ maxWidth: 140 }}>
                           <div className="rep-collect-fill" style={{ width: `${pct}%`, background: crit ? '#dc2626' : undefined }} />
@@ -2756,7 +2756,7 @@ const Reports = () => {
                       <td>
                         <span className={`rep-badge ${crit ? 'rep-badge-err' : 'rep-badge-warn'}`}>{crit ? 'Critical' : 'Low'}</span>
                       </td>
-                    </tr>
+                  </tr>
                   );
                 })
               )}
@@ -2807,16 +2807,16 @@ const Reports = () => {
             {periodChip('thisyear', t('reports.thisYear'))}
             {periodChip('lastyear', t('reports.lastYear'))}
             {periodChip('custom', t('reports.customRange'))}
-          </div>
+        </div>
           {filterType === 'custom' ? (
             <div className="rep-custom">
               <div className="form-group">
                 <label className="form-label" htmlFor="rep-c-start">{t('reports.startDate')}</label>
-                <input
+                <input 
                   id="rep-c-start"
-                  type="date"
-                  className="form-input"
-                  value={customStartDate}
+                  type="date" 
+                  className="form-input" 
+                  value={customStartDate} 
                   onChange={(e) => {
                     setCustomStartDate(e.target.value);
                     if (e.target.value && customEndDate) {
@@ -2828,11 +2828,11 @@ const Reports = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="rep-c-end">{t('reports.endDate')}</label>
-                <input
+                <input 
                   id="rep-c-end"
-                  type="date"
-                  className="form-input"
-                  value={customEndDate}
+                  type="date" 
+                  className="form-input" 
+                  value={customEndDate} 
                   onChange={(e) => {
                     setCustomEndDate(e.target.value);
                     if (customStartDate && e.target.value) {
@@ -2842,7 +2842,7 @@ const Reports = () => {
                   }}
                 />
               </div>
-              <button
+              <button 
                 type="button"
                 className="rep-chip rep-chip-on"
                 onClick={() => {
@@ -2876,69 +2876,69 @@ const Reports = () => {
         </section>
 
         <nav className="rep-tabs-wrap" aria-label="Report views">
-          <button
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'dashboard' ? 'rep-tab-on' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-            data-navigation="true"
-          >
+          onClick={() => setActiveTab('dashboard')}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faGauge} /></span>
-            {t('reports.dashboard')}
-          </button>
-          <button
+          {t('reports.dashboard')}
+        </button>
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'sales' ? 'rep-tab-on' : ''}`}
-            onClick={() => { setActiveTab('sales'); setSalesSubTab('summary'); }}
-            data-navigation="true"
-          >
+          onClick={() => { setActiveTab('sales'); setSalesSubTab('summary'); }}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faCashRegister} /></span>
-            {t('reports.sales')}
-          </button>
-          <button
-            type="button"
+          {t('reports.sales')}
+        </button>
+        <button 
+          type="button"
             className={`rep-tab ${activeTab === 'profit' ? 'rep-tab-on' : ''}`}
             onClick={() => setActiveTab('profit')}
-            data-navigation="true"
-          >
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faChartLine} /></span>
-            {t('reports.profit')}
-          </button>
-          <button
+          {t('reports.profit')}
+        </button>
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'customers' ? 'rep-tab-on' : ''}`}
-            onClick={() => { setActiveTab('customers'); setCustomerSubTab('due-list'); }}
-            data-navigation="true"
-          >
+          onClick={() => { setActiveTab('customers'); setCustomerSubTab('due-list'); }}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faUsers} /></span>
-            {t('reports.customers')}
-          </button>
-          <button
+          {t('reports.customers')}
+        </button>
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'suppliers' ? 'rep-tab-on' : ''}`}
-            onClick={() => { setActiveTab('suppliers'); setSupplierSubTab('payables'); }}
-            data-navigation="true"
-          >
+          onClick={() => { setActiveTab('suppliers'); setSupplierSubTab('payables'); }}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faTruck} /></span>
-            {t('reports.suppliers')}
-          </button>
-          <button
+          {t('reports.suppliers')}
+        </button>
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'expenses' ? 'rep-tab-on' : ''}`}
-            onClick={() => { setActiveTab('expenses'); setExpenseSubTab('summary'); }}
-            data-navigation="true"
-          >
+          onClick={() => { setActiveTab('expenses'); setExpenseSubTab('summary'); }}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faReceipt} /></span>
-            {t('reports.expenses')}
-          </button>
-          <button
+          {t('reports.expenses')}
+        </button>
+        <button 
             type="button"
             className={`rep-tab ${activeTab === 'stock-low' ? 'rep-tab-on' : ''}`}
-            onClick={() => setActiveTab('stock-low')}
-            data-navigation="true"
-          >
+          onClick={() => setActiveTab('stock-low')}
+          data-navigation="true"
+        >
             <span className="rep-tab-ico" aria-hidden><FontAwesomeIcon icon={faTriangleExclamation} /></span>
-            {t('reports.lowStock')}
-          </button>
+          {t('reports.lowStock')}
+        </button>
         </nav>
 
         <div className="rep-panel">
