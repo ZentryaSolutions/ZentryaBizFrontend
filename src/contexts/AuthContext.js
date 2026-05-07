@@ -187,14 +187,35 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       try {
-        applyLocalUser(uid);
         const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
         if (!cancelled) {
           if (error || !data) {
             clearSession();
             setUser(null);
             setProfile(null);
+          } else if (!localStorage.getItem('sessionId')) {
+            /* Supabase tab restore without POS API session → every /api call is 401 */
+            clearSession();
+            try {
+              localStorage.removeItem('sessionId');
+              localStorage.removeItem('user');
+              queryClient.clear();
+            } catch {
+              /* ignore */
+            }
+            try {
+              sessionStorage.removeItem(SS_SHOP);
+            } catch {
+              /* ignore */
+            }
+            setActiveShopIdState('');
+            setUser(null);
+            setProfile(null);
+            console.warn(
+              '[Zentrya Biz] Cleared stale browser session: zb_simple_* without sessionId. Sign in again so zb-simple-session can set x-session-id.'
+            );
           } else {
+            applyLocalUser(uid);
             setProfile(data);
           }
         }
