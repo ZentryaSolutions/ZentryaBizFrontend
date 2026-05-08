@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleUser, faGear } from '@fortawesome/free-solid-svg-icons';
 import { settingsAPI } from '../services/api';
 import { withCurrentScope } from '../utils/appRouteScope';
+import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './ProfileMenu.css';
 
 function profileDisplayLabel(user, profileLabel) {
@@ -25,6 +26,7 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
     let cancelled = false;
     const load = async () => {
       try {
+        if (!hasPosBackendSession()) return;
         const response = await settingsAPI.get();
         const data = response.data;
         const raw = data?.other_app_settings;
@@ -37,9 +39,14 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
         /* optional */
       }
     };
-    if (user) load();
+    const onSess = () => {
+      if (user) void load();
+    };
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
+    if (user) void load();
     return () => {
       cancelled = true;
+      window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
     };
   }, [user]);
 

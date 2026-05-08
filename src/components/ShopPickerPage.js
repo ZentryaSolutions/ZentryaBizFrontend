@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isUnlimitedShops } from '../utils/planFeatures';
 import { marketingHomeQuery } from '../utils/workspacePaths';
 import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
+import { hasPosBackendSession } from '../lib/appMode';
 import './shopPickerV2.css';
 
 /** Frontend Stripe Price IDs — same values as backend `STRIPE_PRICE_*`. */
@@ -183,19 +184,22 @@ async function fetchShopPickerQuickStats(supabaseClient, mappedShops) {
 
   const todayStr = getBusinessTodayDateString();
 
-  // Prefer backend API (uses authenticated session, no Supabase RLS surprises).
-  // Fallback to Supabase direct select if API is unavailable.
+  // Prefer backend API when we have Express session headers; otherwise skip to avoid 401 noise.
+  // Fallback to Supabase direct select if API is unavailable or session not ready.
   try {
-    const r = await shopPickerAPI.quickStats(ids);
-    const stats = r?.data?.stats || {};
-    uniqueKey.forEach((k) => {
-      const s = stats[String(k)];
-      out[k] = {
-        todaySales: typeof s?.todaySales === 'number' ? s.todaySales : 0,
-        productCount: typeof s?.productCount === 'number' ? s.productCount : 0,
-      };
-    });
-    return out;
+    if (hasPosBackendSession()) {
+      const r = await shopPickerAPI.quickStats(ids);
+      const stats = r?.data?.stats || {};
+      uniqueKey.forEach((k) => {
+        const s = stats[String(k)];
+        out[k] = {
+          todaySales: typeof s?.todaySales === 'number' ? s.todaySales : 0,
+          productCount: typeof s?.productCount === 'number' ? s.productCount : 0,
+        };
+      });
+      return out;
+    }
+    throw new Error('no-backend-session');
   } catch {
     const [saleRes, prodRes] = await Promise.all([
       supabaseClient.from('sales').select('shop_id,total_amount').in('shop_id', ids).eq('date', todayStr),

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { zbKeys } from '../lib/queryKeys';
 import {
@@ -15,6 +15,7 @@ import {
   DETAIL_WARM_MAX,
   DETAIL_PREFETCH_CONCURRENCY,
 } from '../lib/workspaceQueries';
+import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './AppWorkspaceBootstrap.css';
 
 function WorkspaceLoadingOverlay() {
@@ -57,9 +58,17 @@ function WorkspaceLoadingOverlay() {
  */
 export default function AppWorkspaceBootstrap({ shopId, children }) {
   const queryClient = useQueryClient();
+  const [backendSessionRev, setBackendSessionRev] = useState(0);
+
+  useEffect(() => {
+    const bump = () => setBackendSessionRev((r) => r + 1);
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, bump);
+    return () => window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, bump);
+  }, []);
 
   useEffect(() => {
     if (!shopId) return;
+    if (!hasPosBackendSession()) return;
 
     let cancelled = false;
 
@@ -138,7 +147,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
     return () => {
       cancelled = true;
     };
-  }, [shopId, queryClient]);
+  }, [shopId, queryClient, backendSessionRev]);
 
   // Never block routes with a workspace overlay.
   return children;

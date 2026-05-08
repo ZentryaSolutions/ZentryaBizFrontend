@@ -8,6 +8,7 @@ import { customerPaymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { fetchCustomerDetailPack } from '../lib/workspaceQueries';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './CustomerDetailView.css';
 import './SupplierDetailView.css';
 
@@ -25,7 +26,7 @@ const CustomerDetailView = ({ customerId, onClose, readOnly = false }) => {
   } = useQuery({
     queryKey: keys.customerDetailPack(customerId),
     queryFn: () => fetchCustomerDetailPack(customerId),
-    enabled: Boolean(activeShopId && customerId),
+    enabled: posApiQueriesEnabled(activeShopId) && Boolean(customerId),
     staleTime: 60 * 1000,
   });
 

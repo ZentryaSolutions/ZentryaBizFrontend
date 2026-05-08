@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell } from '@fortawesome/free-solid-svg-icons';
 import { notificationsAPI } from '../services/api';
+import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Notifications.css';
 
 const Notifications = () => {
@@ -17,6 +18,11 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
+      if (!hasPosBackendSession()) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
       const [notificationsResponse, countResponse] = await Promise.all([
         notificationsAPI.getAll({ limit: 50 }),
         notificationsAPI.getUnreadCount()
@@ -36,11 +42,16 @@ const Notifications = () => {
   // Fetch notifications on mount and periodically
   useEffect(() => {
     fetchNotifications();
-    
+
     // Refresh every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
-    
-    return () => clearInterval(interval);
+    const onSess = () => fetchNotifications();
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
+    };
   }, []);
 
   // Close dropdown when clicking outside

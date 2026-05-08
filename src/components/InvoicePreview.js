@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { settingsAPI } from '../services/api';
+import { hasPosBackendSession } from '../lib/appMode';
 import './InvoicePreview.css';
 
 const InvoicePreview = ({ invoiceNumber, customerName, items, totalAmount, totalProfit, onClose, onPrint }) => {
@@ -8,6 +9,7 @@ const InvoicePreview = ({ invoiceNumber, customerName, items, totalAmount, total
   const [shopPhone, setShopPhone] = useState('');
 
   useEffect(() => {
+    if (!hasPosBackendSession()) return;
     // Fetch shop settings for invoice header
     settingsAPI.get().then(response => {
       const data = response.data;

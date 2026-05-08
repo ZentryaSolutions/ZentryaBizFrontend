@@ -20,6 +20,7 @@ import { purchasesWorkspaceStyles } from '../styles/purchasesWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import PurchaseModal from './PurchaseModal';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Purchases.css';
 
 function purchaseInThisMonth(dateStr) {
@@ -60,13 +61,13 @@ const Purchases = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).purchasesList(),
     queryFn: fetchPurchasesList,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
 
   const { data: bundle, isLoading: bundleLoading } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
   const suppliers = bundle?.suppliers ?? [];
   const products = bundle?.products ?? [];

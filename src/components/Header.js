@@ -9,6 +9,7 @@ import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import Notifications from './Notifications';
 import ProfileMenu from './ProfileMenu';
 import { shopsPath } from '../utils/workspacePaths';
+import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Header.css';
 
 function workspaceTitle(pathname) {
@@ -93,6 +94,14 @@ const Header = ({ onMenuClick }) => {
     };
     window.addEventListener('zb-shop-display-updated', onShopDisplayUpdated);
     return () => window.removeEventListener('zb-shop-display-updated', onShopDisplayUpdated);
+  }, [user, fetchStoreName]);
+
+  useEffect(() => {
+    const onSess = () => {
+      if (user) fetchStoreName();
+    };
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
+    return () => window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
   }, [user, fetchStoreName]);
 
   if (!user) {

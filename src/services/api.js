@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getServerUrl } from '../utils/connectionStatus';
+import { notifyBackendSessionChanged } from '../lib/appMode';
 
 // Use dynamic server URL for LAN support
 const API_BASE_URL = getServerUrl();
@@ -53,6 +54,7 @@ api.interceptors.response.use(
         isRedirecting = true;
         localStorage.removeItem('sessionId');
         localStorage.removeItem('user');
+        notifyBackendSessionChanged();
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);

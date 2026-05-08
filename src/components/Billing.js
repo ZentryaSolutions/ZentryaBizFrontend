@@ -15,6 +15,7 @@ import {
 import PageLoadingCenter from './PageLoadingCenter';
 import './Billing.css';
 import { billingExtraStyles } from './BillingExtraStyles';
+import { posApiQueriesEnabled } from '../lib/appMode';
 
 const STOCK_ERR = (avail) =>
   `Insufficient stock. Available: ${Number(avail || 0)} units. Please add stock first.`;
@@ -68,14 +69,14 @@ const Billing = ({ readOnly = false }) => {
   const { data: bundle, isLoading: invLoading } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
   const products = useMemo(() => bundle?.products ?? [], [bundle?.products]);
 
   const { data: customersRaw = [], isLoading: custLoading } = useQuery({
     queryKey: zbKeys(activeShopId).customersList(),
     queryFn: fetchCustomersList,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
   const customers = useMemo(
     () => (customersRaw || []).filter((c) => c.status === 'active'),
@@ -85,7 +86,7 @@ const Billing = ({ readOnly = false }) => {
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
     queryKey: zbKeys(activeShopId).settingsDoc(),
     queryFn: fetchSettingsDoc,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
 
   // Core state

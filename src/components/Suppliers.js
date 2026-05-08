@@ -22,6 +22,7 @@ import PageLoadingCenter from './PageLoadingCenter';
 import SupplierModal from './SupplierModal';
 import SupplierDetailView from './SupplierDetailView';
 import Pagination from './Pagination';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Suppliers.css';
 
 const Suppliers = ({ readOnly = false }) => {
@@ -37,7 +38,7 @@ const Suppliers = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
     select: (d) => d?.suppliers ?? [],
   });
 

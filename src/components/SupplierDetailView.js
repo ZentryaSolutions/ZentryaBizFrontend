@@ -18,6 +18,7 @@ import { supplierPaymentsAPI, purchasesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { fetchSupplierDetailPack } from '../lib/workspaceQueries';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import Pagination from './Pagination';
 import './SupplierDetailView.css';
 import './Purchases.css';
@@ -37,7 +38,7 @@ const SupplierDetailView = ({ supplierId, onClose, readOnly = false }) => {
     queryKey: keys.supplierDetailPack(supplierId),
     queryFn: () =>
       fetchSupplierDetailPack({ supplierId, queryClient, shopId: activeShopId }),
-    enabled: Boolean(activeShopId && supplierId),
+    enabled: posApiQueriesEnabled(activeShopId) && Boolean(supplierId),
     staleTime: 60 * 1000,
   });
 

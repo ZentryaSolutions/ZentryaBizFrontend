@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getServerUrl } from '../utils/connectionStatus';
 import { authAPI } from '../services/api';
 import { queryClient } from '../lib/queryClient';
+import { notifyBackendSessionChanged } from '../lib/appMode';
 
 const SS_UID = 'zb_simple_uid';
 const SS_USER = 'zb_simple_username';
@@ -81,6 +82,7 @@ async function tryEstablishNodeSession(username, password) {
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
+      notifyBackendSessionChanged();
     }
   };
   try {
@@ -144,6 +146,7 @@ async function completeZbNodeLoginWithOtp(username, password, otp) {
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
+      notifyBackendSessionChanged();
       return { ok: true };
     }
     return {
@@ -237,6 +240,7 @@ export const AuthProvider = ({ children }) => {
               localStorage.removeItem('sessionId');
               localStorage.removeItem('user');
               queryClient.clear();
+              notifyBackendSessionChanged();
             } catch {
               /* ignore */
             }
@@ -315,6 +319,7 @@ export const AuthProvider = ({ children }) => {
       try {
         localStorage.removeItem('sessionId');
         localStorage.removeItem('user');
+        notifyBackendSessionChanged();
       } catch {
         /* ignore */
       }
@@ -388,6 +393,7 @@ export const AuthProvider = ({ children }) => {
         try {
           localStorage.removeItem('sessionId');
           localStorage.removeItem('user');
+          notifyBackendSessionChanged();
         } catch {
           /* ignore */
         }
@@ -423,6 +429,7 @@ export const AuthProvider = ({ children }) => {
     clearSession();
     localStorage.removeItem('sessionId');
     localStorage.removeItem('user');
+    notifyBackendSessionChanged();
     queryClient.clear();
     setUser(null);
     setProfile(null);

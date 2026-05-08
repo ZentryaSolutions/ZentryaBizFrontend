@@ -7,6 +7,7 @@ import { zbKeys } from '../lib/queryKeys';
 import { fetchInventoryBundle } from '../lib/workspaceQueries';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Categories.css';
 
 const Categories = ({ readOnly = false }) => {
@@ -22,7 +23,7 @@ const Categories = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
     select: (d) => d?.categories ?? [],
   });
 

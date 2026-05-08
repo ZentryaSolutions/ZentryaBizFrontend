@@ -28,6 +28,7 @@ import ProductModal from './ProductModal';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { productDetailPremiumCss } from './productDetailPremiumStyles';
+import { posApiQueriesEnabled } from '../lib/appMode';
 
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -47,7 +48,7 @@ const ProductDetailView = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: keys.productDetailPack(productId),
     queryFn: () => fetchProductDetailPack(productId),
-    enabled: Boolean(activeShopId && productId),
+    enabled: posApiQueriesEnabled(activeShopId) && Boolean(productId),
     staleTime: 60 * 1000,
   });
 

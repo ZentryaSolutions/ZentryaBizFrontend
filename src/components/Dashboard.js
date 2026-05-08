@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchDashboardData } from '../lib/workspaceQueries';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
-import { isZbWebOnlyMode } from '../lib/appMode';
+import { isZbWebOnlyMode, posApiQueriesEnabled } from '../lib/appMode';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { DashboardWeeklyChart, DashboardSnapshotDonut } from './DashboardCharts';
 import './Dashboard.css';
@@ -183,7 +183,7 @@ const Dashboard = () => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).dashboard(),
     queryFn: fetchDashboardData,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   });

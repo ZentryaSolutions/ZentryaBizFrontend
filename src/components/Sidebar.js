@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { settingsAPI } from '../services/api';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
+import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Sidebar.css';
 
 const SectionNav = ({ label, children }) => (
@@ -106,6 +107,12 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
     };
     window.addEventListener('zb-shop-display-updated', onUpd);
     return () => window.removeEventListener('zb-shop-display-updated', onUpd);
+  }, [reloadShopLabel]);
+
+  useEffect(() => {
+    const onSess = () => reloadShopLabel();
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
+    return () => window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, onSess);
   }, [reloadShopLabel]);
 
   /** Nav order matches workspace shell: MAIN → PEOPLE → FINANCE → SETTINGS */

@@ -27,6 +27,7 @@ import { withCurrentScope } from '../utils/appRouteScope';
 import { salesWorkspaceStyles } from '../styles/salesWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Sales.css';
 
 const EPS = 0.005;
@@ -97,7 +98,7 @@ const Sales = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).salesList(),
     queryFn: fetchSalesList,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
 
   const error = useMemo(() => {

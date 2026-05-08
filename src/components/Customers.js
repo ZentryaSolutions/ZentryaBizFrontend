@@ -21,6 +21,7 @@ import CustomerModal from './CustomerModal';
 import CustomerDetailView from './CustomerDetailView';
 import Pagination from './Pagination';
 import './Customers.css';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Suppliers.css';
 
 const Customers = ({ readOnly = false }) => {
@@ -36,7 +37,7 @@ const Customers = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).customersList(),
     queryFn: fetchCustomersList,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
 
   const error = useMemo(() => {

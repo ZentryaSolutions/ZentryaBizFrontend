@@ -25,6 +25,7 @@ import { inventoryCustomStyles } from '../styles/inventoryCustomStyles';
 import ProductModal from './ProductModal';
 import Pagination from './Pagination';
 import PageLoadingCenter from './PageLoadingCenter';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import './Inventory.css';
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -44,7 +45,7 @@ const Inventory = ({ readOnly = false }) => {
   } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
-    enabled: Boolean(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
   });
 
   const suppliers = data?.suppliers ?? [];
