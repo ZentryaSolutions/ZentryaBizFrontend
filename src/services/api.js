@@ -244,6 +244,11 @@ export const billingAPI = {
   createPortalSession: (body) => api.post('/billing/create-portal-session', body),
 };
 
+/** Shop picker (multi-shop stats) */
+export const shopPickerAPI = {
+  quickStats: (shopIds) => api.post('/shop-picker/quick-stats', { shopIds }),
+};
+
 // Users API (Admin only)
 export const usersAPI = {
   getAll: () => api.get('/users'),

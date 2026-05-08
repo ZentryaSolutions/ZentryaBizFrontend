@@ -850,12 +850,19 @@ const Billing = ({ readOnly = false }) => {
       <div className="billing-tabs-bar">
         <div className="billing-tabs-left">
           {bills.map((b, idx) => (
-            <button
+            <div
               key={b.id}
-              type="button"
               className={`billing-tab ${b.id === activeBillId ? 'active' : ''}`}
               onClick={() => setActiveBillId(b.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActiveBillId(b.id);
+                }
+              }}
               title={b.label}
+              role="button"
+              tabIndex={0}
             >
               <span
                 className="billing-tab-dot"
@@ -897,7 +904,7 @@ const Billing = ({ readOnly = false }) => {
               >
                 ×
               </button>
-            </button>
+            </div>
           ))}
           <span className="billing-tab-sep" aria-hidden />
           <button

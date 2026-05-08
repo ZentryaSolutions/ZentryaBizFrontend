@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './AuthPages.css';
+import { authLayoutExtraStyles } from './AuthLayoutExtraStyles';
 
 function IconShop() {
   return (
@@ -76,6 +77,7 @@ function HomeHouseIcon() {
 export default function AuthLayout({ title, subtitle, heroTitle, heroText, children }) {
   return (
     <div className="zb-auth">
+      <style>{authLayoutExtraStyles}</style>
       <div className="zb-auth__glow" aria-hidden="true" />
       <div className="zb-auth__card zb-auth__card--split">
         <div className="zb-auth__left">

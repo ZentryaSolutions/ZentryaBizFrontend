@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { zbKeys } from '../lib/queryKeys';
 import {
@@ -51,20 +51,17 @@ function WorkspaceLoadingOverlay() {
 
 /**
  * First entry after shop select: parallel prefetch into React Query cache.
- * Shows a branded loader until prefetch settles (failures still allow entering the app).
+ * IMPORTANT UX CHANGE:
+ * - Never block UI with a full-screen loader after shop select.
+ * - Kick off prefetch in background; pages show their own skeletons/inline loaders.
  */
 export default function AppWorkspaceBootstrap({ shopId, children }) {
   const queryClient = useQueryClient();
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!shopId) {
-      setReady(true);
-      return;
-    }
+    if (!shopId) return;
 
     let cancelled = false;
-    setReady(false);
 
     const keys = zbKeys(shopId);
     const tasks = [
@@ -78,7 +75,8 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
     ];
 
     (async () => {
-      await Promise.allSettled(
+      // Start "core" prefetch in parallel, but do not block UI rendering.
+      Promise.allSettled(
         tasks.map((t) =>
           queryClient.prefetchQuery({
             queryKey: t.queryKey,
@@ -86,7 +84,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
             staleTime: 60 * 1000,
           })
         )
-      );
+      ).catch(() => {});
 
       if (cancelled) return;
 
@@ -115,16 +113,16 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
         })),
       ];
 
-      if (warmTasks.length === 0) {
-        if (!cancelled) setReady(true);
-        return;
-      }
+      if (warmTasks.length === 0) return;
 
+      // Warm detail packs in small batches to avoid network spikes.
       const conc = DETAIL_PREFETCH_CONCURRENCY;
       const totalBatches = Math.ceil(warmTasks.length / conc);
       for (let b = 0; b < totalBatches; b += 1) {
         if (cancelled) return;
         const slice = warmTasks.slice(b * conc, b * conc + conc);
+        // Not awaited for UI; still sequential to keep concurrency bounded.
+        // eslint-disable-next-line no-await-in-loop
         await Promise.allSettled(
           slice.map((t) =>
             queryClient.prefetchQuery({
@@ -135,8 +133,6 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
           )
         );
       }
-
-      if (!cancelled) setReady(true);
     })();
 
     return () => {
@@ -144,11 +140,6 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
     };
   }, [shopId, queryClient]);
 
-  if (!shopId) return children;
-
-  if (!ready) {
-    return <WorkspaceLoadingOverlay />;
-  }
-
+  // Never block routes with a workspace overlay.
   return children;
 }

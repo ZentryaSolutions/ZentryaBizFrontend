@@ -4,7 +4,7 @@ import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { isUnlimitedShops } from '../utils/planFeatures';
 import { marketingHomeQuery } from '../utils/workspacePaths';
-import { authAPI, billingAPI } from '../services/api';
+import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
 import './shopPickerV2.css';
 
 /** Frontend Stripe Price IDs — same values as backend `STRIPE_PRICE_*`. */
@@ -183,34 +183,49 @@ async function fetchShopPickerQuickStats(supabaseClient, mappedShops) {
 
   const todayStr = getBusinessTodayDateString();
 
-  const [saleRes, prodRes] = await Promise.all([
-    supabaseClient.from('sales').select('shop_id,total_amount').in('shop_id', ids).eq('date', todayStr),
-    supabaseClient.from('products').select('shop_id').in('shop_id', ids),
-  ]);
+  // Prefer backend API (uses authenticated session, no Supabase RLS surprises).
+  // Fallback to Supabase direct select if API is unavailable.
+  try {
+    const r = await shopPickerAPI.quickStats(ids);
+    const stats = r?.data?.stats || {};
+    uniqueKey.forEach((k) => {
+      const s = stats[String(k)];
+      out[k] = {
+        todaySales: typeof s?.todaySales === 'number' ? s.todaySales : 0,
+        productCount: typeof s?.productCount === 'number' ? s.productCount : 0,
+      };
+    });
+    return out;
+  } catch {
+    const [saleRes, prodRes] = await Promise.all([
+      supabaseClient.from('sales').select('shop_id,total_amount').in('shop_id', ids).eq('date', todayStr),
+      supabaseClient.from('products').select('shop_id').in('shop_id', ids),
+    ]);
 
-  const salesSumByShop = {};
-  if (!saleRes.error && saleRes.data) {
-    saleRes.data.forEach((row) => {
-      const sid = String(row.shop_id);
-      const amt = Number(row.total_amount) || 0;
-      salesSumByShop[sid] = (salesSumByShop[sid] || 0) + amt;
+    const salesSumByShop = {};
+    if (!saleRes.error && saleRes.data) {
+      saleRes.data.forEach((row) => {
+        const sid = String(row.shop_id);
+        const amt = Number(row.total_amount) || 0;
+        salesSumByShop[sid] = (salesSumByShop[sid] || 0) + amt;
+      });
+    }
+
+    const prodCountByShop = {};
+    if (!prodRes.error && prodRes.data) {
+      prodRes.data.forEach((row) => {
+        const sid = String(row.shop_id);
+        prodCountByShop[sid] = (prodCountByShop[sid] || 0) + 1;
+      });
+    }
+
+    uniqueKey.forEach((k) => {
+      out[k] = {
+        todaySales: saleRes.error ? null : salesSumByShop[k] ?? 0,
+        productCount: prodRes.error ? null : prodCountByShop[k] ?? 0,
+      };
     });
   }
-
-  const prodCountByShop = {};
-  if (!prodRes.error && prodRes.data) {
-    prodRes.data.forEach((row) => {
-      const sid = String(row.shop_id);
-      prodCountByShop[sid] = (prodCountByShop[sid] || 0) + 1;
-    });
-  }
-
-  uniqueKey.forEach((k) => {
-    out[k] = {
-      todaySales: saleRes.error ? null : salesSumByShop[k] ?? 0,
-      productCount: prodRes.error ? null : prodCountByShop[k] ?? 0,
-    };
-  });
 
   return out;
 }
