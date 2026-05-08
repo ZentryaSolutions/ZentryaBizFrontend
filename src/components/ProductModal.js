@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './ProductModal.css';
 
-const ProductModal = ({ product, suppliers, onClose, onSave }) => {
+const ProductModal = ({ product, suppliers, categories = [], units = [], onClose, onSave }) => {
   const modalScopedStyles = `
     .modal-overlay{position:fixed!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:6px!important;background:rgba(15,23,42,.42)!important;backdrop-filter:blur(7px)!important;z-index:9999!important}
     .product-modal{width:min(560px,94vw)!important;max-height:78vh!important;border-radius:14px!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;font-family:Manrope,Inter,system-ui,-apple-system,sans-serif!important}
@@ -24,10 +24,27 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
     @media (max-width:900px){.form-grid--3{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
     @media (max-width:640px){.form-grid--3{grid-template-columns:1fr!important}}
   `;
+  const safeCategories = useMemo(() => (Array.isArray(categories) ? categories : []), [categories]);
+  const safeUnits = useMemo(() => (Array.isArray(units) ? units : []), [units]);
+  const activeCategories = useMemo(
+    () => safeCategories.filter((c) => String(c.status || 'active').toLowerCase() !== 'inactive'),
+    [safeCategories]
+  );
+
+  const defaultCategoryName = useMemo(() => {
+    const gen = safeCategories.find((c) => String(c.category_name || '').toLowerCase() === 'general');
+    return gen?.category_name || 'General';
+  }, [safeCategories]);
+  const defaultCategoryId = useMemo(() => {
+    const gen = safeCategories.find((c) => String(c.category_name || '').toLowerCase() === 'general');
+    return gen?.category_id ?? null;
+  }, [safeCategories]);
+
   const [formData, setFormData] = useState({
     item_name_english: '',
     sku: '',
     category: 'General',
+    category_id: null,
     purchase_price: '',
     retail_price: '',
     wholesale_price: '',
@@ -50,7 +67,8 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
       setFormData({
         item_name_english: product.item_name_english || product.name || '',
         sku: product.sku || '',
-        category: product.category_name || product.category || 'General',
+        category: product.category_name || product.category || defaultCategoryName,
+        category_id: product.category_id ?? defaultCategoryId,
         purchase_price: product.purchase_price || '',
         retail_price: product.retail_price || product.selling_price || '',
         wholesale_price: product.wholesale_price || product.retail_price || product.selling_price || '',
@@ -64,8 +82,15 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
         note_tag: product.note_tag || '',
         supplier_id: product.supplier_id || '',
       });
+    } else {
+      // New product: initialize category defaults from real categories list
+      setFormData((prev) => ({
+        ...prev,
+        category: prev.category || defaultCategoryName,
+        category_id: prev.category_id ?? defaultCategoryId,
+      }));
     }
-  }, [product, suppliers]);
+  }, [product, suppliers, defaultCategoryId, defaultCategoryName]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -133,8 +158,8 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
         name: formData.item_name_english.trim(), // Backward compatibility
         item_name_english: formData.item_name_english.trim(),
         sku: formData.sku?.trim() || null,
-        category: formData.category || 'General',
-        category_id: null,
+        category: formData.category || defaultCategoryName,
+        category_id: formData.category_id ?? defaultCategoryId,
         purchase_price: parseFloat(formData.purchase_price),
         retail_price: parseFloat(formData.retail_price),
         wholesale_price: formData.wholesale_price ? parseFloat(formData.wholesale_price) : parseFloat(formData.retail_price),
@@ -205,8 +230,26 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
 
             <div className="form-group">
               <label className="form-label" htmlFor="pm-category">Category</label>
-              <select id="pm-category" name="category" value={formData.category} onChange={handleChange} className="form-input">
-                <option value="General">General</option>
+              <select
+                id="pm-category"
+                name="category_id"
+                value={formData.category_id ?? ''}
+                onChange={(e) => {
+                  const nextId = e.target.value ? Number(e.target.value) : null;
+                  const found = safeCategories.find((c) => String(c.category_id) === String(nextId));
+                  setFormData((prev) => ({
+                    ...prev,
+                    category_id: nextId,
+                    category: found?.category_name || prev.category || defaultCategoryName,
+                  }));
+                }}
+                className="form-input"
+              >
+                {(activeCategories.length ? activeCategories : safeCategories).map((c) => (
+                  <option key={c.category_id} value={c.category_id}>
+                    {c.category_name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -219,12 +262,23 @@ const ProductModal = ({ product, suppliers, onClose, onSave }) => {
                 onChange={handleChange}
                 className="form-input"
               >
-                <option value="piece">pcs</option>
-                <option value="packet">packet</option>
-                <option value="meter">meter</option>
-                <option value="box">box</option>
-                <option value="kg">kg</option>
-                <option value="roll">roll</option>
+                {(safeUnits.length
+                  ? safeUnits
+                      .filter((u) => String(u.status || 'active').toLowerCase() !== 'inactive')
+                      .map((u) => ({ key: u.unit_code || u.unit_name, label: `${u.unit_name} (${u.unit_code})`, value: u.unit_code }))
+                  : [
+                      { key: 'piece', label: 'pcs', value: 'piece' },
+                      { key: 'packet', label: 'packet', value: 'packet' },
+                      { key: 'meter', label: 'meter', value: 'meter' },
+                      { key: 'box', label: 'box', value: 'box' },
+                      { key: 'kg', label: 'kg', value: 'kg' },
+                      { key: 'roll', label: 'roll', value: 'roll' },
+                    ]
+                ).map((u) => (
+                  <option key={u.key} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
               </select>
             </div>
 

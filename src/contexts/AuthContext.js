@@ -65,7 +65,7 @@ function clearSession() {
 
 /**
  * After zb_login, create Node session (POST /api/auth/zb-simple-session → sessionId → x-session-id).
- * @returns {{ ok: boolean; hint?: string }}
+ * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string }} | {{ ok: false, hint: string }}
  */
 async function tryEstablishNodeSession(username, password) {
   let hint = '';
@@ -85,6 +85,9 @@ async function tryEstablishNodeSession(username, password) {
   };
   try {
     const { data } = await axios.post(`${base}/auth/zb-simple-session`, { username, password }, cfg);
+    if (data?.success && data?.requiresOtp) {
+      return { ok: true, pendingOtp: true, emailHint: data.emailHint || '' };
+    }
     if (data?.sessionId) {
       save(data);
       return { ok: true };
@@ -121,6 +124,40 @@ async function tryEstablishNodeSession(username, password) {
             base +
             ' — clear LAN server override in Settings → Connection / localStorage key hisaabkitab_server_url.',
       };
+}
+
+async function completeZbNodeLoginWithOtp(username, password, otp) {
+  const deviceId = localStorage.getItem('deviceId') || 'unknown';
+  const cfg = {
+    headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+    timeout: 60000,
+  };
+  const base = getServerUrl();
+  try {
+    const { data } = await axios.post(
+      `${base}/auth/zb-simple-session/verify-otp`,
+      { username, password, otp },
+      cfg
+    );
+    if (data?.sessionId) {
+      localStorage.setItem('sessionId', data.sessionId);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      hint: data?.message || data?.error || 'No session returned',
+    };
+  } catch (e) {
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
+    const code = e.response?.status;
+    return {
+      ok: false,
+      hint: code ? `Verify OTP HTTP ${code}: ${msg}` : msg,
+    };
+  }
 }
 
 export const AuthProvider = ({ children }) => {
@@ -263,6 +300,14 @@ export const AuthProvider = ({ children }) => {
     persistSession(data.user_id, data.username, data.full_name, em);
     applyLocalUser(data.user_id);
     const apiSess = await tryEstablishNodeSession(em, password);
+    if (apiSess.ok && apiSess.pendingOtp) {
+      try {
+        await refreshProfile(data.user_id);
+      } catch {
+        setProfile(null);
+      }
+      return { success: true, pendingOtp: true, emailHint: apiSess.emailHint || '' };
+    }
     if (!apiSess.ok) {
       clearSession();
       setUser(null);
@@ -283,6 +328,21 @@ export const AuthProvider = ({ children }) => {
     }
     try {
       await refreshProfile(data.user_id);
+    } catch {
+      setProfile(null);
+    }
+    return { success: true };
+  };
+
+  const completeSignInWithNodeOtp = async (username, password, otp) => {
+    const uid = sessionStorage.getItem(SS_UID);
+    const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
+    const r = await completeZbNodeLoginWithOtp(String(username || '').trim().toLowerCase(), password, code);
+    if (!r.ok) {
+      return { success: false, error: r.hint || 'Verification failed' };
+    }
+    try {
+      if (uid) await refreshProfile(uid);
     } catch {
       setProfile(null);
     }
@@ -384,6 +444,7 @@ export const AuthProvider = ({ children }) => {
       setActiveShopId,
       refreshProfile,
       signInWithPassword,
+      completeSignInWithNodeOtp,
       signUpWithEmail,
       signInWithGoogle,
       logout,

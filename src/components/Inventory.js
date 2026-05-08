@@ -49,6 +49,7 @@ const Inventory = ({ readOnly = false }) => {
 
   const suppliers = data?.suppliers ?? [];
   const categories = data?.categories ?? [];
+  const unitsFromBundle = data?.units ?? [];
   const rawProducts = useMemo(
     () => (Array.isArray(data?.products) ? data.products : []),
     [data?.products]
@@ -109,6 +110,7 @@ const Inventory = ({ readOnly = false }) => {
   }, [isError, queryError]);
 
   const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeUnits = Array.isArray(unitsFromBundle) ? unitsFromBundle : [];
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
@@ -572,6 +574,8 @@ const Inventory = ({ readOnly = false }) => {
         <ProductModal
           product={editingProduct}
           suppliers={suppliers}
+          categories={safeCategories}
+          units={safeUnits}
           onClose={handleModalClose}
           onSave={handleModalSave}
         />

@@ -12,7 +12,7 @@ import './AuthPages.css';
 const REMEMBER_EMAIL_KEY = 'zb_auth_remember_email';
 
 export default function LoginPage() {
-  const { signInWithPassword } = useAuth();
+  const { signInWithPassword, completeSignInWithNodeOtp, logout } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
 
@@ -32,6 +32,11 @@ export default function LoginPage() {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [passwordResetBanner, setPasswordResetBanner] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  const [nodeOtpStep, setNodeOtpStep] = useState(false);
+  const [loginOtp, setLoginOtp] = useState('');
+  const [nodeOtpHint, setNodeOtpHint] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
 
   const searchParams = new URLSearchParams(location.search);
   const next = searchParams.get('next') || '/app';
@@ -86,6 +91,13 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+      if (r.pendingOtp) {
+        setNodeOtpStep(true);
+        setLoginOtp('');
+        setNodeOtpHint(r.emailHint ? `Code sent to ${r.emailHint}` : 'Enter the code we sent to your email.');
+        setLoading(false);
+        return;
+      }
       try {
         if (rememberMe) {
           localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
@@ -99,6 +111,67 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyNodeOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    const code = loginOtp.replace(/\D/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setError('Enter the 6-digit code');
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await completeSignInWithNodeOtp(email.trim().toLowerCase(), password, code);
+      if (!r.success) {
+        setError(r.error || 'Verification failed');
+        setLoading(false);
+        return;
+      }
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
+        } else {
+          localStorage.removeItem(REMEMBER_EMAIL_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
+      setNodeOtpStep(false);
+      setLoginOtp('');
+      nav(next, { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendLoginOtp = async () => {
+    const em = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      setError('Enter a valid email');
+      return;
+    }
+    setError('');
+    setOtpSending(true);
+    try {
+      await otpAPI.request({ email: em, purpose: 'login' });
+      setNodeOtpHint('A new code was sent to your email.');
+    } catch (err) {
+      const msg =
+        err.response?.data?.error || err.response?.data?.message || err.message || 'Could not send code';
+      setError(msg);
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const cancelNodeOtpLogin = async () => {
+    setNodeOtpStep(false);
+    setLoginOtp('');
+    setNodeOtpHint('');
+    setError('');
+    await logout();
   };
 
   const handleSendResetOtp = async (e) => {
@@ -214,56 +287,89 @@ export default function LoginPage() {
             ) : null}
             {error ? <div className="zb-auth__notice zb-auth__notice--error">{error}</div> : null}
 
-            <form className="zb-auth__form zb-auth__form--modern" onSubmit={handleLogin}>
-              <label className="zb-auth__label zb-auth__label--sr" htmlFor="zb-login-email">
-                Email
-              </label>
-              <div className="zb-auth__field">
-                <IconEnvelope className="zb-auth__fieldIcon" />
-                <input
-                  id="zb-login-email"
-                  className="zb-auth__fieldInput"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  autoComplete="email"
-                  placeholder="Email"
+            {!nodeOtpStep ? (
+              <form className="zb-auth__form zb-auth__form--modern" onSubmit={handleLogin}>
+                <label className="zb-auth__label zb-auth__label--sr" htmlFor="zb-login-email">
+                  Email
+                </label>
+                <div className="zb-auth__field">
+                  <IconEnvelope className="zb-auth__fieldIcon" />
+                  <input
+                    id="zb-login-email"
+                    className="zb-auth__fieldInput"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="Email"
+                    required
+                  />
+                </div>
+
+                <AuthPasswordField
+                  id="zb-login-password"
+                  label="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
                   required
                 />
-              </div>
 
-              <AuthPasswordField
-                id="zb-login-password"
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                autoComplete="current-password"
-                required
-              />
+                <div className="zb-auth__optionsRow">
+                  <label className="zb-auth__remember">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <span>Remember me</span>
+                  </label>
+                  <button type="button" className="zb-auth__linkBtn" onClick={openForgot}>
+                    Forgot password?
+                  </button>
+                </div>
 
-              <div className="zb-auth__optionsRow">
-                <label className="zb-auth__remember">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  <span>Remember me</span>
-                </label>
-                <button type="button" className="zb-auth__linkBtn" onClick={openForgot}>
-                  Forgot password?
+                <button
+                  className="zb-auth__submit zb-auth__submit--green zb-auth__submit--pill"
+                  type="submit"
+                  disabled={loading}
+                >
+                  <span>{loading ? 'Logging in…' : 'Login'}</span>
                 </button>
-              </div>
-
-              <button
-                className="zb-auth__submit zb-auth__submit--green zb-auth__submit--pill"
-                type="submit"
-                disabled={loading}
-              >
-                <span>{loading ? 'Logging in…' : 'Login'}</span>
-              </button>
-            </form>
+              </form>
+            ) : (
+              <>
+                <p className="zb-auth__hint">{nodeOtpHint}</p>
+                <form className="zb-auth__form zb-auth__form--modern zb-auth__form--stagger" onSubmit={handleVerifyNodeOtp}>
+                  <label className="zb-auth__label" htmlFor="zb-login-node-otp-0">
+                    Verification code
+                  </label>
+                  <AuthOtpBoxes
+                    idPrefix="zb-login-node-otp"
+                    value={loginOtp}
+                    onChange={setLoginOtp}
+                    disabled={loading}
+                    autoFocus
+                  />
+                  <button
+                    className="zb-auth__submit zb-auth__submit--green zb-auth__submit--pill"
+                    type="submit"
+                    disabled={loading}
+                  >
+                    <span>{loading ? 'Verifying…' : 'Continue'}</span>
+                  </button>
+                </form>
+                <div className="zb-auth__switch">
+                  <button type="button" className="zb-auth__linkBtn" disabled={otpSending || loading} onClick={handleResendLoginOtp}>
+                    {otpSending ? 'Sending…' : 'Resend code'}
+                  </button>
+                  <button type="button" className="zb-auth__linkBtn" disabled={loading} onClick={cancelNodeOtpLogin}>
+                    Cancel and use another account
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className="zb-auth__switch">
               Don’t have an account? <Link to="/signup">Sign up</Link>

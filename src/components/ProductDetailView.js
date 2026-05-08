@@ -696,6 +696,8 @@ const ProductDetailView = ({ readOnly = false }) => {
         <ProductModal
           product={product}
           suppliers={editModalSuppliers}
+          categories={queryClient.getQueryData(zbKeys(activeShopId).inventoryBundle())?.categories || []}
+          units={queryClient.getQueryData(zbKeys(activeShopId).inventoryBundle())?.units || []}
           onClose={() => setEditModalOpen(false)}
           onSave={handleProductModalSave}
         />

@@ -168,6 +168,14 @@ export const categoriesAPI = {
   deleteSubCategory: (id) => api.delete(`/categories/sub-categories/${id}`),
 };
 
+// Units of Measure API
+export const unitsAPI = {
+  getAll: () => api.get('/units'),
+  create: (data) => api.post('/units', data),
+  update: (id, data) => api.put(`/units/${id}`, data),
+  delete: (id) => api.delete(`/units/${id}`),
+};
+
 // Purchases API
 export const purchasesAPI = {
   getAll: () => api.get('/purchases'),
@@ -227,6 +235,11 @@ export const authAPI = {
   zbResetPasswordAfterOtp: (data) => api.post('/auth/zb-reset-password-after-otp', data),
   /** Logged-in Zentrya user: current + new password (zb_simple_users + users) — requires API `DATABASE_URL` */
   zbChangePassword: (data) => api.post('/auth/zb-change-password', data),
+  /** Completes MFA login — no session cookie required */
+  zbSimpleSessionVerifyOtp: (data) => api.post('/auth/zb-simple-session/verify-otp', data),
+  /** Email OTP MFA flag on zb_simple_users (requires POS API session + x-shop-id irrelevant) */
+  zbEmailMfaGet: () => api.get('/auth/zb-email-mfa'),
+  zbEmailMfaPut: (body) => api.put('/auth/zb-email-mfa', body),
   getStaffInvite: (token) => api.get(`/auth/staff-invite/${encodeURIComponent(token)}`),
   rejectStaffInvite: (token) => api.post(`/auth/staff-invite/${encodeURIComponent(token)}/reject`),
   acceptStaffInvite: (token, data) => api.post(`/auth/staff-invite/${encodeURIComponent(token)}/accept`, data),

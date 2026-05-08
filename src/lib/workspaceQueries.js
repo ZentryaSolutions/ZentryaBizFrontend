@@ -2,6 +2,7 @@ import {
   productsAPI,
   suppliersAPI,
   categoriesAPI,
+  unitsAPI,
   reportsAPI,
   customersAPI,
   customerPaymentsAPI,
@@ -54,12 +55,21 @@ export async function fetchInventoryBundle() {
   const categoriesResponse = await categoriesAPI.getAll();
   const categories = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [];
 
+  let unitsData = [];
+  try {
+    const unitsResponse = await unitsAPI.getAll();
+    unitsData = Array.isArray(unitsResponse.data) ? unitsResponse.data : [];
+  } catch (unitErr) {
+    console.warn('Units API not accessible:', unitErr.message);
+    unitsData = [];
+  }
+
   const productsResponse = await productsAPI.getAll();
   let productsData = Array.isArray(productsResponse.data) ? productsResponse.data : [];
 
   productsData = sortRowsByRecencyDesc(productsData, 'product_id');
 
-  return { suppliers: suppliersData, categories, products: productsData };
+  return { suppliers: suppliersData, categories, units: unitsData, products: productsData };
 }
 
 export async function fetchDashboardData() {
