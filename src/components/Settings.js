@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { canUsePremiumFeatures } from '../utils/planFeatures';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import PageLoadingCenter from './PageLoadingCenter';
+import InviteStaffModal from './InviteStaffModal';
 import { settingsExtraStyles } from './SettingsExtraStyles';
 import { zbKeys } from '../lib/queryKeys';
 import './Settings.css';
@@ -36,6 +37,7 @@ const Settings = ({ readOnly = false }) => {
   const [users, setUsers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [showUsers, setShowUsers] = useState(false);
+  const [showInviteStaffModal, setShowInviteStaffModal] = useState(false);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -714,7 +716,9 @@ const Settings = ({ readOnly = false }) => {
   const openUsers = async () => {
     try {
       const response = await usersAPI.getAll();
-      setUsers(response.data.users || []);
+      const list =
+        response.data?.success !== false ? response.data.users || [] : response.data.users || [];
+      setUsers(Array.isArray(list) ? list : []);
       setShowUsers(true);
     } catch (err) {
       const msg = err.response?.data?.message || t('settings.failedToLoadUsers');
@@ -722,6 +726,71 @@ const Settings = ({ readOnly = false }) => {
       showToast('error', msg);
     }
   };
+
+  const readApiUserFromStorage = () => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleInviteStaffSubmit = async (payload) => {
+    try {
+      await usersAPI.sendInvitation(payload);
+      showToast('success', 'Invitation sent successfully.');
+      setShowInviteStaffModal(false);
+      await openUsers();
+    } catch (err) {
+      const d = err.response?.data;
+      const msg = [d?.message, d?.detail].filter(Boolean).join('\n') || err.message || 'Invitation failed';
+      showToast('error', msg);
+    }
+  };
+
+  const handleMemberRoleChange = async (member, nextRole) => {
+    if (!canEdit || !member?.user_id) return;
+    if (String(nextRole) === String(member.role || '')) return;
+    try {
+      await usersAPI.update(member.user_id, {
+        name: member.name || '',
+        role: nextRole,
+      });
+      showToast('success', 'Role updated.');
+      await openUsers();
+    } catch (e) {
+      const msg = e.response?.data?.message || e.response?.data?.error || e.message || 'Update failed';
+      showToast('error', msg);
+    }
+  };
+
+  const handleMemberDelete = async (member) => {
+    if (!canEdit || !member?.user_id) return;
+    const apiMe = readApiUserFromStorage();
+    if (apiMe?.user_id === member.user_id) {
+      showToast('error', 'You cannot delete your own account from here.');
+      return;
+    }
+    const activeList = (users || []).filter((u) => u.is_active !== false);
+    const admins = activeList.filter((u) => u.role === 'administrator');
+    if (member.role === 'administrator' && admins.length <= 1) {
+      showToast('error', 'Cannot remove the last administrator.');
+      return;
+    }
+    const label = member.name || member.username || 'this user';
+    if (!window.confirm(`Remove ${label} from the team? They will lose access to this shop.`)) return;
+    try {
+      await usersAPI.delete(member.user_id);
+      showToast('success', 'User removed.');
+      await openUsers();
+    } catch (e) {
+      const msg = e.response?.data?.message || e.response?.data?.error || e.message || 'Delete failed';
+      showToast('error', msg);
+    }
+  };
+
+  const apiSessionUserId = readApiUserFromStorage()?.user_id;
 
   const openAuditLogs = async () => {
     try {
@@ -1424,7 +1493,12 @@ const Settings = ({ readOnly = false }) => {
                   <div className="scard-title">Team Members</div>
                   <div className="scard-sub">{users?.length || 0} active users</div>
                 </div>
-                <button type="button" className="btn-indigo" onClick={() => showToast('info', 'Invite user coming soon.')} disabled={!canEdit}>
+                <button
+                  type="button"
+                  className="btn-indigo"
+                  onClick={() => setShowInviteStaffModal(true)}
+                  disabled={!canEdit}
+                >
                   <PlusIcon /> Invite User
                 </button>
               </div>
@@ -1443,35 +1517,54 @@ const Settings = ({ readOnly = false }) => {
                 </div>
               </div>
 
-              {(users || []).map((u) => (
-                <div className="user-row" key={u.user_id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div className="user-av" style={{ background: '#059669' }}>
-                      {(String(u.name || u.username || 'U').trim().slice(0, 2) || 'U').toUpperCase()}
+              {(users || []).map((u) => {
+                const activeList = (users || []).filter((x) => x.is_active !== false);
+                const adminCount = activeList.filter((x) => x.role === 'administrator').length;
+                const soleAdminRow = u.role === 'administrator' && adminCount === 1;
+                const isSelf = u.user_id === apiSessionUserId;
+                return (
+                  <div className="user-row" key={u.user_id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div className="user-av" style={{ background: '#059669' }}>
+                        {(String(u.name || u.username || 'U').trim().slice(0, 2) || 'U').toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="user-name">{u.name || u.username}</div>
+                        <div className="user-email">{u.username}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="user-name">{u.name || u.username}</div>
-                      <div className="user-email">{u.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <select
+                        className="inp"
+                        style={{ padding: '5px 10px', fontSize: 12.5, borderRadius: 7, width: 'auto' }}
+                        value={String(u.role || 'cashier')}
+                        onChange={(e) => handleMemberRoleChange(u, e.target.value)}
+                        disabled={!canEdit || soleAdminRow}
+                      >
+                        <option value="cashier">{t('auth.cashier')}</option>
+                        <option value="administrator">{t('auth.admin')}</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="la del"
+                        title={t('common.delete')}
+                        onClick={() => handleMemberDelete(u)}
+                        disabled={!canEdit || isSelf || soleAdminRow}
+                      >
+                        <TrashIcon />
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <select className="inp" style={{ padding: '5px 10px', fontSize: 12.5, borderRadius: 7, width: 'auto' }} disabled>
-                      <option>{String(u.role || 'Cashier')}</option>
-                    </select>
-                    <button type="button" className="la del" onClick={() => showToast('info', 'Role management coming soon.')} disabled>
-                      <TrashIcon />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               <div className="scard-ft">
                 <button type="button" className="btn-outline" onClick={openUsers}>
                   Refresh
                 </button>
-                <button type="button" className="btn-save" onClick={() => showToast('success', 'Role changes saved.')} disabled>
-                  Save Changes
-                </button>
+                <span style={{ fontSize: 12, color: '#6b6760', alignSelf: 'center' }}>
+                  Invites send email like the sidebar Users page; role/remove apply immediately.
+                </span>
               </div>
             </div>
           </div>
@@ -1990,6 +2083,13 @@ const Settings = ({ readOnly = false }) => {
               </table>
             </div>
           </div>
+
+          {showInviteStaffModal ? (
+            <InviteStaffModal
+              onClose={() => setShowInviteStaffModal(false)}
+              onSave={handleInviteStaffSubmit}
+            />
+          ) : null}
 
           {/* toast + existing error/success (optional) */}
           {toast ? (
