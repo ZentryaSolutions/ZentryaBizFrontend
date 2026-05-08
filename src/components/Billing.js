@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faMagnifyingGlass, faUser, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { salesAPI, customersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
@@ -12,9 +14,30 @@ import {
 } from '../lib/workspaceQueries';
 import PageLoadingCenter from './PageLoadingCenter';
 import './Billing.css';
+import { billingExtraStyles } from './BillingExtraStyles';
 
 const STOCK_ERR = (avail) =>
   `Insufficient stock. Available: ${Number(avail || 0)} units. Please add stock first.`;
+
+function createDraftBill(idx = 1) {
+  return {
+    id: `bill_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    label: `Bill #${idx}`,
+    meta: 'Empty',
+    invoiceItems: [],
+    searchQuery: '',
+    filteredProducts: [],
+    selectedCustomer: null,
+    customerName: '',
+    discount: 0,
+    paidAmount: 0,
+    saleNotes: '',
+    itemPriceTypes: {},
+    invoiceNumber: '',
+    paymentMode: 'cash',
+    saleType: 'full',
+  };
+}
 
 function validateCartAgainstStock(invoiceItems, productsList) {
   const qtyByProduct = new Map();
@@ -66,30 +89,46 @@ const Billing = ({ readOnly = false }) => {
   });
 
   // Core state
-  const [invoiceItems, setInvoiceItems] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [customerName, setCustomerName] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [bills, setBills] = useState(() => [createDraftBill(1)]);
+  const [activeBillId, setActiveBillId] = useState(() => bills?.[0]?.id);
+  const activeBill = useMemo(
+    () => bills.find((b) => b.id === activeBillId) || bills[0],
+    [bills, activeBillId]
+  );
+  const updateActiveBill = (patch) => {
+    setBills((prev) =>
+      prev.map((b) => (b.id === activeBillId ? { ...b, ...patch } : b))
+    );
+  };
+
+  const invoiceItems = activeBill?.invoiceItems || [];
+  const searchQuery = activeBill?.searchQuery || '';
+  const filteredProducts = activeBill?.filteredProducts || [];
+  const selectedCustomer = activeBill?.selectedCustomer || null;
+  const customerName = activeBill?.customerName || '';
+  const discount = activeBill?.discount ?? 0;
+  const paidAmount = activeBill?.paidAmount ?? 0;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [shopName, setShopName] = useState('My Shop');
   const [shopPhone, setShopPhone] = useState('');
   const [shopAddress, setShopAddress] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const invoiceNumber = activeBill?.invoiceNumber || '';
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState(''); // UI-only
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false); // UI-only
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [saleNotes, setSaleNotes] = useState('');
+  const saleNotes = activeBill?.saleNotes || '';
+  const paymentMode = activeBill?.paymentMode || 'cash';
+  const saleType = activeBill?.saleType || 'full';
+  const [toast, setToast] = useState(null); // { type: 'success'|'error'|'info', message: string }
+  const toastTimerRef = useRef(null);
   
   // Price type per item
-  const [itemPriceTypes, setItemPriceTypes] = useState({});
+  const itemPriceTypes = activeBill?.itemPriceTypes || {};
   
   const searchInputRef = useRef(null);
 
@@ -147,7 +186,7 @@ const Billing = ({ readOnly = false }) => {
 
   const filterProducts = () => {
     if (!searchQuery.trim()) {
-      setFilteredProducts([]);
+      updateActiveBill({ filteredProducts: [] });
       return;
     }
 
@@ -168,7 +207,7 @@ const Billing = ({ readOnly = false }) => {
       return nameA.localeCompare(nameB);
     });
 
-    setFilteredProducts(filtered.slice(0, 10)); // Limit to 10 results
+    updateActiveBill({ filteredProducts: filtered.slice(0, 10) }); // Limit to 10 results
   };
 
   const refreshCustomerRow = async (customerRow) => {
@@ -223,7 +262,7 @@ const Billing = ({ readOnly = false }) => {
       const updatedItems = [...invoiceItems];
       updatedItems[existingIndex].quantity = nextQty;
       updatedItems[existingIndex].stock_available = avail;
-      setInvoiceItems(updatedItems);
+      updateActiveBill({ invoiceItems: updatedItems });
     } else {
       const newItem = {
         product_id: product.product_id,
@@ -234,11 +273,13 @@ const Billing = ({ readOnly = false }) => {
         stock_available: avail,
         unit_type: product.unit_type || 'piece',
       };
-      setInvoiceItems([...invoiceItems, newItem]);
-      setItemPriceTypes({ ...itemPriceTypes, [product.product_id]: priceType });
+      updateActiveBill({
+        invoiceItems: [...invoiceItems, newItem],
+        itemPriceTypes: { ...itemPriceTypes, [product.product_id]: priceType },
+      });
     }
 
-    setSearchQuery('');
+    updateActiveBill({ searchQuery: '', filteredProducts: [] });
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus();
@@ -290,10 +331,10 @@ const Billing = ({ readOnly = false }) => {
         updatedItems[index].quantity = qty;
       }
       updatedItems[index].stock_available = avail;
-      setInvoiceItems(updatedItems);
+      updateActiveBill({ invoiceItems: updatedItems });
     } else if (value === '' || value === null || value === undefined) {
       updatedItems[index].quantity = '';
-      setInvoiceItems(updatedItems);
+      updateActiveBill({ invoiceItems: updatedItems });
     }
   };
 
@@ -303,7 +344,7 @@ const Billing = ({ readOnly = false }) => {
     const price = parseFloat(value) || 0;
     if (price > 0) {
       updatedItems[index].selling_price = price;
-      setInvoiceItems(updatedItems);
+      updateActiveBill({ invoiceItems: updatedItems });
     }
   };
 
@@ -324,14 +365,16 @@ const Billing = ({ readOnly = false }) => {
 
     const updatedItems = [...invoiceItems];
     updatedItems[index].selling_price = newPrice;
-    setInvoiceItems(updatedItems);
-    setItemPriceTypes({ ...itemPriceTypes, [item.product_id]: priceType });
+    updateActiveBill({
+      invoiceItems: updatedItems,
+      itemPriceTypes: { ...itemPriceTypes, [item.product_id]: priceType },
+    });
   };
 
   // Remove item
   const handleRemoveItem = (index) => {
     const updatedItems = invoiceItems.filter((_, i) => i !== index);
-    setInvoiceItems(updatedItems);
+    updateActiveBill({ invoiceItems: updatedItems });
   };
 
   // Calculate totals
@@ -355,36 +398,63 @@ const Billing = ({ readOnly = false }) => {
   useEffect(() => {
     const { grandTotal } = calculateTotals();
     if (!selectedCustomer) {
-      setPaidAmount(grandTotal);
+      updateActiveBill({ saleType: 'full', paidAmount: grandTotal });
       return;
     }
     const p = parseFloat(paidAmount) || 0;
-    if (p > grandTotal) setPaidAmount(grandTotal);
+    if (p > grandTotal) updateActiveBill({ paidAmount: grandTotal });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync paid cap when totals change; full deps would thrash paid edits
   }, [invoiceItems, discount, selectedCustomer]);
+
+  // Sync sale type ↔ paid amount for selected customers (credit/partial/full)
+  useEffect(() => {
+    const { grandTotal } = calculateTotals();
+    if (!selectedCustomer) return;
+    if (saleType === 'full') {
+      updateActiveBill({ paidAmount: grandTotal });
+      return;
+    }
+    if (saleType === 'credit') {
+      updateActiveBill({ paidAmount: 0 });
+      return;
+    }
+    // partial: keep user's paidAmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paidAmount is intentionally not a dependency here
+  }, [saleType, selectedCustomer, invoiceItems, discount]);
+
+  // When user edits paidAmount manually, infer sale type (only when customer selected)
+  useEffect(() => {
+    if (!selectedCustomer) return;
+    const { grandTotal } = calculateTotals();
+    const p = Math.max(0, parseFloat(paidAmount) || 0);
+    if (grandTotal <= 0) return;
+    if (p <= 0.00001) {
+      if (saleType !== 'credit') updateActiveBill({ saleType: 'credit' });
+      return;
+    }
+    if (p + 0.00001 >= grandTotal) {
+      if (saleType !== 'full') updateActiveBill({ saleType: 'full' });
+      return;
+    }
+    if (saleType !== 'partial') updateActiveBill({ saleType: 'partial' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid thrash when calculateTotals changes identity
+  }, [paidAmount, selectedCustomer]);
 
   // Handle save invoice
   const handleSaveInvoice = async (shouldPrint = false) => {
     if (invoiceItems.length === 0) {
-      alert(t('billing.addAtLeastOneItem'));
+      showToast('error', t('billing.addAtLeastOneItem', { defaultValue: 'Add at least one item first.' }));
       return;
     }
 
-    let freshProducts = products;
-    try {
-      const row = await queryClient.fetchQuery({
-        queryKey: zbKeys(activeShopId).inventoryBundle(),
-        queryFn: fetchInventoryBundle,
-      });
-      freshProducts = row?.products || [];
-    } catch (e) {
-      console.error(e);
-    }
-    const finalStock = validateCartAgainstStock(invoiceItems, freshProducts);
+    // Speed: avoid network refetch before save; rely on cached inventory bundle.
+    const cached = queryClient.getQueryData(zbKeys(activeShopId).inventoryBundle());
+    const stockProducts = cached?.products || products;
+    const finalStock = validateCartAgainstStock(invoiceItems, stockProducts);
     if (!finalStock.ok) {
       const msg = STOCK_ERR(finalStock.available);
       setError(msg);
-      alert(msg);
+      showToast('error', msg, 4200);
       return;
     }
     setError(null);
@@ -393,7 +463,10 @@ const Billing = ({ readOnly = false }) => {
     const paid = parseFloat(paidAmount) || 0;
 
     if (!selectedCustomer && grandTotal > 0 && paid + 0.00001 < grandTotal) {
-      alert(t('billing.selectCustomerForCredit'));
+      showToast(
+        'error',
+        t('billing.selectCustomerForCredit', { defaultValue: 'Select a customer for credit/partial sales.' })
+      );
       return;
     }
 
@@ -415,12 +488,13 @@ const Billing = ({ readOnly = false }) => {
     try {
       setSaving(true);
       setError(null);
+      showToast('info', shouldPrint ? 'Saving & printing…' : 'Saving invoice…', 1600);
 
       const saleData = {
         customer_id: selectedCustomer?.customer_id || null,
         customer_name: selectedCustomer ? null : (customerName.trim() || null),
         payment_type: paymentType,
-        payment_mode: 'cash',
+        payment_mode: paymentMode,
         paid_amount: paid,
         discount: parseFloat(discount) || 0,
         tax: 0, // No tax for now
@@ -436,7 +510,7 @@ const Billing = ({ readOnly = false }) => {
       const savedInvoice = response.data;
       
       // Update invoice number for display
-      setInvoiceNumber(savedInvoice.invoice_number);
+      updateActiveBill({ invoiceNumber: savedInvoice.invoice_number });
 
       // Print if requested
       if (shouldPrint) {
@@ -452,12 +526,19 @@ const Billing = ({ readOnly = false }) => {
 
       window.dispatchEvent(new Event('data-refresh'));
 
-      alert(t('billing.invoiceSaved', { invoiceNumber: savedInvoice.invoice_number }));
+      showToast(
+        'success',
+        t('billing.invoiceSaved', {
+          invoiceNumber: savedInvoice.invoice_number,
+          defaultValue: `Invoice saved (${savedInvoice.invoice_number}).`,
+        }),
+        3600
+      );
     } catch (err) {
       console.error('Error saving invoice:', err);
       const errorMsg = err.response?.data?.error || err.response?.data?.details || 'Failed to save invoice';
       setError(errorMsg);
-      alert(errorMsg);
+      showToast('error', errorMsg, 5200);
     } finally {
       setSaving(false);
     }
@@ -477,14 +558,20 @@ const Billing = ({ readOnly = false }) => {
 
   // Reset form
   const resetForm = () => {
-    setInvoiceItems([]);
-    setSelectedCustomer(null);
-    setCustomerName('');
-    setDiscount(0);
-    setPaidAmount(0);
-    setSearchQuery('');
-    setSaleNotes('');
-    setItemPriceTypes({});
+    updateActiveBill({
+      invoiceItems: [],
+      selectedCustomer: null,
+      customerName: '',
+      discount: 0,
+      paidAmount: 0,
+      searchQuery: '',
+      filteredProducts: [],
+      saleNotes: '',
+      itemPriceTypes: {},
+      invoiceNumber: '',
+      paymentMode: 'cash',
+      saleType: 'full',
+    });
     setError(null);
     if (searchInputRef.current) {
       searchInputRef.current.focus();
@@ -510,7 +597,7 @@ const Billing = ({ readOnly = false }) => {
       const row = res.data;
       await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
       const fresh = await refreshCustomerRow(row);
-      setSelectedCustomer(fresh);
+      updateActiveBill({ selectedCustomer: fresh });
       {
         let subtotal = 0;
         invoiceItems.forEach((item) => {
@@ -519,7 +606,7 @@ const Billing = ({ readOnly = false }) => {
           subtotal += qty * price;
         });
         const gt = Math.max(0, subtotal - (parseFloat(discount) || 0));
-        setPaidAmount(gt);
+        updateActiveBill({ paidAmount: gt });
       }
       setShowNewCustomerModal(false);
       setNewCustomerName('');
@@ -709,6 +796,26 @@ const Billing = ({ readOnly = false }) => {
     return `PKR ${Number(amount || 0).toFixed(2)}`;
   };
 
+  const showToast = (type, message, ms = 2800) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ type, message });
+    toastTimerRef.current = setTimeout(() => setToast(null), ms);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const invoiceLabel = useMemo(() => {
+    if (invoiceNumber) return invoiceNumber;
+    const n = bills.findIndex((b) => b.id === activeBillId);
+    const idx = n >= 0 ? n + 1 : 1;
+    const year = new Date().getFullYear();
+    return `INV-${year}-${String(idx).padStart(4, '0')}`;
+  }, [invoiceNumber, bills, activeBillId]);
+
   const { subtotal, grandTotal, remainingDue, change, paid } = calculateTotals();
 
   if (loading) {
@@ -721,6 +828,12 @@ const Billing = ({ readOnly = false }) => {
 
   return (
     <div className="billing-container">
+      <style>{billingExtraStyles}</style>
+      {toast ? (
+        <div className={`zb-toast ${toast.type}`} role="status" aria-live="polite">
+          {toast.message}
+        </div>
+      ) : null}
       {error && (
         <div className="error-message">
           {error}
@@ -733,6 +846,79 @@ const Billing = ({ readOnly = false }) => {
         </div>
       )}
 
+      {/* Bill tabs (drafts) */}
+      <div className="billing-tabs-bar">
+        <div className="billing-tabs-left">
+          {bills.map((b, idx) => (
+            <button
+              key={b.id}
+              type="button"
+              className={`billing-tab ${b.id === activeBillId ? 'active' : ''}`}
+              onClick={() => setActiveBillId(b.id)}
+              title={b.label}
+            >
+              <span
+                className="billing-tab-dot"
+                style={{
+                  background: b.invoiceItems?.length ? '#f59e0b' : '#d4cfc8',
+                  opacity: b.id === activeBillId ? 1 : b.invoiceItems?.length ? 0.9 : 0.7,
+                }}
+              />
+              <span className="billing-tab-info">
+                <span className="billing-tab-title">
+                  {b.label} · {b.selectedCustomer?.name || 'Cash'}
+                </span>
+                <span className="billing-tab-sub">
+                  {b.invoiceItems?.length ? formatCurrency((b.invoiceItems || []).reduce((a, it) => a + (Number(it.quantity) || 0) * (Number(it.selling_price) || 0), 0)) : 'Empty'}
+                  {b.saleType !== 'full' && b.invoiceItems?.length ? (
+                    <span className="billing-credit-badge">{b.saleType === 'credit' ? 'Credit' : 'Partial'}</span>
+                  ) : null}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="billing-tab-x"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const hasItems = (b.invoiceItems || []).length > 0;
+                  if (hasItems && !window.confirm(`${b.label} has unsaved items. Close anyway?`)) return;
+                  setBills((prev) => {
+                    const next = prev.filter((x) => x.id !== b.id);
+                    if (!next.length) return [createDraftBill(1)];
+                    return next;
+                  });
+                  setActiveBillId((cur) => {
+                    if (cur !== b.id) return cur;
+                    const remaining = bills.filter((x) => x.id !== b.id);
+                    return (remaining[remaining.length - 1] || remaining[0] || createDraftBill(1)).id;
+                  });
+                }}
+                aria-label="Close bill"
+              >
+                ×
+              </button>
+            </button>
+          ))}
+          <span className="billing-tab-sep" aria-hidden />
+          <button
+            type="button"
+            className="billing-tab-new"
+            onClick={() => {
+              const next = createDraftBill(bills.length + 1);
+              setBills((prev) => [...prev, next]);
+              setActiveBillId(next.id);
+              setError(null);
+              setCustomerSearchQuery('');
+              setShowCustomerDropdown(false);
+              setShowNewCustomerModal(false);
+              setTimeout(() => searchInputRef.current?.focus(), 0);
+            }}
+          >
+            + {t('billing.newBill')}
+          </button>
+        </div>
+      </div>
+
       {/* Header with Time and Invoice Info */}
       <div className="billing-header-bar">
         <div className="billing-time-display">
@@ -744,87 +930,107 @@ const Billing = ({ readOnly = false }) => {
         </div>
       </div>
 
-      {selectedCustomer && (
-        <div
-          className={`billing-outstanding-box ${
-            parseFloat(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0) > 0
-              ? 'billing-outstanding-box--due'
-              : 'billing-outstanding-box--clear'
-          }`}
-        >
-          <div className="billing-outstanding-box__label">{t('billing.outstandingBalance')}</div>
-          <div className="billing-outstanding-box__name">{selectedCustomer.name}</div>
-          <div className="billing-outstanding-box__amount">
-            {formatCurrency(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0)}
-          </div>
-        </div>
-      )}
+      {/* (moved) customer due alert is shown inside items card like the reference UI */}
 
-      {/* Top Search Bar */}
-      <div className="billing-search-section">
-        <div className="billing-search-box">
-          <span className="billing-search-icon">⚡</span>
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="billing-search-input"
-            placeholder={t('billing.searchProducts')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleSearchKeyPress}
-            autoFocus
-          />
-        </div>
-        {filteredProducts.length > 0 && (
-          <div className="billing-search-results">
-            {filteredProducts.map(product => {
-              const displayPrice = selectedCustomer?.customer_type === 'wholesale' && product.wholesale_price
-                ? product.wholesale_price
-                : (selectedCustomer?.customer_type === 'special' && product.special_price
-                  ? product.special_price
-                  : (product.retail_price || product.selling_price));
-              const outOfStock = parseFloat(product.quantity_in_stock) <= 0;
-              return (
-                <div
-                  key={product.product_id}
-                  className={`billing-search-result-item ${outOfStock ? 'billing-search-result-item--disabled' : ''}`}
-                  onClick={() => {
-                    if (outOfStock) {
-                      alert(STOCK_ERR(product.quantity_in_stock));
-                      return;
-                    }
-                    handleProductSelect(product);
-                  }}
+      {/* Layout: Left (search + items) + Right panel */}
+      <div className="billing-area">
+        <div className="left-col">
+          {/* Search */}
+          <div className="billing-search-section">
+            <div className="billing-search-box">
+              <span className="billing-search-icon" aria-hidden>
+                <FontAwesomeIcon icon={faMagnifyingGlass} />
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="billing-search-input"
+                placeholder={t('billing.searchProducts', {
+                  defaultValue: 'Search products by name or SKU…   Press Enter to add first result',
+                })}
+                value={searchQuery}
+                onChange={(e) => updateActiveBill({ searchQuery: e.target.value })}
+                onKeyPress={handleSearchKeyPress}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') updateActiveBill({ searchQuery: '', filteredProducts: [] });
+                }}
+                autoFocus
+              />
+              {searchQuery?.trim() ? (
+                <button
+                  type="button"
+                  className="billing-search-clear"
+                  onClick={() => updateActiveBill({ searchQuery: '', filteredProducts: [] })}
+                  aria-label="Clear search"
                 >
-                  <div className="billing-result-info">
-                    <div className="billing-result-name">{product.item_name_english || product.name}</div>
-                    <div className="billing-result-meta">
-                      <span className="billing-result-stock">{t('inventory.stock')}: {product.quantity_in_stock || 0} {product.unit_type || 'pcs'}</span>
-                      <span className="billing-result-price">{formatCurrency(displayPrice)}</span>
+                  ×
+                </button>
+              ) : null}
+            </div>
+            {filteredProducts.length > 0 && (
+              <div className="billing-search-results">
+                {filteredProducts.map(product => {
+                  const displayPrice = selectedCustomer?.customer_type === 'wholesale' && product.wholesale_price
+                    ? product.wholesale_price
+                    : (selectedCustomer?.customer_type === 'special' && product.special_price
+                      ? product.special_price
+                      : (product.retail_price || product.selling_price));
+                  const outOfStock = parseFloat(product.quantity_in_stock) <= 0;
+                  return (
+                    <div
+                      key={product.product_id}
+                      className={`billing-search-result-item ${outOfStock ? 'billing-search-result-item--disabled' : ''}`}
+                      onClick={() => {
+                        if (outOfStock) {
+                          alert(STOCK_ERR(product.quantity_in_stock));
+                          return;
+                        }
+                        handleProductSelect(product);
+                      }}
+                    >
+                      <div className="billing-result-info">
+                        <div className="billing-result-name">{product.item_name_english || product.name}</div>
+                        <div className="billing-result-meta">
+                          <span className="billing-result-stock">{t('inventory.stock')}: {product.quantity_in_stock || 0} {product.unit_type || 'pcs'}</span>
+                          <span className="billing-result-price">{formatCurrency(displayPrice)}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Main Layout: Left (Items) + Right (Summary) */}
-      <div className="billing-main-layout">
-        {/* LEFT SIDE - Bill Items Table */}
-        <div className="billing-items-section">
+          {/* Items card */}
+          <div className="billing-items-section">
           <div className="billing-section-header">
             <h3>{t('billing.invoiceItems')}</h3>
             <div className="billing-customer-selector-wrapper">
+              <span className="billing-cust-ico" aria-hidden>
+                <FontAwesomeIcon icon={faUser} />
+              </span>
+              <span className="billing-cust-label">{t('billing.customer', { defaultValue: 'Customer' })}</span>
               <div className="billing-customer-dropdown-container">
-                <div 
-                  className="billing-customer-select-trigger"
-                  onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
-                >
-                  {selectedCustomer ? selectedCustomer.name : t('billing.cashCustomer')}
-                  <span className="billing-dropdown-arrow">▼</span>
-                </div>
+                <input
+                  className="billing-customer-combo"
+                  value={
+                    showCustomerDropdown
+                      ? customerSearchQuery
+                      : selectedCustomer?.name || t('billing.cashCustomer', { defaultValue: 'Cash Customer (walk-in)' })
+                  }
+                  placeholder={t('billing.cashCustomer', { defaultValue: 'Cash Customer (walk-in)' })}
+                  onChange={(e) => {
+                    setCustomerSearchQuery(e.target.value);
+                    if (!showCustomerDropdown) setShowCustomerDropdown(true);
+                    if (!e.target.value.trim()) updateActiveBill({ selectedCustomer: null });
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                  readOnly={false}
+                />
+                <span className="billing-dropdown-arrow" aria-hidden>
+                  ▾
+                </span>
                 {showCustomerDropdown && (
                   <>
                     <div 
@@ -832,15 +1038,6 @@ const Billing = ({ readOnly = false }) => {
                       onClick={() => setShowCustomerDropdown(false)}
                     />
                     <div className="billing-customer-dropdown">
-                      <input
-                        type="text"
-                        className="billing-customer-search-input"
-                        placeholder={t('billing.searchCustomer')}
-                        value={customerSearchQuery}
-                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
                       <div className="billing-customer-options">
                         <button
                           type="button"
@@ -850,18 +1047,17 @@ const Billing = ({ readOnly = false }) => {
                             setShowNewCustomerModal(true);
                           }}
                         >
-                          + {t('billing.addNewCustomer')}
+                          + {t('billing.addNewCustomer', { defaultValue: 'Create new customer' })}
                         </button>
                         <div
                           className={`billing-customer-option ${!selectedCustomer ? 'selected' : ''}`}
                           onClick={() => {
-                            setSelectedCustomer(null);
-                            setCustomerName('');
+                    updateActiveBill({ selectedCustomer: null, customerName: '' });
                             setCustomerSearchQuery('');
                             setShowCustomerDropdown(false);
                           }}
                         >
-                          {t('billing.cashCustomer')}
+                          {t('billing.cashCustomer', { defaultValue: 'Cash Customer (walk-in)' })}
                         </div>
                         {!customerSearchQuery.trim() && (
                           <div className="billing-customer-hint">{t('billing.typeToSearchCustomers')}</div>
@@ -871,11 +1067,11 @@ const Billing = ({ readOnly = false }) => {
                             key={c.customer_id}
                             className={`billing-customer-option ${selectedCustomer?.customer_id === c.customer_id ? 'selected' : ''}`}
                             onClick={async () => {
-                              setCustomerName('');
+                              updateActiveBill({ customerName: '' });
                               setCustomerSearchQuery('');
                               setShowCustomerDropdown(false);
                               const fresh = await refreshCustomerRow(c);
-                              setSelectedCustomer(fresh);
+                              updateActiveBill({ selectedCustomer: fresh });
 
                               const updatedItems = invoiceItems.map((item) => {
                                 const product = products.find((p) => p.product_id === item.product_id);
@@ -894,7 +1090,7 @@ const Billing = ({ readOnly = false }) => {
 
                                 return { ...item, selling_price: newPrice };
                               });
-                              setInvoiceItems(updatedItems);
+                              updateActiveBill({ invoiceItems: updatedItems });
                               {
                                 let subtotal = 0;
                                 updatedItems.forEach((item) => {
@@ -903,17 +1099,35 @@ const Billing = ({ readOnly = false }) => {
                                   subtotal += qty * price;
                                 });
                                 const gt = Math.max(0, subtotal - (parseFloat(discount) || 0));
-                                setPaidAmount(gt);
+                                updateActiveBill({ paidAmount: gt });
                               }
                             }}
                           >
-                            {c.name} {c.customer_type ? `(${c.customer_type})` : ''}{' '}
-                            <span className="billing-customer-phone">{c.phone || ''}</span>
-                            {parseFloat(c.current_due || c.current_balance || 0) > 0 && (
-                              <span className="billing-customer-due">
-                                {t('billing.due')}: {formatCurrency(c.current_due || c.current_balance || 0)}
+                            <span className="billing-customer-avatar" aria-hidden>
+                              {(String(c.name || '?')
+                                .split(' ')
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((w) => w[0])
+                                .join('')
+                                .toUpperCase() || 'CU')}
+                            </span>
+                            <span className="billing-customer-main">
+                              <span className="billing-customer-name">{c.name}</span>
+                              <span className="billing-customer-meta">
+                                {(c.phone || '').trim()}
+                                {(c.city || '').trim() ? ` · ${String(c.city).trim()}` : ''}
                               </span>
-                            )}
+                            </span>
+                            <span
+                              className={`billing-customer-duechip ${
+                                parseFloat(c.current_due || c.current_balance || 0) > 0 ? 'has-due' : 'no-due'
+                              }`}
+                            >
+                              {parseFloat(c.current_due || c.current_balance || 0) > 0
+                                ? formatCurrency(c.current_due || c.current_balance || 0)
+                                : t('billing.clear', { defaultValue: 'Clear' })}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -921,17 +1135,47 @@ const Billing = ({ readOnly = false }) => {
                   </>
                 )}
               </div>
+              <span className="billing-item-count">
+                {invoiceItems.length} {t('billing.items', { defaultValue: 'items' })}
+              </span>
               {!selectedCustomer && (
                 <input
                   type="text"
                   className="billing-customer-name-input"
                   placeholder={t('billing.enterCustomerName')}
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={(e) => updateActiveBill({ customerName: e.target.value })}
                 />
               )}
             </div>
           </div>
+
+          {selectedCustomer &&
+          parseFloat(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0) > 0 ? (
+            <div className="cust-due-alert" role="status">
+              <span className="cda-icon" aria-hidden>
+                <FontAwesomeIcon icon={faTriangleExclamation} />
+              </span>
+              <div className="cda-text">
+                <div className="cda-name">{selectedCustomer.name}</div>
+                <div className="cda-due">
+                  has {formatCurrency(selectedCustomer.current_due ?? selectedCustomer.current_balance ?? 0)} outstanding balance from previous bills
+                </div>
+              </div>
+              <button
+                type="button"
+                className="cda-clear"
+                onClick={() => {
+                  updateActiveBill({ selectedCustomer: null, customerName: '' });
+                  setCustomerSearchQuery('');
+                  setShowCustomerDropdown(false);
+                }}
+                aria-label="Clear customer"
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
 
           <div className="billing-items-table-container">
             <table className="billing-items-table">
@@ -1028,113 +1272,189 @@ const Billing = ({ readOnly = false }) => {
           </div>
         </div>
 
+        </div>
+
         {/* RIGHT SIDE - Bill Summary */}
-        <div className="billing-summary-section">
-          <div className="billing-summary-header">
-            <h3>{t('billing.billSummary')}</h3>
+        <div className="right-panel">
+          <div className="inv-hd">
+            <span className="inv-num">{invoiceLabel}</span>
+            <span className={`inv-status ${saleType !== 'full' ? 'credit' : 'draft'}`}>
+              {saleType !== 'full' ? 'Credit' : 'Draft'}
+            </span>
           </div>
 
-          <div className="billing-summary-content">
-            <div className="billing-summary-row">
-              <span className="billing-summary-label">{t('billing.subtotal')}:</span>
-              <span className="billing-summary-value">{formatCurrency(subtotal)}</span>
+          <div className="rp-body">
+            <div>
+              <div className="sec-lbl">{t('billing.paymentMethod', { defaultValue: 'Payment Method' })}</div>
+              <div className="pay-type-row">
+                <button
+                  type="button"
+                  className={`pt-btn ${paymentMode === 'cash' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ paymentMode: 'cash' })}
+                >
+                  {t('billing.cash', { defaultValue: 'Cash' })}
+                </button>
+                <button
+                  type="button"
+                  className={`pt-btn ${paymentMode === 'card' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ paymentMode: 'card' })}
+                >
+                  {t('billing.card', { defaultValue: 'Card' })}
+                </button>
+                <button
+                  type="button"
+                  className={`pt-btn ${paymentMode === 'transfer' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ paymentMode: 'transfer' })}
+                >
+                  {t('billing.transfer', { defaultValue: 'Transfer' })}
+                </button>
+              </div>
             </div>
 
-            <div className="billing-summary-row">
-              <label className="billing-summary-label">{t('billing.discount')}:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="billing-discount-input"
-                value={discount}
-                onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                placeholder="0.00"
-              />
+            <div className="rp-sep" />
+
+            <div>
+              <div className="sec-lbl">{t('billing.saleType', { defaultValue: 'Sale Type' })}</div>
+              <div className="credit-mode-row">
+                <button
+                  type="button"
+                  className={`cm-btn ${saleType === 'full' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ saleType: 'full' })}
+                >
+                  {t('billing.fullPayment', { defaultValue: 'Full Payment' })}
+                </button>
+                <button
+                  type="button"
+                  className={`cm-btn ${saleType === 'partial' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ saleType: 'partial' })}
+                  disabled={!selectedCustomer}
+                  title={!selectedCustomer ? t('billing.selectCustomerForCredit', { defaultValue: 'Select a customer for credit/partial sales.' }) : undefined}
+                >
+                  {t('billing.partial', { defaultValue: 'Partial' })}
+                </button>
+                <button
+                  type="button"
+                  className={`cm-btn ${saleType === 'credit' ? 'on' : ''}`}
+                  onClick={() => updateActiveBill({ saleType: 'credit' })}
+                  disabled={!selectedCustomer}
+                  title={!selectedCustomer ? t('billing.selectCustomerForCredit', { defaultValue: 'Select a customer for credit/partial sales.' }) : undefined}
+                >
+                  {t('billing.fullCredit', { defaultValue: 'Full Credit' })}
+                </button>
+              </div>
             </div>
 
-            <div className="billing-summary-row billing-grand-total">
-              <span className="billing-summary-label">{t('billing.grandTotal')}:</span>
-              <span className="billing-summary-value">{formatCurrency(grandTotal)}</span>
+            {saleType !== 'full' ? (
+              <div className="credit-banner">
+                <div className="cb-t">{saleType === 'credit' ? 'Full Credit Sale' : 'Partial Payment'}</div>
+                <div className="cb-s">
+                  {saleType === 'credit'
+                    ? `${formatCurrency(grandTotal)} will be added to customer's outstanding balance`
+                    : 'Remaining balance will be added to customer account'}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rp-sep" />
+
+            <div className="sec-lbl">{t('billing.billSummary', { defaultValue: 'Bill Summary' })}</div>
+            <div className="sum-stack">
+              <div className="sum-row">
+                <span className="sl">{t('billing.subtotal', { defaultValue: 'Subtotal' })}</span>
+                <span className="sv">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="sum-row">
+                <span className="sl">{t('billing.discount', { defaultValue: 'Discount' })}</span>
+                <div className="disc-ctrl">
+                  <button type="button" className="disc-tog" disabled>
+                    PKR
+                  </button>
+                  <input
+                    className="disc-inp"
+                    type="number"
+                    value={discount}
+                    onChange={(e) => updateActiveBill({ discount: Math.max(0, parseFloat(e.target.value) || 0) })}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="billing-summary-row">
-              <label className="billing-summary-label">{t('billing.paidAmount')}:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="billing-paid-input"
-                value={paidAmount}
-                onChange={(e) => {
-                  const paid = Math.max(0, parseFloat(e.target.value) || 0);
-                  setPaidAmount(paid);
-                }}
-                placeholder="0.00"
-              />
+            <div className="grand-block">
+              <span className="gb-lbl">{t('billing.grandTotal', { defaultValue: 'Grand Total' })}</span>
+              <span className="gb-val">{formatCurrency(grandTotal)}</span>
             </div>
 
-            <div className="billing-summary-row billing-notes-row">
-              <label className="billing-summary-label">{t('billing.invoiceNote')}:</label>
+            <div className="rp-sep" />
+
+            <div className="paidSection" style={{ display: saleType === 'credit' ? 'none' : 'block' }}>
+              <div className="paid-row">
+                <span className="sl">{t('billing.paidNow', { defaultValue: 'Paid Now' })}</span>
+                <input
+                  className="paid-inp"
+                  type="number"
+                  value={paidAmount}
+                  onChange={(e) => updateActiveBill({ paidAmount: Math.max(0, parseFloat(e.target.value) || 0) })}
+                />
+              </div>
+            </div>
+
+            <div
+              className={`bal-chip ${
+                saleType === 'credit' ? 'credit' : remainingDue > 0 ? 'due' : change > 0 ? 'change' : 'zero'
+              }`}
+            >
+              <span className="bc-lbl">
+                {saleType === 'credit'
+                  ? 'ON CREDIT'
+                  : remainingDue > 0
+                    ? 'BALANCE DUE'
+                    : change > 0
+                      ? 'CHANGE RETURN'
+                      : 'SETTLED ✓'}
+              </span>
+              <span className="bc-val">
+                {saleType === 'credit'
+                  ? formatCurrency(grandTotal)
+                  : remainingDue > 0
+                    ? formatCurrency(remainingDue)
+                    : change > 0
+                      ? formatCurrency(change)
+                      : formatCurrency(0)}
+              </span>
+            </div>
+
+            <div className="rp-sep" />
+
+            <div>
+              <div className="sec-lbl">{t('billing.note', { defaultValue: 'Note' })}</div>
               <textarea
-                className="billing-sale-notes"
-                rows={2}
+                className="note-ta"
                 value={saleNotes}
-                onChange={(e) => setSaleNotes(e.target.value)}
-                placeholder={t('billing.invoiceNotePlaceholder')}
+                onChange={(e) => updateActiveBill({ saleNotes: e.target.value })}
+                placeholder={t('billing.invoiceNotePlaceholder', { defaultValue: 'Optional note on this invoice…' })}
               />
             </div>
-
-            {paid > 0 && (
-              <div className="billing-summary-row billing-paid-display">
-                <span className="billing-summary-label">{t('billing.amountPaid')}:</span>
-                <span className="billing-summary-value">{formatCurrency(paid)}</span>
-              </div>
-            )}
-
-            {change > 0 && (
-              <div className="billing-summary-row billing-change-display">
-                <span className="billing-summary-label">{t('billing.changeToReturn')}:</span>
-                <span className="billing-summary-value">{formatCurrency(change)}</span>
-              </div>
-            )}
-
-            {remainingDue > 0 && (
-              <div className="billing-summary-row billing-remaining-due">
-                <span className="billing-summary-label">{t('billing.remainingDue')}:</span>
-                <span className="billing-summary-value">{formatCurrency(remainingDue)}</span>
-              </div>
-            )}
-
-            {remainingDue === 0 && grandTotal > 0 && (
-              <div className="billing-summary-row billing-paid-full">
-                <span className="billing-summary-label">✅ {t('billing.fullyPaid')}</span>
-              </div>
-            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="billing-action-buttons">
+          <div className="rp-actions">
             <button
-              className="billing-btn billing-btn-save"
+              className="act-btn btn-save"
               onClick={() => handleSaveInvoice(false)}
               disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}
+              type="button"
             >
-              {saving ? t('common.loading') : t('common.save')}
+              {t('billing.saveInvoice', { defaultValue: 'Save Invoice' })}
             </button>
             <button
-              className="billing-btn billing-btn-save-print"
+              className="act-btn btn-print"
               onClick={() => handleSaveInvoice(true)}
               disabled={invoiceItems.length === 0 || saving || readOnly || !stockCheck.ok}
+              type="button"
             >
-              {saving ? t('common.loading') : t('billing.saveAndPrint')}
+              {t('billing.saveAndPrint', { defaultValue: 'Save & Print' })}
             </button>
-            <button
-              className="billing-btn billing-btn-cancel"
-              onClick={handleCancelBill}
-              disabled={invoiceItems.length === 0}
-            >
-              {t('common.cancel')}
+            <button className="act-btn btn-cancel" onClick={handleCancelBill} disabled={invoiceItems.length === 0} type="button">
+              {t('billing.cancelBill', { defaultValue: 'Cancel Bill' })}
             </button>
           </div>
         </div>
