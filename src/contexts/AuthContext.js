@@ -46,6 +46,10 @@ export const useAuth = () => {
   return context;
 };
 
+// Prevent API hammering on login (zb-simple-session) → backend may rate-limit (429).
+let zbNodeSessionInFlight = null;
+let zbNodeSessionCooldownUntilMs = 0;
+
 function persistSession(uid, username, fullName, email = null) {
   sessionStorage.setItem(SS_UID, uid);
   sessionStorage.setItem(SS_USER, username || '');
@@ -69,6 +73,15 @@ function clearSession() {
  * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string }} | {{ ok: false, hint: string }}
  */
 async function tryEstablishNodeSession(username, password) {
+  const now = Date.now();
+  if (now < zbNodeSessionCooldownUntilMs) {
+    const secs = Math.max(1, Math.ceil((zbNodeSessionCooldownUntilMs - now) / 1000));
+    return { ok: false, hint: `Too many login attempts. Please wait ${secs}s and try again.` };
+  }
+  if (zbNodeSessionInFlight) {
+    return zbNodeSessionInFlight;
+  }
+
   let hint = '';
   const deviceId = localStorage.getItem('deviceId') || 'unknown';
   const cfg = {
@@ -85,47 +98,74 @@ async function tryEstablishNodeSession(username, password) {
       notifyBackendSessionChanged();
     }
   };
-  try {
-    const { data } = await axios.post(`${base}/auth/zb-simple-session`, { username, password }, cfg);
-    if (data?.success && data?.requiresOtp) {
-      return { ok: true, pendingOtp: true, emailHint: data.emailHint || '' };
+
+  zbNodeSessionInFlight = (async () => {
+    try {
+      const { data } = await axios.post(`${base}/auth/zb-simple-session`, { username, password }, cfg);
+      if (data?.success && data?.requiresOtp) {
+        return { ok: true, pendingOtp: true, emailHint: data.emailHint || '' };
+      }
+      if (data?.sessionId) {
+        save(data);
+        return { ok: true };
+      }
+      hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
+    } catch (e) {
+      const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
+      const code = e.response?.status;
+      hint = code ? `zb-simple-session HTTP ${code}: ${msg}` : msg;
+
+      // Rate limited: back off locally so we don't keep hammering.
+      if (code === 429) {
+        zbNodeSessionCooldownUntilMs = Date.now() + 30 * 1000;
+        try {
+          localStorage.removeItem('sessionId');
+          localStorage.removeItem('user');
+          notifyBackendSessionChanged();
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (code === 503) {
+        console.warn('[Zentrya Biz] API session failed — database unreachable:', msg);
+      } else if (e.code === 'ERR_NETWORK' || !e.response) {
+        console.warn(
+          '[Zentrya Biz] API session unreachable (REACT_APP_BACKEND_URL, LAN override in localStorage hisaabkitab_server_url on production, or CORS):',
+          msg
+        );
+      } else {
+        console.warn('[Zentrya Biz] zb-simple-session:', code, msg);
+      }
     }
-    if (data?.sessionId) {
+
+    // If rate-limited, do NOT attempt legacy fallback (would just add more requests).
+    if (Date.now() < zbNodeSessionCooldownUntilMs) {
+      return { ok: false, hint: 'Too many requests. Please wait a bit and try again.' };
+    }
+
+    try {
+      const { data } = await axios.post(`${base}/auth/login`, { username, password }, cfg);
       save(data);
-      return { ok: true };
+    } catch (_) {
+      /* legacy login only */
     }
-    hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
-  } catch (e) {
-    const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
-    const code = e.response?.status;
-    hint = code ? `zb-simple-session HTTP ${code}: ${msg}` : msg;
-    if (code === 503) {
-      console.warn('[Zentrya Biz] API session failed — database unreachable:', msg);
-    } else if (e.code === 'ERR_NETWORK' || !e.response) {
-      console.warn(
-        '[Zentrya Biz] API session unreachable (REACT_APP_BACKEND_URL, LAN override in localStorage hisaabkitab_server_url on production, or CORS):',
-        msg
-      );
-    } else {
-      console.warn('[Zentrya Biz] zb-simple-session:', code, msg);
-    }
-  }
-  try {
-    const { data } = await axios.post(`${base}/auth/login`, { username, password }, cfg);
-    save(data);
-  } catch (_) {
-    /* legacy login only */
-  }
-  return localStorage.getItem('sessionId')
-    ? { ok: true }
-    : {
-        ok: false,
-        hint:
-          hint ||
-          'POS API session missing. Uses API base: ' +
-            base +
-            ' — clear LAN server override in Settings → Connection / localStorage key hisaabkitab_server_url.',
-      };
+
+    return localStorage.getItem('sessionId')
+      ? { ok: true }
+      : {
+          ok: false,
+          hint:
+            hint ||
+            'POS API session missing. Uses API base: ' +
+              base +
+              ' — clear LAN server override in Settings → Connection / localStorage key hisaabkitab_server_url.',
+        };
+  })().finally(() => {
+    zbNodeSessionInFlight = null;
+  });
+
+  return zbNodeSessionInFlight;
 }
 
 async function completeZbNodeLoginWithOtp(username, password, otp) {
