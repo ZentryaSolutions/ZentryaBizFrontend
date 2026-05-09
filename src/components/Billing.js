@@ -19,17 +19,13 @@ import { posApiQueriesEnabled } from '../lib/appMode';
 
 const billingMobileOverrides = `
 @media (max-width: 768px) {
-  /* Stack billing into one column: hide the left search/items column */
-  .billing-area {
-    display: block !important;
-  }
-  .billing-area .left-col {
-    display: none !important;
-  }
-  .billing-area .right-panel {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
+  /* One-column layout on mobile; switch panels via toggle */
+  .billing-area { display: block !important; }
+  .billing-area .left-col,
+  .billing-area .right-panel { width: 100% !important; max-width: 100% !important; }
+
+  .billing-container.zb-bill-mobile--items .right-panel { display: none !important; }
+  .billing-container.zb-bill-mobile--summary .left-col { display: none !important; }
 
   /* Tabs bar: allow horizontal scroll instead of wrap/overlap */
   .billing-tabs-bar {
@@ -43,6 +39,27 @@ const billingMobileOverrides = `
   .billing-header-bar {
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .zb-bill-mobileToggle {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .zb-bill-mobileToggle button {
+    flex: 1 1 0;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    padding: 8px 10px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .zb-bill-mobileToggle button.is-active {
+    background: #eef2ff;
+    border-color: rgba(79, 70, 229, 0.45);
+    color: #1e1b4b;
   }
 }
 `;
@@ -95,6 +112,7 @@ const Billing = ({ readOnly = false }) => {
   const billingPrefillRef = useRef(null);
   const { activeShopId } = useAuth();
   const queryClient = useQueryClient();
+  const [mobilePanel, setMobilePanel] = useState('items'); // 'items' | 'summary' (mobile only via CSS)
 
   const { data: bundle, isLoading: invLoading } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
@@ -858,7 +876,11 @@ const Billing = ({ readOnly = false }) => {
   }
 
   return (
-    <div className="billing-container">
+    <div
+      className={`billing-container ${
+        mobilePanel === 'summary' ? 'zb-bill-mobile--summary' : 'zb-bill-mobile--items'
+      }`}
+    >
       <style>{billingExtraStyles}</style>
       <style>{billingMobileOverrides}</style>
       {toast ? (
@@ -966,6 +988,22 @@ const Billing = ({ readOnly = false }) => {
         </div>
         <div className="billing-invoice-display">
           <span>{t('billing.invoiceNumber')}: {invoiceNumber || t('billing.newBill')}</span>
+        </div>
+        <div className="zb-bill-mobileToggle" role="tablist" aria-label="Billing view">
+          <button
+            type="button"
+            className={mobilePanel === 'items' ? 'is-active' : ''}
+            onClick={() => setMobilePanel('items')}
+          >
+            Items
+          </button>
+          <button
+            type="button"
+            className={mobilePanel === 'summary' ? 'is-active' : ''}
+            onClick={() => setMobilePanel('summary')}
+          >
+            Summary
+          </button>
         </div>
       </div>
 
