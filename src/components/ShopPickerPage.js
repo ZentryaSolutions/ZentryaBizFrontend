@@ -8,6 +8,38 @@ import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
 import { hasPosBackendSession } from '../lib/appMode';
 import './shopPickerV2.css';
 
+const shopPickerMobileOverrides = `
+@media (max-width: 900px) {
+  .zbms-shell {
+    display: block !important;
+  }
+  .zbms-sidebar {
+    display: none !important;
+  }
+  .zbms-main {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+  .zbms-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .zbms-hero-inner {
+    display: block !important;
+  }
+  .zbms-hero-right {
+    margin-top: 12px;
+  }
+  .zbms-shops-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .zbms-panel--pricing .zbms-panel-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+`;
+
 /** Frontend Stripe Price IDs — same values as backend `STRIPE_PRICE_*`. */
 function stripePriceIdForTier(tierId) {
   const starter = process.env.REACT_APP_STRIPE_PRICE_STARTER;
@@ -659,7 +691,9 @@ export default function ShopPickerPage() {
   );
 
   return (
-    <div className="zb-shopSel zb-shopSel--v2 zbms-shell">
+    <>
+      <style>{shopPickerMobileOverrides}</style>
+      <div className="zb-shopSel zb-shopSel--v2 zbms-shell">
       <aside className="zbms-sidebar" aria-label="Workspace navigation">
         <div className="zbms-sb-top">
           <Link to={marketingLink()} className="zbms-sb-brand">
@@ -1372,6 +1406,7 @@ export default function ShopPickerPage() {
           </div>
         </div>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

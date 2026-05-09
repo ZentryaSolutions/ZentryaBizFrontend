@@ -38,6 +38,7 @@ import ShopSelection from './components/ShopSelection';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { isExpiredPlan } from './utils/planFeatures';
 import { isZbWebOnlyMode } from './lib/appMode';
+import { mobileGlobalStyles } from './styles/mobileGlobalStyles';
 import {
   shopsPath,
   parseShopsPath,
@@ -187,6 +188,7 @@ function AppContent({ location }) {
   // Main app
   return (
     <AppWorkspaceBootstrap shopId={activeShopId}>
+    <style>{mobileGlobalStyles}</style>
     <ZbWorkspaceDashboardStyles />
     <div
       className={`app zb-workspace-shell${mobileNavOpen ? ' app--nav-open' : ''}${zbWebOnly ? ' app--zb-web' : ''}`}
