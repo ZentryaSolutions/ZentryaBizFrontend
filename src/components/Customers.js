@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowLeft,
   faBoxesStacked,
   faDollarSign,
   faEye,
@@ -201,13 +200,6 @@ const Customers = ({ readOnly = false }) => {
 
   return (
     <div className="content-container sup2">
-      <div className="sup3-topline">
-        <button type="button" className="sup3-back" onClick={() => window.history.back()}>
-          <FontAwesomeIcon icon={faArrowLeft} /> Back
-        </button>
-        <h1>{t('customers.title')}</h1>
-      </div>
-
       <section className="sup3-stats">
         <article className="sup3-statCard">
           <span className="sup3-statIcon sup3-statIcon--money">
