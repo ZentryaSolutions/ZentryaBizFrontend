@@ -214,6 +214,10 @@ async function completeZbNodeLoginWithOtp(username, password, otp) {
   } catch (e) {
     const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
     const code = e.response?.status;
+    const msgLc = String(msg || '').toLowerCase();
+    if (code === 400 && (msgLc.includes('incorrect') || msgLc.includes('invalid') || msgLc.includes('otp'))) {
+      return { ok: false, hint: 'Invalid OTP' };
+    }
     return {
       ok: false,
       hint: code ? `Verify OTP HTTP ${code}: ${msg}` : msg,
