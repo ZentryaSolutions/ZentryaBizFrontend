@@ -10,6 +10,7 @@ import { getServerUrl } from '../utils/connectionStatus';
 import { authAPI } from '../services/api';
 import { queryClient } from '../lib/queryClient';
 import { notifyBackendSessionChanged } from '../lib/appMode';
+import { getDeviceId } from '../utils/deviceFingerprint';
 
 const SS_UID = 'zb_simple_uid';
 const SS_USER = 'zb_simple_username';
@@ -20,6 +21,7 @@ const SS_PENDING_UID = 'zb_pending_uid';
 const SS_PENDING_USER = 'zb_pending_username';
 const SS_PENDING_NAME = 'zb_pending_full_name';
 const SS_PENDING_EMAIL = 'zb_pending_email';
+const SS_PENDING_OTP_KIND = 'zb_pending_otp_kind';
 
 /** One-time move from old localStorage so existing users stay signed in until they close the tab. */
 function migrateLegacyLocalStorage() {
@@ -72,11 +74,12 @@ function clearSession() {
   sessionStorage.removeItem(SS_EMAIL);
 }
 
-function persistPendingOtp(uid, username, fullName, email) {
+function persistPendingOtp(uid, username, fullName, email, otpKind = 'mfa') {
   sessionStorage.setItem(SS_PENDING_UID, String(uid || ''));
   sessionStorage.setItem(SS_PENDING_USER, String(username || ''));
   sessionStorage.setItem(SS_PENDING_NAME, String(fullName || ''));
   sessionStorage.setItem(SS_PENDING_EMAIL, String(email || '').trim().toLowerCase());
+  sessionStorage.setItem(SS_PENDING_OTP_KIND, String(otpKind || 'mfa'));
 }
 
 function clearPendingOtp() {
@@ -84,11 +87,12 @@ function clearPendingOtp() {
   sessionStorage.removeItem(SS_PENDING_USER);
   sessionStorage.removeItem(SS_PENDING_NAME);
   sessionStorage.removeItem(SS_PENDING_EMAIL);
+  sessionStorage.removeItem(SS_PENDING_OTP_KIND);
 }
 
 /**
  * After zb_login, create Node session (POST /api/auth/zb-simple-session → sessionId → x-session-id).
- * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string }} | {{ ok: false, hint: string }}
+ * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string, otpKind?: string }} | {{ ok: false, hint: string }}
  */
 async function tryEstablishNodeSession(username, password) {
   const now = Date.now();
@@ -101,7 +105,12 @@ async function tryEstablishNodeSession(username, password) {
   }
 
   let hint = '';
-  const deviceId = localStorage.getItem('deviceId') || 'unknown';
+  let deviceId;
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('deviceId') || localStorage.getItem('device_id') || 'unknown';
+  }
   const cfg = {
     headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
     timeout: 60000,
@@ -121,7 +130,12 @@ async function tryEstablishNodeSession(username, password) {
     try {
       const { data } = await axios.post(`${base}/auth/zb-simple-session`, { username, password }, cfg);
       if (data?.success && data?.requiresOtp) {
-        return { ok: true, pendingOtp: true, emailHint: data.emailHint || '' };
+        return {
+          ok: true,
+          pendingOtp: true,
+          emailHint: data.emailHint || '',
+          otpKind: data.otpKind === 'new_device' ? 'new_device' : 'mfa',
+        };
       }
       if (data?.sessionId) {
         save(data);
@@ -186,8 +200,13 @@ async function tryEstablishNodeSession(username, password) {
   return zbNodeSessionInFlight;
 }
 
-async function completeZbNodeLoginWithOtp(username, password, otp) {
-  const deviceId = localStorage.getItem('deviceId') || 'unknown';
+async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mfa') {
+  let deviceId;
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('deviceId') || localStorage.getItem('device_id') || 'unknown';
+  }
   const cfg = {
     headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
     timeout: 60000,
@@ -196,7 +215,7 @@ async function completeZbNodeLoginWithOtp(username, password, otp) {
   try {
     const { data } = await axios.post(
       `${base}/auth/zb-simple-session/verify-otp`,
-      { username, password, otp },
+      { username, password, otp, otpKind },
       cfg
     );
     if (data?.sessionId) {
@@ -367,13 +386,18 @@ export const AuthProvider = ({ children }) => {
     if (apiSess.ok && apiSess.pendingOtp) {
       // Do NOT mark user as logged-in yet; App.js would redirect away from /login.
       // Store minimal pending info so OTP page survives refresh.
-      persistPendingOtp(data.user_id, data.username, data.full_name, em);
+      persistPendingOtp(data.user_id, data.username, data.full_name, em, apiSess.otpKind || 'mfa');
       try {
         await refreshProfile(data.user_id);
       } catch {
         setProfile(null);
       }
-      return { success: true, pendingOtp: true, emailHint: apiSess.emailHint || '' };
+      return {
+        success: true,
+        pendingOtp: true,
+        emailHint: apiSess.emailHint || '',
+        otpKind: apiSess.otpKind || 'mfa',
+      };
     }
     if (!apiSess.ok) {
       clearPendingOtp();
@@ -410,7 +434,13 @@ export const AuthProvider = ({ children }) => {
   const completeSignInWithNodeOtp = async (username, password, otp) => {
     const uid = sessionStorage.getItem(SS_UID) || sessionStorage.getItem(SS_PENDING_UID);
     const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
-    const r = await completeZbNodeLoginWithOtp(String(username || '').trim().toLowerCase(), password, code);
+    const otpKind = sessionStorage.getItem(SS_PENDING_OTP_KIND) || 'mfa';
+    const r = await completeZbNodeLoginWithOtp(
+      String(username || '').trim().toLowerCase(),
+      password,
+      code,
+      otpKind === 'new_device' ? 'new_device' : 'mfa'
+    );
     if (!r.ok) {
       return { success: false, error: r.hint || 'Verification failed' };
     }
@@ -463,6 +493,23 @@ export const AuthProvider = ({ children }) => {
       persistSession(data.user_id, data.username, data.full_name, em);
       applyLocalUser(data.user_id);
       const apiSess = await tryEstablishNodeSession(em, password);
+      if (apiSess.pendingOtp) {
+        clearSession();
+        setUser(null);
+        setProfile(null);
+        try {
+          localStorage.removeItem('sessionId');
+          localStorage.removeItem('user');
+          notifyBackendSessionChanged();
+        } catch {
+          /* ignore */
+        }
+        return {
+          success: false,
+          error:
+            'Account created. Open Sign in and enter your email and password — a security code may be emailed for this browser before the dashboard loads.',
+        };
+      }
       if (!apiSess.ok) {
         clearSession();
         setUser(null);

@@ -11,6 +11,7 @@ import './AuthPages.css';
 
 const REMEMBER_EMAIL_KEY = 'zb_auth_remember_email';
 const PENDING_OTP_EMAIL_KEY = 'zb_pending_email';
+const PENDING_OTP_KIND_KEY = 'zb_pending_otp_kind';
 
 export default function LoginPage() {
   const { signInWithPassword, completeSignInWithNodeOtp, logout } = useAuth();
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const [nodeOtpStep, setNodeOtpStep] = useState(false);
+  const [nodeOtpKind, setNodeOtpKind] = useState('mfa');
   const [loginOtp, setLoginOtp] = useState('');
   const [nodeOtpHint, setNodeOtpHint] = useState('');
   const [otpSending, setOtpSending] = useState(false);
@@ -57,10 +59,16 @@ export default function LoginPage() {
     // If a 2FA login was started, keep OTP UI visible on refresh.
     try {
       const pendingEmail = sessionStorage.getItem(PENDING_OTP_EMAIL_KEY);
+      const kind = sessionStorage.getItem(PENDING_OTP_KIND_KEY);
       if (pendingEmail && String(pendingEmail).trim()) {
         setEmail(String(pendingEmail).trim());
         setNodeOtpStep(true);
-        setNodeOtpHint('Enter the code we sent to your email.');
+        setNodeOtpKind(kind === 'new_device' ? 'new_device' : 'mfa');
+        setNodeOtpHint(
+          kind === 'new_device'
+            ? 'New browser — enter the security code we emailed you.'
+            : 'Enter the code we sent to your email.'
+        );
       }
     } catch {
       /* ignore */
@@ -105,9 +113,19 @@ export default function LoginPage() {
         return;
       }
       if (r.pendingOtp) {
+        const k = r.otpKind === 'new_device' ? 'new_device' : 'mfa';
+        setNodeOtpKind(k);
         setNodeOtpStep(true);
         setLoginOtp('');
-        setNodeOtpHint(r.emailHint ? `Code sent to ${r.emailHint}` : 'Enter the code we sent to your email.');
+        if (k === 'new_device') {
+          setNodeOtpHint(
+            r.emailHint
+              ? `We don’t recognize this browser. Code sent to ${r.emailHint}`
+              : 'We don’t recognize this browser — enter the code we sent to your email.'
+          );
+        } else {
+          setNodeOtpHint(r.emailHint ? `Code sent to ${r.emailHint}` : 'Enter the code we sent to your email.');
+        }
         setLoading(false);
         return;
       }
@@ -168,8 +186,17 @@ export default function LoginPage() {
     setError('');
     setOtpSending(true);
     try {
-      await otpAPI.request({ email: em, purpose: 'login' });
-      setNodeOtpHint('A new code was sent to your email.');
+      if (nodeOtpKind === 'new_device') {
+        const { data } = await authAPI.zbSimpleSession({ username: em, password });
+        if (!(data?.success && data?.requiresOtp)) {
+          setError(data?.error || data?.message || 'Could not resend security code. Try signing in again.');
+          return;
+        }
+        setNodeOtpHint('A new security code was sent to your email.');
+      } else {
+        await otpAPI.request({ email: em, purpose: 'login' });
+        setNodeOtpHint('A new code was sent to your email.');
+      }
     } catch (err) {
       const msg =
         err.response?.data?.error || err.response?.data?.message || err.message || 'Could not send code';
@@ -181,6 +208,7 @@ export default function LoginPage() {
 
   const cancelNodeOtpLogin = async () => {
     setNodeOtpStep(false);
+    setNodeOtpKind('mfa');
     setLoginOtp('');
     setNodeOtpHint('');
     setError('');

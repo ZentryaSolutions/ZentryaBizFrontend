@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getServerUrl } from '../utils/connectionStatus';
 import { notifyBackendSessionChanged } from '../lib/appMode';
+import { getDeviceId } from '../utils/deviceFingerprint';
 
 // Use dynamic server URL for LAN support
 const API_BASE_URL = getServerUrl();
@@ -17,7 +18,12 @@ api.interceptors.request.use((config) => {
     config.headers['Content-Type'] = 'application/json';
   }
 
-  const deviceId = localStorage.getItem('deviceId') || 'unknown';
+  let deviceId = 'unknown';
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('deviceId') || localStorage.getItem('device_id') || 'unknown';
+  }
   config.headers['x-device-id'] = deviceId;
 
   // Express/HisaabKitab session (LAN desktop). Zentrya Supabase login does not set this.
@@ -237,6 +243,8 @@ export const authAPI = {
   zbResetPasswordAfterOtp: (data) => api.post('/auth/zb-reset-password-after-otp', data),
   /** Logged-in Zentrya user: current + new password (zb_simple_users + users) — requires API `DATABASE_URL` */
   zbChangePassword: (data) => api.post('/auth/zb-change-password', data),
+  /** Zentrya email/password → POS `user_sessions` (may return requiresOtp) */
+  zbSimpleSession: (data) => api.post('/auth/zb-simple-session', data),
   /** Completes MFA login — no session cookie required */
   zbSimpleSessionVerifyOtp: (data) => api.post('/auth/zb-simple-session/verify-otp', data),
   /** Email OTP MFA flag on zb_simple_users (requires POS API session + x-shop-id irrelevant) */
