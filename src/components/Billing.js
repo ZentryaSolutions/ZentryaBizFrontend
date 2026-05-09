@@ -17,6 +17,36 @@ import './Billing.css';
 import { billingExtraStyles } from './BillingExtraStyles';
 import { posApiQueriesEnabled } from '../lib/appMode';
 
+const billingMobileOverrides = `
+@media (max-width: 768px) {
+  /* Stack billing into one column: hide the left search/items column */
+  .billing-area {
+    display: block !important;
+  }
+  .billing-area .left-col {
+    display: none !important;
+  }
+  .billing-area .right-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Tabs bar: allow horizontal scroll instead of wrap/overlap */
+  .billing-tabs-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .billing-tabs-left {
+    min-width: max-content;
+  }
+
+  .billing-header-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+`;
+
 const STOCK_ERR = (avail) =>
   `Insufficient stock. Available: ${Number(avail || 0)} units. Please add stock first.`;
 
@@ -830,6 +860,7 @@ const Billing = ({ readOnly = false }) => {
   return (
     <div className="billing-container">
       <style>{billingExtraStyles}</style>
+      <style>{billingMobileOverrides}</style>
       {toast ? (
         <div className={`zb-toast ${toast.type}`} role="status" aria-live="polite">
           {toast.message}

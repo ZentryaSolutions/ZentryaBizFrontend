@@ -67,6 +67,36 @@ const ZX_EXPENSE_MODAL_CSS = `
 @media(max-width:520px){.zx-exp-modal-grid{grid-template-columns:1fr!important}}
 `;
 
+const ZX_EXPENSE_MOBILE_CSS = `
+@media (max-width: 768px) {
+  .zx-exp-head-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Period chips: wrap nicely instead of overflowing */
+  .zx-exp-toolbar .zx-exp-period-shell {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .zx-exp-toolbar .zx-exp-period-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .zx-exp-toolbar .zx-exp-range-chip {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .zx-exp-custom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+`;
+
 const PERIOD_FILTERS = [
   { key: 'daily', tKey: 'expenses.daily' },
   { key: 'weekly', tKey: 'expenses.weekly' },
@@ -758,6 +788,7 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
   return (
     <>
       <style>{ZX_EXPENSE_MODAL_CSS}</style>
+      <style>{ZX_EXPENSE_MOBILE_CSS}</style>
       <div className="zx-exp-modal-overlay" role="presentation" onClick={onClose}>
         <div className="zx-exp-modal" role="dialog" aria-labelledby="zx-exp-modal-title" onClick={(e) => e.stopPropagation()}>
           <header className="zx-exp-modal-hd">

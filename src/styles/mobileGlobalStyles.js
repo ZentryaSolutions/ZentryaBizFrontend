@@ -56,6 +56,11 @@ export const mobileGlobalStyles = `
     z-index: 1000;
   }
 
+  /* When drawer is open, hide topbar underneath (avoids "topbar inside drawer" look). */
+  .app--nav-open .zb-topbar {
+    visibility: hidden !important;
+  }
+
   /* Main shell */
   .zb-workspace-shell {
     overflow-x: hidden;

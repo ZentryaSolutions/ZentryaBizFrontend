@@ -28,6 +28,33 @@ import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import './Inventory.css';
 
+const inventoryMobileOverrides = `
+@media (max-width: 768px) {
+  .inv3-topCards {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  .inv3-filterBar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  .inv3-filterBar .inv3-input {
+    grid-column: 1 / -1 !important;
+    min-width: 0 !important;
+  }
+  .inv3-filterBar .inv3-select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  .inv3-filterBar .inv3-chipBtn {
+    width: 100% !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+  }
+}
+`;
+
 const LOW_STOCK_THRESHOLD = 5;
 
 const Inventory = ({ readOnly = false }) => {
@@ -305,6 +332,7 @@ const Inventory = ({ readOnly = false }) => {
   return (
     <div className="content-container inv2 inv3">
       <style>{inventoryCustomStyles}</style>
+      <style>{inventoryMobileOverrides}</style>
 
       <div className="inv3-topCards">
         <div className="inv3-card">
