@@ -10,6 +10,7 @@ import { IconEnvelope } from './authIcons';
 import './AuthPages.css';
 
 const REMEMBER_EMAIL_KEY = 'zb_auth_remember_email';
+const PENDING_OTP_EMAIL_KEY = 'zb_pending_email';
 
 export default function LoginPage() {
   const { signInWithPassword, completeSignInWithNodeOtp, logout } = useAuth();
@@ -48,6 +49,18 @@ export default function LoginPage() {
       if (saved) {
         setEmail(saved);
         setRememberMe(true);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // If a 2FA login was started, keep OTP UI visible on refresh.
+    try {
+      const pendingEmail = sessionStorage.getItem(PENDING_OTP_EMAIL_KEY);
+      if (pendingEmail && String(pendingEmail).trim()) {
+        setEmail(String(pendingEmail).trim());
+        setNodeOtpStep(true);
+        setNodeOtpHint('Enter the code we sent to your email.');
       }
     } catch {
       /* ignore */

@@ -16,6 +16,10 @@ const SS_USER = 'zb_simple_username';
 const SS_NAME = 'zb_simple_full_name';
 const SS_EMAIL = 'zb_simple_email';
 const SS_SHOP = 'zb_active_shop_id';
+const SS_PENDING_UID = 'zb_pending_uid';
+const SS_PENDING_USER = 'zb_pending_username';
+const SS_PENDING_NAME = 'zb_pending_full_name';
+const SS_PENDING_EMAIL = 'zb_pending_email';
 
 /** One-time move from old localStorage so existing users stay signed in until they close the tab. */
 function migrateLegacyLocalStorage() {
@@ -66,6 +70,20 @@ function clearSession() {
   sessionStorage.removeItem(SS_USER);
   sessionStorage.removeItem(SS_NAME);
   sessionStorage.removeItem(SS_EMAIL);
+}
+
+function persistPendingOtp(uid, username, fullName, email) {
+  sessionStorage.setItem(SS_PENDING_UID, String(uid || ''));
+  sessionStorage.setItem(SS_PENDING_USER, String(username || ''));
+  sessionStorage.setItem(SS_PENDING_NAME, String(fullName || ''));
+  sessionStorage.setItem(SS_PENDING_EMAIL, String(email || '').trim().toLowerCase());
+}
+
+function clearPendingOtp() {
+  sessionStorage.removeItem(SS_PENDING_UID);
+  sessionStorage.removeItem(SS_PENDING_USER);
+  sessionStorage.removeItem(SS_PENDING_NAME);
+  sessionStorage.removeItem(SS_PENDING_EMAIL);
 }
 
 /**
@@ -341,10 +359,11 @@ export const AuthProvider = ({ children }) => {
     const data = unwrapRpc(raw);
     if (!data?.ok) return { success: false, error: data?.error || 'Login failed' };
 
-    persistSession(data.user_id, data.username, data.full_name, em);
-    applyLocalUser(data.user_id);
     const apiSess = await tryEstablishNodeSession(em, password);
     if (apiSess.ok && apiSess.pendingOtp) {
+      // Do NOT mark user as logged-in yet; App.js would redirect away from /login.
+      // Store minimal pending info so OTP page survives refresh.
+      persistPendingOtp(data.user_id, data.username, data.full_name, em);
       try {
         await refreshProfile(data.user_id);
       } catch {
@@ -353,6 +372,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true, pendingOtp: true, emailHint: apiSess.emailHint || '' };
     }
     if (!apiSess.ok) {
+      clearPendingOtp();
       clearSession();
       setUser(null);
       setProfile(null);
@@ -371,6 +391,10 @@ export const AuthProvider = ({ children }) => {
             'Check Network → zb-simple-session, Vercel REACT_APP_BACKEND_URL (…/api), and clear any LAN server URL stored in the browser.'),
       };
     }
+
+    clearPendingOtp();
+    persistSession(data.user_id, data.username, data.full_name, em);
+    applyLocalUser(data.user_id);
     try {
       await refreshProfile(data.user_id);
     } catch {
@@ -380,14 +404,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   const completeSignInWithNodeOtp = async (username, password, otp) => {
-    const uid = sessionStorage.getItem(SS_UID);
+    const uid = sessionStorage.getItem(SS_UID) || sessionStorage.getItem(SS_PENDING_UID);
     const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
     const r = await completeZbNodeLoginWithOtp(String(username || '').trim().toLowerCase(), password, code);
     if (!r.ok) {
       return { success: false, error: r.hint || 'Verification failed' };
     }
+    const pendingUid = uid || '';
+    const pendingUser = sessionStorage.getItem(SS_PENDING_USER) || '';
+    const pendingName = sessionStorage.getItem(SS_PENDING_NAME) || pendingUser;
+    const pendingEmail = sessionStorage.getItem(SS_PENDING_EMAIL) || null;
+    clearPendingOtp();
+    if (pendingUid) {
+      persistSession(pendingUid, pendingUser, pendingName, pendingEmail);
+      applyLocalUser(pendingUid);
+    }
     try {
-      if (uid) await refreshProfile(uid);
+      if (pendingUid) await refreshProfile(pendingUid);
     } catch {
       setProfile(null);
     }
