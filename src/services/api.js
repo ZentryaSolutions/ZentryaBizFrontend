@@ -26,8 +26,9 @@ api.interceptors.request.use((config) => {
   }
   config.headers['x-device-id'] = deviceId;
 
-  // Express/HisaabKitab session (LAN desktop). Zentrya Supabase login does not set this.
-  const sessionId = localStorage.getItem('sessionId');
+  // Express/HisaabKitab session (LAN desktop). Tab-only login keeps sessionId in sessionStorage.
+  const sessionId =
+    sessionStorage.getItem('sessionId') || localStorage.getItem('sessionId');
   if (sessionId) {
     config.headers['x-session-id'] = sessionId;
   }
@@ -60,6 +61,7 @@ api.interceptors.response.use(
       ) {
         isRedirecting = true;
         localStorage.removeItem('sessionId');
+        sessionStorage.removeItem('sessionId');
         localStorage.removeItem('user');
         notifyBackendSessionChanged();
         setTimeout(() => {
@@ -246,6 +248,8 @@ export const authAPI = {
   zbChangePassword: (data) => api.post('/auth/zb-change-password', data),
   /** Zentrya email/password → POS `user_sessions` (may return requiresOtp) */
   zbSimpleSession: (data) => api.post('/auth/zb-simple-session', data),
+  /** Google OAuth: Supabase access_token → POS session (same MFA/new-device rules as password path) */
+  zbSimpleSessionOauth: (data) => api.post('/auth/zb-simple-session-oauth', data),
   /** Completes MFA login — no session cookie required */
   zbSimpleSessionVerifyOtp: (data) => api.post('/auth/zb-simple-session/verify-otp', data),
   /** Email OTP MFA flag on zb_simple_users (requires POS API session + x-shop-id irrelevant) */

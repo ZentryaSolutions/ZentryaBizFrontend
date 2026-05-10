@@ -25,7 +25,6 @@ import Settings from './components/Settings';
 import Users from './components/Users';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import PublicTopBar from './components/PublicTopBar';
 import ConnectionStatus from './components/ConnectionStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateNotification from './components/UpdateNotification';
@@ -43,7 +42,6 @@ import { mobileGlobalStyles } from './styles/mobileGlobalStyles';
 import {
   shopsPath,
   parseShopsPath,
-  userIdFromPublicUrlParam,
   isDashSeparatedUuid,
 } from './utils/workspacePaths';
 import { appBasePath, extractAppScope, isLegacyAppPath } from './utils/appRouteScope';
@@ -92,29 +90,17 @@ function AppContent({ location }) {
     );
   }
 
-  const searchParams = new URLSearchParams(location?.search || '');
-  const marketingUidParam = searchParams.get('uid') || searchParams.get('u');
-  const marketingResolved = userIdFromPublicUrlParam(marketingUidParam || '');
-  const onMarketingHome =
-    location?.pathname === '/' &&
-    Boolean(user?.id) &&
-    Boolean(marketingResolved) &&
-    marketingResolved === String(user.id).toLowerCase();
-
-  // Public pages (landing/auth)
+  // Public pages (landing/auth) — single nav is LandingPage’s zbx-nav (no duplicate global bar)
   if (!user) {
     return (
-      <>
-        <PublicTopBar />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/signup/verify" element={<SignupVerifyPage />} />
-          <Route path="/staff-invite" element={<StaffInvitePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/verify" element={<SignupVerifyPage />} />
+        <Route path="/staff-invite" element={<StaffInvitePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     );
   }
 
@@ -152,14 +138,9 @@ function AppContent({ location }) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
-  // Logged in: landing page only when ?uid matches session (session stays in browser; URL shows id)
-  if (user && onMarketingHome) {
-    return <LandingPage />;
-  }
-
-  // Logged in: bare / or wrong uid → shop flow
+  // Logged in: home — marketing landing with logo nav; “My workspace” / Logout when session valid (4d TTL in AuthContext)
   if (user && location?.pathname === '/') {
-    return <Navigate to={shopsPath(user.id)} replace />;
+    return <LandingPage />;
   }
 
   // Must select a shop before entering app (unless browsing marketing home above)
@@ -167,7 +148,9 @@ function AppContent({ location }) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
-  if (!activeShopId && onOwnShopsPicker) {
+  // /{compact}/shops — shop picker ("My Shops"). Must run before extractAppScope; otherwise
+  // /uid/shops is misread as /uid/:shopId with shopId "shops" and user gets bounced to /app.
+  if (onOwnShopsPicker) {
     return <ShopSelection />;
   }
 

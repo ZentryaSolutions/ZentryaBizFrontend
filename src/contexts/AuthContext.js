@@ -1,6 +1,6 @@
 /**
  * Auth: Supabase only — zb_signup / zb_login RPC + table zb_simple_users (see database SQL).
- * Browser session is stored in localStorage for up to 4 days (see zb_auth_expires_at), then cleared.
+ * "Remember me" (login): localStorage + 4-day expiry. Without it: tab session only (sessionStorage).
  */
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,27 +22,19 @@ const SS_PENDING_USER = 'zb_pending_username';
 const SS_PENDING_NAME = 'zb_pending_full_name';
 const SS_PENDING_EMAIL = 'zb_pending_email';
 const SS_PENDING_OTP_KIND = 'zb_pending_otp_kind';
+const SS_PENDING_REMEMBER = 'zb_pending_remember';
 
 /** Epoch ms when local auth + POS session should be treated as expired (4-day browser session). */
 const LS_EXPIRES = 'zb_auth_expires_at';
 const FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
 
-/** Copy old tab-only (sessionStorage) auth into persistent localStorage once. */
+/** If user already chose persistent login, copy shop id from session → local once. */
 function migrateLegacyLocalStorage() {
   if (typeof window === 'undefined') return;
   const lsUid = localStorage.getItem(SS_UID);
-  const ssUid = sessionStorage.getItem(SS_UID);
-  if (ssUid && !lsUid) {
-    localStorage.setItem(SS_UID, ssUid);
-    localStorage.setItem(SS_USER, sessionStorage.getItem(SS_USER) || '');
-    localStorage.setItem(SS_NAME, sessionStorage.getItem(SS_NAME) || '');
-    const em = sessionStorage.getItem(SS_EMAIL);
-    if (em) localStorage.setItem(SS_EMAIL, em);
-    localStorage.setItem(LS_EXPIRES, String(Date.now() + FOUR_DAYS_MS));
-  }
   const ssShop = sessionStorage.getItem(SS_SHOP);
   const lsShop = localStorage.getItem(SS_SHOP);
-  if (ssShop && !lsShop) {
+  if (lsUid && ssShop && !lsShop) {
     localStorage.setItem(SS_SHOP, ssShop);
   }
 }
@@ -61,24 +53,65 @@ export const useAuth = () => {
 let zbNodeSessionInFlight = null;
 let zbNodeSessionCooldownUntilMs = 0;
 
-function persistSession(uid, username, fullName, email = null) {
-  const exp = Date.now() + FOUR_DAYS_MS;
-  localStorage.setItem(SS_UID, uid);
-  localStorage.setItem(SS_USER, username || '');
-  localStorage.setItem(SS_NAME, fullName || '');
-  localStorage.setItem(LS_EXPIRES, String(exp));
-  if (email && String(email).trim()) {
-    localStorage.setItem(SS_EMAIL, String(email).trim().toLowerCase());
+function persistSession(uid, username, fullName, email = null, rememberLong = true) {
+  if (rememberLong) {
+    const exp = Date.now() + FOUR_DAYS_MS;
+    localStorage.setItem(SS_UID, uid);
+    localStorage.setItem(SS_USER, username || '');
+    localStorage.setItem(SS_NAME, fullName || '');
+    localStorage.setItem(LS_EXPIRES, String(exp));
+    if (email && String(email).trim()) {
+      localStorage.setItem(SS_EMAIL, String(email).trim().toLowerCase());
+    } else {
+      localStorage.removeItem(SS_EMAIL);
+    }
+    try {
+      sessionStorage.removeItem(SS_UID);
+      sessionStorage.removeItem(SS_USER);
+      sessionStorage.removeItem(SS_NAME);
+      sessionStorage.removeItem(SS_EMAIL);
+    } catch {
+      /* ignore */
+    }
   } else {
-    localStorage.removeItem(SS_EMAIL);
+    try {
+      localStorage.removeItem(SS_UID);
+      localStorage.removeItem(SS_USER);
+      localStorage.removeItem(SS_NAME);
+      localStorage.removeItem(SS_EMAIL);
+      localStorage.removeItem(LS_EXPIRES);
+      localStorage.removeItem(SS_SHOP);
+    } catch {
+      /* ignore */
+    }
+    sessionStorage.setItem(SS_UID, uid);
+    sessionStorage.setItem(SS_USER, username || '');
+    sessionStorage.setItem(SS_NAME, fullName || '');
+    if (email && String(email).trim()) {
+      sessionStorage.setItem(SS_EMAIL, String(email).trim().toLowerCase());
+    } else {
+      sessionStorage.removeItem(SS_EMAIL);
+    }
   }
-  try {
-    sessionStorage.removeItem(SS_UID);
-    sessionStorage.removeItem(SS_USER);
-    sessionStorage.removeItem(SS_NAME);
-    sessionStorage.removeItem(SS_EMAIL);
-  } catch {
-    /* ignore */
+}
+
+/** POS `sessionId` for `x-session-id` — local when "remember me", else tab-only. */
+function storePosSessionId(sessionId, rememberLong = true) {
+  if (!sessionId) return;
+  if (rememberLong) {
+    try {
+      sessionStorage.removeItem('sessionId');
+    } catch {
+      /* ignore */
+    }
+    localStorage.setItem('sessionId', sessionId);
+  } else {
+    try {
+      localStorage.removeItem('sessionId');
+    } catch {
+      /* ignore */
+    }
+    sessionStorage.setItem('sessionId', sessionId);
   }
 }
 
@@ -89,6 +122,7 @@ function clearSession() {
     sessionStorage.removeItem(SS_NAME);
     sessionStorage.removeItem(SS_EMAIL);
     sessionStorage.removeItem(SS_SHOP);
+    sessionStorage.removeItem('sessionId');
   } catch {
     /* ignore */
   }
@@ -99,17 +133,19 @@ function clearSession() {
     localStorage.removeItem(SS_EMAIL);
     localStorage.removeItem(SS_SHOP);
     localStorage.removeItem(LS_EXPIRES);
+    localStorage.removeItem('sessionId');
   } catch {
     /* ignore */
   }
 }
 
-function persistPendingOtp(uid, username, fullName, email, otpKind = 'mfa') {
+function persistPendingOtp(uid, username, fullName, email, otpKind = 'mfa', rememberLong = true) {
   sessionStorage.setItem(SS_PENDING_UID, String(uid || ''));
   sessionStorage.setItem(SS_PENDING_USER, String(username || ''));
   sessionStorage.setItem(SS_PENDING_NAME, String(fullName || ''));
   sessionStorage.setItem(SS_PENDING_EMAIL, String(email || '').trim().toLowerCase());
   sessionStorage.setItem(SS_PENDING_OTP_KIND, String(otpKind || 'mfa'));
+  sessionStorage.setItem(SS_PENDING_REMEMBER, rememberLong ? '1' : '0');
 }
 
 function clearPendingOtp() {
@@ -118,13 +154,14 @@ function clearPendingOtp() {
   sessionStorage.removeItem(SS_PENDING_NAME);
   sessionStorage.removeItem(SS_PENDING_EMAIL);
   sessionStorage.removeItem(SS_PENDING_OTP_KIND);
+  sessionStorage.removeItem(SS_PENDING_REMEMBER);
 }
 
 /**
  * After zb_login, create Node session (POST /api/auth/zb-simple-session → sessionId → x-session-id).
  * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string, otpKind?: string }} | {{ ok: false, hint: string }}
  */
-async function tryEstablishNodeSession(username, password) {
+async function tryEstablishNodeSession(username, password, rememberLong = true) {
   const now = Date.now();
   if (now < zbNodeSessionCooldownUntilMs) {
     const secs = Math.max(1, Math.ceil((zbNodeSessionCooldownUntilMs - now) / 1000));
@@ -148,7 +185,7 @@ async function tryEstablishNodeSession(username, password) {
   const base = getServerUrl();
   const save = (data) => {
     if (data?.sessionId) {
-      localStorage.setItem('sessionId', data.sessionId);
+      storePosSessionId(data.sessionId, rememberLong);
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
@@ -182,6 +219,7 @@ async function tryEstablishNodeSession(username, password) {
         zbNodeSessionCooldownUntilMs = Date.now() + 30 * 1000;
         try {
           localStorage.removeItem('sessionId');
+          sessionStorage.removeItem('sessionId');
           localStorage.removeItem('user');
           notifyBackendSessionChanged();
         } catch {
@@ -213,7 +251,7 @@ async function tryEstablishNodeSession(username, password) {
       /* legacy login only */
     }
 
-    return localStorage.getItem('sessionId')
+    return localStorage.getItem('sessionId') || sessionStorage.getItem('sessionId')
       ? { ok: true }
       : {
           ok: false,
@@ -230,7 +268,7 @@ async function tryEstablishNodeSession(username, password) {
   return zbNodeSessionInFlight;
 }
 
-async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mfa') {
+async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mfa', rememberLong = true) {
   let deviceId;
   try {
     deviceId = getDeviceId();
@@ -249,7 +287,7 @@ async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mf
       cfg
     );
     if (data?.sessionId) {
-      localStorage.setItem('sessionId', data.sessionId);
+      storePosSessionId(data.sessionId, rememberLong);
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
@@ -292,12 +330,30 @@ export const AuthProvider = ({ children }) => {
   const setActiveShopId = (shopId) => {
     const v = shopId || '';
     setActiveShopIdState(v);
-    if (v) localStorage.setItem(SS_SHOP, v);
-    else localStorage.removeItem(SS_SHOP);
-    try {
-      sessionStorage.removeItem(SS_SHOP);
-    } catch {
-      /* ignore */
+    const persistShop = Boolean(localStorage.getItem(SS_UID));
+    if (v) {
+      if (persistShop) {
+        localStorage.setItem(SS_SHOP, v);
+        try {
+          sessionStorage.removeItem(SS_SHOP);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        sessionStorage.setItem(SS_SHOP, v);
+        try {
+          localStorage.removeItem(SS_SHOP);
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      try {
+        localStorage.removeItem(SS_SHOP);
+        sessionStorage.removeItem(SS_SHOP);
+      } catch {
+        /* ignore */
+      }
     }
     try {
       const uid = user?.id || localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID);
@@ -341,30 +397,35 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-      const uid = localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID);
-      const expRaw = localStorage.getItem(LS_EXPIRES);
-      const exp = expRaw ? parseInt(expRaw, 10) : 0;
+      const lsUid = localStorage.getItem(SS_UID);
+      const ssUid = sessionStorage.getItem(SS_UID);
+      const uid = lsUid || ssUid;
       if (!uid) {
         setUser(null);
         setProfile(null);
         setLoading(false);
         return;
       }
-      if (!exp || Number.isNaN(exp) || Date.now() > exp) {
-        clearSession();
-        try {
-          localStorage.removeItem('sessionId');
-          localStorage.removeItem('user');
-          queryClient.clear();
-          notifyBackendSessionChanged();
-        } catch {
-          /* ignore */
+      if (lsUid) {
+        const expRaw = localStorage.getItem(LS_EXPIRES);
+        const exp = expRaw ? parseInt(expRaw, 10) : 0;
+        if (!exp || Number.isNaN(exp) || Date.now() > exp) {
+          clearSession();
+          try {
+            localStorage.removeItem('sessionId');
+            sessionStorage.removeItem('sessionId');
+            localStorage.removeItem('user');
+            queryClient.clear();
+            notifyBackendSessionChanged();
+          } catch {
+            /* ignore */
+          }
+          setActiveShopIdState('');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
         }
-        setActiveShopIdState('');
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
       }
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
@@ -373,11 +434,12 @@ export const AuthProvider = ({ children }) => {
             clearSession();
             setUser(null);
             setProfile(null);
-          } else if (!localStorage.getItem('sessionId')) {
+          } else if (!localStorage.getItem('sessionId') && !sessionStorage.getItem('sessionId')) {
             /* Supabase tab restore without POS API session → every /api call is 401 */
             clearSession();
             try {
               localStorage.removeItem('sessionId');
+              sessionStorage.removeItem('sessionId');
               localStorage.removeItem('user');
               queryClient.clear();
               notifyBackendSessionChanged();
@@ -428,7 +490,7 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const signInWithPassword = async (email, password) => {
+  const signInWithPassword = async (email, password, rememberLong = false) => {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
     const em = String(email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
@@ -442,11 +504,11 @@ export const AuthProvider = ({ children }) => {
     const data = unwrapRpc(raw);
     if (!data?.ok) return { success: false, error: data?.error || 'Login failed' };
 
-    const apiSess = await tryEstablishNodeSession(em, password);
+    const apiSess = await tryEstablishNodeSession(em, password, rememberLong);
     if (apiSess.ok && apiSess.pendingOtp) {
       // Do NOT mark user as logged-in yet; App.js would redirect away from /login.
       // Store minimal pending info so OTP page survives refresh.
-      persistPendingOtp(data.user_id, data.username, data.full_name, em, apiSess.otpKind || 'mfa');
+      persistPendingOtp(data.user_id, data.username, data.full_name, em, apiSess.otpKind || 'mfa', rememberLong);
       try {
         await refreshProfile(data.user_id);
       } catch {
@@ -466,6 +528,7 @@ export const AuthProvider = ({ children }) => {
       setProfile(null);
       try {
         localStorage.removeItem('sessionId');
+        sessionStorage.removeItem('sessionId');
         localStorage.removeItem('user');
         notifyBackendSessionChanged();
       } catch {
@@ -481,7 +544,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     clearPendingOtp();
-    persistSession(data.user_id, data.username, data.full_name, em);
+    persistSession(data.user_id, data.username, data.full_name, em, rememberLong);
     applyLocalUser(data.user_id);
     try {
       await refreshProfile(data.user_id);
@@ -498,11 +561,13 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.getItem(SS_PENDING_UID);
     const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
     const otpKind = sessionStorage.getItem(SS_PENDING_OTP_KIND) || 'mfa';
+    const rememberLong = sessionStorage.getItem(SS_PENDING_REMEMBER) !== '0';
     const r = await completeZbNodeLoginWithOtp(
       String(username || '').trim().toLowerCase(),
       password,
       code,
-      otpKind === 'new_device' ? 'new_device' : 'mfa'
+      otpKind === 'new_device' ? 'new_device' : 'mfa',
+      rememberLong
     );
     if (!r.ok) {
       return { success: false, error: r.hint || 'Verification failed' };
@@ -513,7 +578,7 @@ export const AuthProvider = ({ children }) => {
     const pendingEmail = sessionStorage.getItem(SS_PENDING_EMAIL) || null;
     clearPendingOtp();
     if (pendingUid) {
-      persistSession(pendingUid, pendingUser, pendingName, pendingEmail);
+      persistSession(pendingUid, pendingUser, pendingName, pendingEmail, rememberLong);
       applyLocalUser(pendingUid);
     }
     try {
@@ -553,15 +618,16 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      persistSession(data.user_id, data.username, data.full_name, em);
+      persistSession(data.user_id, data.username, data.full_name, em, true);
       applyLocalUser(data.user_id);
-      const apiSess = await tryEstablishNodeSession(em, password);
+      const apiSess = await tryEstablishNodeSession(em, password, true);
       if (apiSess.pendingOtp) {
         clearSession();
         setUser(null);
         setProfile(null);
         try {
           localStorage.removeItem('sessionId');
+          sessionStorage.removeItem('sessionId');
           localStorage.removeItem('user');
           notifyBackendSessionChanged();
         } catch {
@@ -579,6 +645,7 @@ export const AuthProvider = ({ children }) => {
         setProfile(null);
         try {
           localStorage.removeItem('sessionId');
+          sessionStorage.removeItem('sessionId');
           localStorage.removeItem('user');
           notifyBackendSessionChanged();
         } catch {
@@ -607,14 +674,193 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signInWithGoogle = async () => ({
-    success: false,
-    error: 'Google sign-in is not enabled.',
-  });
+  const completeGoogleOAuthFromRedirect = async () => {
+    if (!supabase) return { skipped: true, success: false, error: 'Supabase not configured' };
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return { skipped: true, success: false };
+    const rememberLong = sessionStorage.getItem('zb_oauth_remember') !== '0';
+    try {
+      const res = await authAPI.zbSimpleSessionOauth({ access_token: session.access_token });
+      const d = res.data;
+      if (d?.success && d?.requiresOtp) {
+        const uid = d.zb_profile_id;
+        const un = d.zb_username || '';
+        const fn = d.zb_full_name || un;
+        const em = (d.zb_email || '').trim().toLowerCase();
+        const kind = d.otpKind === 'new_device' ? 'new_device' : 'mfa';
+        persistPendingOtp(uid, un, fn, em, kind, rememberLong);
+        try {
+          sessionStorage.setItem('zb_google_otp_pending', '1');
+        } catch {
+          /* ignore */
+        }
+        try {
+          await refreshProfile(uid);
+        } catch {
+          setProfile(null);
+        }
+        return {
+          success: true,
+          pendingOtp: true,
+          emailHint: d.emailHint || '',
+          otpKind: d.otpKind || 'mfa',
+        };
+      }
+      if (!d?.success || !d?.sessionId || !d?.zb_profile_id) {
+        const msg = d?.message || d?.error || 'Could not sign in with Google';
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          /* ignore */
+        }
+        try {
+          sessionStorage.removeItem('zb_oauth_remember');
+        } catch {
+          /* ignore */
+        }
+        return { success: false, error: msg };
+      }
+      const uid = d.zb_profile_id;
+      const em = String(d.zb_email || '').trim().toLowerCase();
+      storePosSessionId(d.sessionId, rememberLong);
+      if (d.user) {
+        try {
+          localStorage.setItem('user', JSON.stringify(d.user));
+        } catch {
+          /* ignore */
+        }
+      }
+      notifyBackendSessionChanged();
+      persistSession(uid, d.zb_username, d.zb_full_name, em, rememberLong);
+      applyLocalUser(uid);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        /* ignore */
+      }
+      try {
+        sessionStorage.removeItem('zb_oauth_remember');
+      } catch {
+        /* ignore */
+      }
+      try {
+        await refreshProfile(uid);
+      } catch {
+        setProfile(null);
+      }
+      return { success: true };
+    } catch (err) {
+      const body = err.response?.data;
+      const msg =
+        body?.message || body?.error || err.message || 'Google sign-in failed';
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        /* ignore */
+      }
+      try {
+        sessionStorage.removeItem('zb_oauth_remember');
+      } catch {
+        /* ignore */
+      }
+      return { success: false, error: msg };
+    }
+  };
+
+  const completeSignInWithGoogleOtp = async (email, otp) => {
+    if (!supabase) return { success: false, error: 'Supabase not configured' };
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return {
+        success: false,
+        error: 'Google sign-in session expired. Use Continue with Google again.',
+      };
+    }
+    const rememberLong = sessionStorage.getItem(SS_PENDING_REMEMBER) !== '0';
+    const otpKindStored = sessionStorage.getItem(SS_PENDING_OTP_KIND) || 'mfa';
+    const em = String(email || '').trim().toLowerCase();
+    const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
+    try {
+      const res = await authAPI.zbSimpleSessionVerifyOtp({
+        username: em,
+        otp: code,
+        otpKind: otpKindStored === 'new_device' ? 'new_device' : 'mfa',
+        access_token: session.access_token,
+      });
+      const d = res.data;
+      if (!d?.success || !d?.sessionId) {
+        return { success: false, error: d?.error || d?.message || 'Verification failed' };
+      }
+      storePosSessionId(d.sessionId, rememberLong);
+      if (d.user) {
+        try {
+          localStorage.setItem('user', JSON.stringify(d.user));
+        } catch {
+          /* ignore */
+        }
+      }
+      notifyBackendSessionChanged();
+      const uid = sessionStorage.getItem(SS_PENDING_UID);
+      const pendingUser = sessionStorage.getItem(SS_PENDING_USER) || '';
+      const pendingName = sessionStorage.getItem(SS_PENDING_NAME) || pendingUser;
+      const pendingEmail = sessionStorage.getItem(SS_PENDING_EMAIL) || null;
+      clearPendingOtp();
+      try {
+        sessionStorage.removeItem('zb_google_otp_pending');
+      } catch {
+        /* ignore */
+      }
+      if (uid) {
+        persistSession(uid, pendingUser, pendingName, pendingEmail, rememberLong);
+        applyLocalUser(uid);
+      }
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (uid) await refreshProfile(uid);
+      } catch {
+        setProfile(null);
+      }
+      return { success: true };
+    } catch (err) {
+      const body = err.response?.data;
+      return {
+        success: false,
+        error: body?.error || body?.message || err.message || 'Verification failed',
+      };
+    }
+  };
+
+  const signInWithGoogle = async (rememberLong = false) => {
+    if (!supabase) return { success: false, error: 'Supabase not configured' };
+    try {
+      sessionStorage.setItem('zb_oauth_remember', rememberLong ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    const redirectTo = `${typeof window !== 'undefined' ? window.location.origin : ''}/login`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  };
 
   const logout = useCallback(async () => {
+    try {
+      if (supabase) await supabase.auth.signOut();
+    } catch {
+      /* ignore */
+    }
     clearSession();
-    localStorage.removeItem('sessionId');
     localStorage.removeItem('user');
     notifyBackendSessionChanged();
     queryClient.clear();
@@ -664,6 +910,8 @@ export const AuthProvider = ({ children }) => {
       refreshProfile,
       signInWithPassword,
       completeSignInWithNodeOtp,
+      completeGoogleOAuthFromRedirect,
+      completeSignInWithGoogleOtp,
       signUpWithEmail,
       signInWithGoogle,
       logout,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,8 +9,24 @@ import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import Notifications from './Notifications';
 import ProfileMenu from './ProfileMenu';
 import { shopsPath } from '../utils/workspacePaths';
-import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
+import { ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Header.css';
+
+const SS_UID = 'zb_simple_uid';
+
+function getProfileUserId(u) {
+  if (u?.id) return String(u.id);
+  if (typeof window === 'undefined') return '';
+  try {
+    return (
+      localStorage.getItem(SS_UID) ||
+      sessionStorage.getItem(SS_UID) ||
+      ''
+    );
+  } catch {
+    return '';
+  }
+}
 
 function workspaceTitle(pathname) {
   const p = pathname || '';
@@ -35,7 +51,6 @@ function workspaceTitle(pathname) {
 const Header = ({ onMenuClick }) => {
   const { t } = useTranslation();
   const { user, activeShopId } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [storeName, setStoreName] = useState('');
 
@@ -110,6 +125,7 @@ const Header = ({ onMenuClick }) => {
 
   const displayUserName = user?.full_name || user?.name || user?.username || 'User';
   const pageTitle = workspaceTitle(location.pathname);
+  const shopsPickerTo = shopsPath(getProfileUserId(user));
 
   return (
     <header className="app-header zb-topbar">
@@ -125,16 +141,15 @@ const Header = ({ onMenuClick }) => {
             <FontAwesomeIcon icon={faBars} className="header-menu-toggle-icon" aria-hidden />
           </button>
         ) : null}
-        <button
-          type="button"
+        <Link
+          to={shopsPickerTo}
           className="zb-tb-myshops"
-          onClick={() => user?.id && navigate(shopsPath(user.id))}
           data-navigation="true"
           title={t('app.myShops', { defaultValue: 'My Shops' })}
         >
           <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
           {t('app.myShops', { defaultValue: 'My Shops' })}
-        </button>
+        </Link>
         <span className="zb-tb-divider" aria-hidden />
         <span className="zb-tb-title">{pageTitle}</span>
       </div>

@@ -394,9 +394,8 @@ export default function ShopPickerPage() {
     }
   }, [refreshProfile]);
 
-  useEffect(() => {
-    if (activeShopId) nav('/app', { replace: true });
-  }, [activeShopId, nav]);
+  // Do not auto-redirect when activeShopId is set — user may open "My Shops" while already
+  // inside a workspace; selectShop() already navigates to the dashboard after picking a shop.
 
   useEffect(() => {
     if (!showCreate) return undefined;

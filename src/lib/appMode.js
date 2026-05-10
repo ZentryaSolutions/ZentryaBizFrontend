@@ -1,4 +1,4 @@
-/** Fired when `localStorage.sessionId` is set or cleared (same tab). Lets prefetch/queries re-run. */
+/** Fired when POS `sessionId` is set or cleared (localStorage or sessionStorage). Lets prefetch/queries re-run. */
 export const ZB_BACKEND_SESSION_CHANGED = 'zb-backend-session-changed';
 
 export function notifyBackendSessionChanged() {
@@ -9,7 +9,9 @@ export function notifyBackendSessionChanged() {
 /** `x-session-id` source for `/api/*` — set after zb-simple-session (or LAN login). */
 export function hasPosBackendSession() {
   if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem('sessionId');
+  return !!(
+    sessionStorage.getItem('sessionId') || localStorage.getItem('sessionId')
+  );
 }
 
 /** Gate React Query (and prefetch) so we do not hammer the API with naked 401s before session exists. */
@@ -22,5 +24,7 @@ export function isZbWebOnlyMode() {
   if (typeof window === 'undefined') return false;
   const uid =
     localStorage.getItem('zb_simple_uid') || sessionStorage.getItem('zb_simple_uid');
-  return !!uid && !localStorage.getItem('sessionId');
+  const sid =
+    sessionStorage.getItem('sessionId') || localStorage.getItem('sessionId');
+  return !!uid && !sid;
 }
