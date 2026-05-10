@@ -33,7 +33,8 @@ api.interceptors.request.use((config) => {
   }
   config._zbHadBackendSession = !!sessionId;
 
-  const shopId = sessionStorage.getItem('zb_active_shop_id');
+  const shopId =
+    localStorage.getItem('zb_active_shop_id') || sessionStorage.getItem('zb_active_shop_id');
   if (shopId) {
     config.headers['x-shop-id'] = shopId;
   }

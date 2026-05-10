@@ -1,9 +1,9 @@
 /**
  * Auth: Supabase only — zb_signup / zb_login RPC + table zb_simple_users (see database SQL).
- * Session uses sessionStorage → closing the tab/window logs the user out (no separate backend).
+ * Browser session is stored in localStorage for up to 4 days (see zb_auth_expires_at), then cleared.
  */
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabaseClient';
 import { getServerUrl } from '../utils/connectionStatus';
@@ -23,22 +23,27 @@ const SS_PENDING_NAME = 'zb_pending_full_name';
 const SS_PENDING_EMAIL = 'zb_pending_email';
 const SS_PENDING_OTP_KIND = 'zb_pending_otp_kind';
 
-/** One-time move from old localStorage so existing users stay signed in until they close the tab. */
+/** Epoch ms when local auth + POS session should be treated as expired (4-day browser session). */
+const LS_EXPIRES = 'zb_auth_expires_at';
+const FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
+
+/** Copy old tab-only (sessionStorage) auth into persistent localStorage once. */
 function migrateLegacyLocalStorage() {
   if (typeof window === 'undefined') return;
-  const uid = localStorage.getItem(SS_UID);
-  if (uid && !sessionStorage.getItem(SS_UID)) {
-    sessionStorage.setItem(SS_UID, uid);
-    sessionStorage.setItem(SS_USER, localStorage.getItem(SS_USER) || '');
-    sessionStorage.setItem(SS_NAME, localStorage.getItem(SS_NAME) || '');
-    localStorage.removeItem(SS_UID);
-    localStorage.removeItem(SS_USER);
-    localStorage.removeItem(SS_NAME);
+  const lsUid = localStorage.getItem(SS_UID);
+  const ssUid = sessionStorage.getItem(SS_UID);
+  if (ssUid && !lsUid) {
+    localStorage.setItem(SS_UID, ssUid);
+    localStorage.setItem(SS_USER, sessionStorage.getItem(SS_USER) || '');
+    localStorage.setItem(SS_NAME, sessionStorage.getItem(SS_NAME) || '');
+    const em = sessionStorage.getItem(SS_EMAIL);
+    if (em) localStorage.setItem(SS_EMAIL, em);
+    localStorage.setItem(LS_EXPIRES, String(Date.now() + FOUR_DAYS_MS));
   }
-  const shop = localStorage.getItem(SS_SHOP);
-  if (shop && !sessionStorage.getItem(SS_SHOP)) {
-    sessionStorage.setItem(SS_SHOP, shop);
-    localStorage.removeItem(SS_SHOP);
+  const ssShop = sessionStorage.getItem(SS_SHOP);
+  const lsShop = localStorage.getItem(SS_SHOP);
+  if (ssShop && !lsShop) {
+    localStorage.setItem(SS_SHOP, ssShop);
   }
 }
 
@@ -57,21 +62,46 @@ let zbNodeSessionInFlight = null;
 let zbNodeSessionCooldownUntilMs = 0;
 
 function persistSession(uid, username, fullName, email = null) {
-  sessionStorage.setItem(SS_UID, uid);
-  sessionStorage.setItem(SS_USER, username || '');
-  sessionStorage.setItem(SS_NAME, fullName || '');
+  const exp = Date.now() + FOUR_DAYS_MS;
+  localStorage.setItem(SS_UID, uid);
+  localStorage.setItem(SS_USER, username || '');
+  localStorage.setItem(SS_NAME, fullName || '');
+  localStorage.setItem(LS_EXPIRES, String(exp));
   if (email && String(email).trim()) {
-    sessionStorage.setItem(SS_EMAIL, String(email).trim().toLowerCase());
+    localStorage.setItem(SS_EMAIL, String(email).trim().toLowerCase());
   } else {
+    localStorage.removeItem(SS_EMAIL);
+  }
+  try {
+    sessionStorage.removeItem(SS_UID);
+    sessionStorage.removeItem(SS_USER);
+    sessionStorage.removeItem(SS_NAME);
     sessionStorage.removeItem(SS_EMAIL);
+  } catch {
+    /* ignore */
   }
 }
 
 function clearSession() {
-  sessionStorage.removeItem(SS_UID);
-  sessionStorage.removeItem(SS_USER);
-  sessionStorage.removeItem(SS_NAME);
-  sessionStorage.removeItem(SS_EMAIL);
+  try {
+    sessionStorage.removeItem(SS_UID);
+    sessionStorage.removeItem(SS_USER);
+    sessionStorage.removeItem(SS_NAME);
+    sessionStorage.removeItem(SS_EMAIL);
+    sessionStorage.removeItem(SS_SHOP);
+  } catch {
+    /* ignore */
+  }
+  try {
+    localStorage.removeItem(SS_UID);
+    localStorage.removeItem(SS_USER);
+    localStorage.removeItem(SS_NAME);
+    localStorage.removeItem(SS_EMAIL);
+    localStorage.removeItem(SS_SHOP);
+    localStorage.removeItem(LS_EXPIRES);
+  } catch {
+    /* ignore */
+  }
 }
 
 function persistPendingOtp(uid, username, fullName, email, otpKind = 'mfa') {
@@ -254,16 +284,23 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const [activeShopId, setActiveShopIdState] = useState(() =>
-    typeof window !== 'undefined' ? sessionStorage.getItem(SS_SHOP) || '' : ''
+    typeof window !== 'undefined'
+      ? localStorage.getItem(SS_SHOP) || sessionStorage.getItem(SS_SHOP) || ''
+      : ''
   );
 
   const setActiveShopId = (shopId) => {
     const v = shopId || '';
     setActiveShopIdState(v);
-    if (v) sessionStorage.setItem(SS_SHOP, v);
-    else sessionStorage.removeItem(SS_SHOP);
+    if (v) localStorage.setItem(SS_SHOP, v);
+    else localStorage.removeItem(SS_SHOP);
     try {
-      const uid = user?.id || sessionStorage.getItem(SS_UID);
+      sessionStorage.removeItem(SS_SHOP);
+    } catch {
+      /* ignore */
+    }
+    try {
+      const uid = user?.id || localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID);
       if (v && uid) localStorage.setItem(`zb_last_shop_${String(uid)}`, v);
     } catch {
       /* ignore quota */
@@ -271,9 +308,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const applyLocalUser = (uid) => {
-    const username = sessionStorage.getItem(SS_USER) || '';
-    const name = sessionStorage.getItem(SS_NAME) || username;
-    const email = sessionStorage.getItem(SS_EMAIL) || null;
+    const username =
+      localStorage.getItem(SS_USER) || sessionStorage.getItem(SS_USER) || '';
+    const name = localStorage.getItem(SS_NAME) || sessionStorage.getItem(SS_NAME) || username;
+    const email =
+      localStorage.getItem(SS_EMAIL) || sessionStorage.getItem(SS_EMAIL) || null;
     setUser({
       id: uid,
       username,
@@ -283,7 +322,9 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const refreshProfile = async (uid = user?.id || sessionStorage.getItem(SS_UID)) => {
+  const refreshProfile = async (
+    uid = user?.id || localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID)
+  ) => {
     if (!supabase || !uid) return null;
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
     if (error) throw error;
@@ -300,8 +341,26 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-      const uid = sessionStorage.getItem(SS_UID);
+      const uid = localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID);
+      const expRaw = localStorage.getItem(LS_EXPIRES);
+      const exp = expRaw ? parseInt(expRaw, 10) : 0;
       if (!uid) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      if (!exp || Number.isNaN(exp) || Date.now() > exp) {
+        clearSession();
+        try {
+          localStorage.removeItem('sessionId');
+          localStorage.removeItem('user');
+          queryClient.clear();
+          notifyBackendSessionChanged();
+        } catch {
+          /* ignore */
+        }
+        setActiveShopIdState('');
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -326,6 +385,7 @@ export const AuthProvider = ({ children }) => {
               /* ignore */
             }
             try {
+              localStorage.removeItem(SS_SHOP);
               sessionStorage.removeItem(SS_SHOP);
             } catch {
               /* ignore */
@@ -432,7 +492,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const completeSignInWithNodeOtp = async (username, password, otp) => {
-    const uid = sessionStorage.getItem(SS_UID) || sessionStorage.getItem(SS_PENDING_UID);
+    const uid =
+      localStorage.getItem(SS_UID) ||
+      sessionStorage.getItem(SS_UID) ||
+      sessionStorage.getItem(SS_PENDING_UID);
     const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
     const otpKind = sessionStorage.getItem(SS_PENDING_OTP_KIND) || 'mfa';
     const r = await completeZbNodeLoginWithOtp(
@@ -549,7 +612,7 @@ export const AuthProvider = ({ children }) => {
     error: 'Google sign-in is not enabled.',
   });
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     clearSession();
     localStorage.removeItem('sessionId');
     localStorage.removeItem('user');
@@ -557,8 +620,33 @@ export const AuthProvider = ({ children }) => {
     queryClient.clear();
     setUser(null);
     setProfile(null);
-    setActiveShopId('');
-  };
+    setActiveShopIdState('');
+    try {
+      sessionStorage.removeItem(SS_SHOP);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const check = () => {
+      const raw = localStorage.getItem(LS_EXPIRES);
+      const exp = raw ? parseInt(raw, 10) : 0;
+      if (exp && !Number.isNaN(exp) && Date.now() > exp) {
+        void logout();
+      }
+    };
+    const id = setInterval(check, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [user, logout]);
 
   /** Owner = shop account holder (signup + creates shops); admin = elevated. Salesman = staff. */
   const isAdmin = () => {
@@ -581,7 +669,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       isAdmin,
     }),
-    [user, profile, loading, activeShopId]
+    [user, profile, loading, activeShopId, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

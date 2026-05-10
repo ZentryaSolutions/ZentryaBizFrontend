@@ -25,6 +25,7 @@ import Settings from './components/Settings';
 import Users from './components/Users';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import PublicTopBar from './components/PublicTopBar';
 import ConnectionStatus from './components/ConnectionStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateNotification from './components/UpdateNotification';
@@ -103,14 +104,17 @@ function AppContent({ location }) {
   // Public pages (landing/auth)
   if (!user) {
     return (
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/signup/verify" element={<SignupVerifyPage />} />
-        <Route path="/staff-invite" element={<StaffInvitePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <>
+        <PublicTopBar />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup/verify" element={<SignupVerifyPage />} />
+          <Route path="/staff-invite" element={<StaffInvitePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </>
     );
   }
 
