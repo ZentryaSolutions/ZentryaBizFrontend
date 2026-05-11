@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
-import { isSupabaseBrowserConfigured, supabase } from '../../lib/supabaseClient';
+import { isSupabaseBrowserConfigured } from '../../lib/supabaseClient';
 import { authAPI, otpAPI } from '../../services/api';
 import AuthPasswordField from './AuthPasswordField';
 import AuthOtpBoxes from './AuthOtpBoxes';
@@ -14,14 +14,7 @@ const PENDING_OTP_EMAIL_KEY = 'zb_pending_email';
 const PENDING_OTP_KIND_KEY = 'zb_pending_otp_kind';
 
 export default function LoginPage() {
-  const {
-    signInWithPassword,
-    completeSignInWithNodeOtp,
-    completeGoogleOAuthFromRedirect,
-    completeSignInWithGoogleOtp,
-    signInWithGoogle,
-    logout,
-  } = useAuth();
+  const { signInWithPassword, completeSignInWithNodeOtp, logout } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
 
@@ -81,94 +74,6 @@ export default function LoginPage() {
       /* ignore */
     }
   }, []);
-
-  /* After Google OAuth redirect, exchange Supabase token for POS session */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!isSupabaseBrowserConfigured() || !supabase) return;
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-      setLoading(true);
-      setError('');
-      const r = await completeGoogleOAuthFromRedirect();
-      if (cancelled) return;
-      if (!r.success) {
-        if (r.skipped) {
-          setLoading(false);
-          return;
-        }
-        setError(r.error || 'Google sign-in failed');
-        setLoading(false);
-        return;
-      }
-      if (r.pendingOtp) {
-        const k = r.otpKind === 'new_device' ? 'new_device' : 'mfa';
-        setNodeOtpKind(k);
-        setNodeOtpStep(true);
-        setLoginOtp('');
-        const em =
-          (session.user?.email && String(session.user.email).trim().toLowerCase()) ||
-          (() => {
-            try {
-              return sessionStorage.getItem(PENDING_OTP_EMAIL_KEY) || '';
-            } catch {
-              return '';
-            }
-          })();
-        if (em) setEmail(em);
-        if (k === 'new_device') {
-          setNodeOtpHint(
-            r.emailHint
-              ? `We don’t recognize this browser. Code sent to ${r.emailHint}`
-              : 'We don’t recognize this browser — enter the code we sent to your email.'
-          );
-        } else {
-          setNodeOtpHint(
-            r.emailHint ? `Code sent to ${r.emailHint}` : 'Enter the code we sent to your email.'
-          );
-        }
-        setLoading(false);
-        return;
-      }
-      try {
-        const savedEmail = session.user?.email?.trim();
-        const rememberLong = sessionStorage.getItem('zb_oauth_remember') !== '0';
-        if (rememberLong && savedEmail) {
-          localStorage.setItem(REMEMBER_EMAIL_KEY, savedEmail);
-        } else {
-          localStorage.removeItem(REMEMBER_EMAIL_KEY);
-        }
-      } catch {
-        /* ignore */
-      }
-      nav(next, { replace: true });
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on /login after OAuth redirect
-  }, []);
-
-  const handleGoogleLogin = async () => {
-    setError('');
-    if (!isSupabaseBrowserConfigured()) {
-      setError(
-        'Supabase is not in this build yet. On your PC: copy `frontend/env.template` to `frontend/.env`, paste the same REACT_APP_* values as on Vercel, then restart `npm start`. On Vercel: confirm variables exist and redeploy so the bundle picks them up.'
-      );
-      return;
-    }
-    setLoading(true);
-    try {
-      const r = await signInWithGoogle(rememberMe);
-      if (!r.success) setError(r.error || 'Google sign-in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openForgot = () => {
     setMode('forgot');
@@ -249,15 +154,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      let googleOtp = false;
-      try {
-        googleOtp = sessionStorage.getItem('zb_google_otp_pending') === '1';
-      } catch {
-        googleOtp = false;
-      }
-      const r = googleOtp
-        ? await completeSignInWithGoogleOtp(email.trim().toLowerCase(), code)
-        : await completeSignInWithNodeOtp(email.trim().toLowerCase(), password, code);
+      const r = await completeSignInWithNodeOtp(email.trim().toLowerCase(), password, code);
       if (!r.success) {
         setError(r.error || 'Verification failed');
         setLoading(false);
@@ -289,32 +186,6 @@ export default function LoginPage() {
     setError('');
     setOtpSending(true);
     try {
-      let isGooglePending = false;
-      try {
-        isGooglePending = sessionStorage.getItem('zb_google_otp_pending') === '1';
-      } catch {
-        isGooglePending = false;
-      }
-      if (isGooglePending) {
-        if (!supabase) {
-          setError('Google sign-in is unavailable.');
-          return;
-        }
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          setError('Google session expired. Use Continue with Google again.');
-          return;
-        }
-        const { data } = await authAPI.zbSimpleSessionOauth({ access_token: session.access_token });
-        if (!(data?.success && data?.requiresOtp)) {
-          setError(data?.error || data?.message || 'Could not resend code. Try signing in again.');
-          return;
-        }
-        setNodeOtpHint('A new code was sent to your email.');
-        return;
-      }
       if (nodeOtpKind === 'new_device') {
         const { data } = await authAPI.zbSimpleSession({ username: em, password });
         if (!(data?.success && data?.requiresOtp)) {
@@ -336,27 +207,11 @@ export default function LoginPage() {
   };
 
   const cancelNodeOtpLogin = async () => {
-    let googlePending = false;
-    try {
-      googlePending = sessionStorage.getItem('zb_google_otp_pending') === '1';
-    } catch {
-      googlePending = false;
-    }
     setNodeOtpStep(false);
     setNodeOtpKind('mfa');
     setLoginOtp('');
     setNodeOtpHint('');
     setError('');
-    try {
-      if (googlePending && supabase) await supabase.auth.signOut();
-    } catch {
-      /* ignore */
-    }
-    try {
-      sessionStorage.removeItem('zb_google_otp_pending');
-    } catch {
-      /* ignore */
-    }
     await logout();
   };
 
@@ -522,37 +377,6 @@ export default function LoginPage() {
                   disabled={loading}
                 >
                   <span>{loading ? 'Logging in…' : 'Login'}</span>
-                </button>
-
-                <div className="zb-auth__divider" aria-hidden="true">
-                  or
-                </div>
-
-                <button
-                  type="button"
-                  className="zb-auth__btnGoogle"
-                  disabled={loading}
-                  onClick={handleGoogleLogin}
-                >
-                  <svg className="zb-auth__btnGoogleIcon" width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-                    <path
-                      fill="#FFC107"
-                      d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                    />
-                    <path
-                      fill="#FF3D00"
-                      d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                    />
-                    <path
-                      fill="#4CAF50"
-                      d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.178-5.23C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                    />
-                    <path
-                      fill="#1976D2"
-                      d="M43.611 20.083H42V20H24v8h11.303a12.02 12.02 0 0 1-4.087 5.571l.003-.002 6.19 5.207C38.739 35.209 44 30.096 44 24c0-1.341-.138-2.65-.389-3.917z"
-                    />
-                  </svg>
-                  Continue with Google
                 </button>
               </form>
             ) : (

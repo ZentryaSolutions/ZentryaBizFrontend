@@ -28,13 +28,7 @@ const key = firstNonEmpty(
 function buildClient() {
   if (!url || !key) return null;
   try {
-    return createClient(url, key, {
-      auth: {
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-      },
-    });
+    return createClient(url, key, { auth: { persistSession: true } });
   } catch (e) {
     console.error(
       '[Supabase] createClient failed (check URL/key; publishable keys need a recent @supabase/supabase-js):',

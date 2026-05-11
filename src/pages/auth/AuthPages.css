@@ -866,44 +866,6 @@
   }
 }
 
-.zb-auth__googleBtn {
-  width: 100%;
-  border-radius: 10px;
-  padding: 10px 14px;
-  border: 1px solid var(--chrome-border, #e4e7ec);
-  background: #fff;
-  cursor: pointer;
-  font-weight: 800;
-  color: #101828;
-}
-
-.zb-auth__googleBtn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: var(--chrome-border-strong, #d0d5dd);
-}
-
-.zb-auth__divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 0 10px;
-  color: #98a2b3;
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.zb-auth__divider::before,
-.zb-auth__divider::after {
-  content: '';
-  height: 1px;
-  flex: 1;
-  background: var(--chrome-border, #e4e7ec);
-}
-
-.zb-auth__divider span {
-  padding: 0 2px;
-}
-
 .zb-auth__notice {
   border-radius: 12px;
   padding: 10px 12px;

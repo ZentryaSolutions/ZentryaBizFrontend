@@ -140,7 +140,7 @@ const plans = [
 const faqs = [
   {
     q: 'How do I sign up and start the trial?',
-    a: 'Create an account with email and password or Google. The 14‑day trial does not require a card. After signup you can set up your shop and invite salesmen as needed.',
+    a: 'Create an account with email and password. The 14‑day trial does not require a card. After signup you can set up your shop and invite salesmen as needed.',
   },
   {
     q: 'Is the trial free, and what are the limits?',

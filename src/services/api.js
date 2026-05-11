@@ -248,8 +248,6 @@ export const authAPI = {
   zbChangePassword: (data) => api.post('/auth/zb-change-password', data),
   /** Zentrya email/password → POS `user_sessions` (may return requiresOtp) */
   zbSimpleSession: (data) => api.post('/auth/zb-simple-session', data),
-  /** Google OAuth: Supabase access_token → POS session (same MFA/new-device rules as password path) */
-  zbSimpleSessionOauth: (data) => api.post('/auth/zb-simple-session-oauth', data),
   /** Completes MFA login — no session cookie required */
   zbSimpleSessionVerifyOtp: (data) => api.post('/auth/zb-simple-session/verify-otp', data),
   /** Email OTP MFA flag on zb_simple_users (requires POS API session + x-shop-id irrelevant) */
