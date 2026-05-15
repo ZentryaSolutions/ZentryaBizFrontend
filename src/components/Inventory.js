@@ -27,6 +27,7 @@ import Pagination from './Pagination';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import { getConnectivityErrorMessage, isLikelyConnectivityError } from '../lib/offlineUserMessages';
+import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import './Inventory.css';
 
 const inventoryMobileOverrides = `
@@ -224,12 +225,16 @@ const Inventory = ({ readOnly = false }) => {
 
   const handleDelete = async (productId) => {
     try {
-      await productsAPI.delete(productId);
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
+      const res = await productsAPI.delete(productId);
+      await invalidateUnlessOffline(
+        queryClient,
+        zbKeys(activeShopId).inventoryBundle(),
+        offlineOptsFromResponse(res)
+      );
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting product:', err);
-      alert(err.response?.data?.error || t('inventory.productFailed'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('inventory.productFailed'));
     }
   };
 
@@ -239,18 +244,15 @@ const Inventory = ({ readOnly = false }) => {
   };
 
   const handleModalSave = async (productData) => {
-    try {
-      if (editingProduct) {
-        await productsAPI.update(editingProduct.product_id, productData);
-      } else {
-        await productsAPI.create(productData);
-      }
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
-      handleModalClose();
-    } catch (err) {
-      console.error('Error saving product:', err);
-      throw err;
-    }
+    const res = editingProduct
+      ? await productsAPI.update(editingProduct.product_id, productData)
+      : await productsAPI.create(productData);
+    await invalidateUnlessOffline(
+      queryClient,
+      zbKeys(activeShopId).inventoryBundle(),
+      offlineOptsFromResponse(res)
+    );
+    handleModalClose();
   };
 
   const formatCurrency = (amount) => {

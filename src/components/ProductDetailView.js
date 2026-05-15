@@ -678,9 +678,11 @@ const ProductDetailView = ({ readOnly = false }) => {
           products={purchaseModalProducts}
           initialProductId={Number(productId)}
           onClose={() => setPurchaseModalOpen(false)}
-          onSave={async () => {
+          onSave={async (opts) => {
             setPurchaseModalOpen(false);
-            await refreshProductActivity();
+            if (!opts?.offlineQueued) {
+              await refreshProductActivity();
+            }
           }}
         />
       )}

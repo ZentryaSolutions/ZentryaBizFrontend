@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getConnectivityErrorMessage } from '../lib/offlineUserMessages';
 import './ProductModal.css';
 
 const ProductModal = ({ product, suppliers, categories = [], units = [], onClose, onSave }) => {
@@ -175,7 +176,8 @@ const ProductModal = ({ product, suppliers, categories = [], units = [], onClose
 
       await onSave(submitData);
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to save product';
+      const errorMessage =
+        getConnectivityErrorMessage(err) || err.response?.data?.error || 'Failed to save product';
       alert(errorMessage);
     } finally {
       setSaving(false);

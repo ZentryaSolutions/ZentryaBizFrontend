@@ -6,6 +6,7 @@ import {
   offlineRequestInterceptor,
   offlineResponseErrorInterceptor,
 } from '../lib/offlineMutationQueue';
+import { maybeNotifyOfflineQueuedResponse } from '../lib/offlineMutationFeedback';
 
 // Use dynamic server URL for LAN support
 const API_BASE_URL = getServerUrl();
@@ -56,11 +57,15 @@ api.interceptors.request.use(
 // CRITICAL: Prevent infinite redirect loops
 let isRedirecting = false;
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    maybeNotifyOfflineQueuedResponse(response);
+    return response;
+  },
   async (error) => {
     try {
       const queued = await offlineResponseErrorInterceptor(error);
       if (queued && queued.status === 202 && queued.data?.offlineQueued) {
+        maybeNotifyOfflineQueuedResponse(queued);
         return queued;
       }
     } catch {

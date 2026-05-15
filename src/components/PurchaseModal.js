@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { purchasesAPI } from '../services/api';
+import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import './Purchases.css';
 
 const purchasePortalOverlayCss = `
@@ -101,14 +102,21 @@ const PurchaseModal = ({ suppliers, products, purchase, onSave, onClose, initial
     }
     setSaving(true);
     try {
-      if (purchase) {
-        await purchasesAPI.update(purchase.purchase_id, formData);
-      } else {
-        await purchasesAPI.create(formData);
+      const response = purchase
+        ? await purchasesAPI.update(purchase.purchase_id, formData)
+        : await purchasesAPI.create(formData);
+      if (isOfflineQueuedResponse(response)) {
+        await onSave({ offlineQueued: true });
+        return;
       }
       await onSave();
     } catch (err) {
-      alert(err.response?.data?.error || `Failed to ${purchase ? 'update' : 'create'} purchase`);
+      const connectivity = getConnectivityErrorMessage(err);
+      alert(
+        connectivity ||
+          err.response?.data?.error ||
+          `Failed to ${purchase ? 'update' : 'create'} purchase`
+      );
     } finally {
       setSaving(false);
     }

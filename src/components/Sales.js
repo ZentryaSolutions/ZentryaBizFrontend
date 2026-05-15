@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -28,6 +28,8 @@ import { salesWorkspaceStyles } from '../styles/salesWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { buildConnectivityErrorBanner, getConnectivityErrorMessage } from '../lib/offlineUserMessages';
+import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import './Sales.css';
 
 const EPS = 0.005;
@@ -99,12 +101,13 @@ const Sales = ({ readOnly = false }) => {
     queryKey: zbKeys(activeShopId).salesList(),
     queryFn: fetchSalesList,
     enabled: posApiQueriesEnabled(activeShopId),
+    placeholderData: keepPreviousData,
   });
 
-  const error = useMemo(() => {
-    if (!isError || !queryError) return null;
-    return queryError.response?.data?.error || t('sales.failedToLoad');
-  }, [isError, queryError, t]);
+  const errorBanner = useMemo(
+    () => buildConnectivityErrorBanner(isError, queryError, t('sales.failedToLoad')),
+    [isError, queryError, t]
+  );
 
   const [selectedSale, setSelectedSale] = useState(null);
   const [editingSale, setEditingSale] = useState(null);
@@ -279,13 +282,17 @@ const Sales = ({ readOnly = false }) => {
         discount: parseFloat(editFormData.discount) || 0,
         tax: parseFloat(editFormData.tax) || 0,
       };
-      await salesAPI.update(editingSale.sale_id, updateData);
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
+      const res = await salesAPI.update(editingSale.sale_id, updateData);
+      await invalidateUnlessOffline(
+        queryClient,
+        zbKeys(activeShopId).salesList(),
+        offlineOptsFromResponse(res)
+      );
       setEditingSale(null);
-      alert(t('sales.updateSuccess'));
+      if (!offlineOptsFromResponse(res).offlineQueued) alert(t('sales.updateSuccess'));
     } catch (err) {
       console.error('Error updating sale:', err);
-      alert(err.response?.data?.error || t('sales.updateFailed'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('sales.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -293,12 +300,16 @@ const Sales = ({ readOnly = false }) => {
 
   const handleDelete = async (saleId) => {
     try {
-      await salesAPI.delete(saleId);
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
+      const res = await salesAPI.delete(saleId);
+      await invalidateUnlessOffline(
+        queryClient,
+        zbKeys(activeShopId).salesList(),
+        offlineOptsFromResponse(res)
+      );
       setDeleteConfirm(null);
-      alert(t('sales.deleteSuccess'));
+      if (!offlineOptsFromResponse(res).offlineQueued) alert(t('sales.deleteSuccess'));
     } catch (err) {
-      alert(err.response?.data?.error || t('sales.deleteFailed'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('sales.deleteFailed'));
     }
   };
 
@@ -496,7 +507,11 @@ const Sales = ({ readOnly = false }) => {
     <div className="content-container sales-page sal2">
       <style>{salesWorkspaceStyles}</style>
 
-      {error ? <div className="sal2-err">{error}</div> : null}
+      {errorBanner ? (
+        <div className={`sal2-err${errorBanner.variant === 'offline' ? ' sal2-err--offline' : ''}`}>
+          {errorBanner.text}
+        </div>
+      ) : null}
 
       <div className="sal2-kpis">
         <div className="sal2-kpi sal2-kpi--blue">

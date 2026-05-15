@@ -7,6 +7,7 @@ export const purchasesWorkspaceStyles = `
 .pur2-new{height:44px;padding:0 20px;border-radius:12px;border:none;background:#111827;color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-family:inherit;box-shadow:0 4px 14px rgba(17,24,39,.2)}
 .pur2-new:hover{background:#1e293b}
 .pur2-err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:12px 14px;border-radius:12px;margin-bottom:14px;font-size:14px}
+.pur2-err--offline{background:#fffbeb;border-color:#fde68a;color:#92400e}
 .pur2-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
 @media(max-width:1100px){.pur2-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.pur2-kpis{grid-template-columns:1fr}}

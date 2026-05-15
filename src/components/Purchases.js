@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -21,6 +21,8 @@ import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
 import PurchaseModal from './PurchaseModal';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { getConnectivityErrorMessage, isLikelyConnectivityError } from '../lib/offlineUserMessages';
+import { offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import './Purchases.css';
 
 function purchaseInThisMonth(dateStr) {
@@ -62,21 +64,29 @@ const Purchases = ({ readOnly = false }) => {
     queryKey: zbKeys(activeShopId).purchasesList(),
     queryFn: fetchPurchasesList,
     enabled: posApiQueriesEnabled(activeShopId),
+    placeholderData: keepPreviousData,
   });
 
   const { data: bundle, isLoading: bundleLoading } = useQuery({
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
     enabled: posApiQueriesEnabled(activeShopId),
+    placeholderData: keepPreviousData,
   });
   const suppliers = bundle?.suppliers ?? [];
   const products = bundle?.products ?? [];
 
   const loading = purchasesLoading || bundleLoading;
 
-  const error = useMemo(() => {
+  const errorBanner = useMemo(() => {
     if (!purchasesErr || !purchasesQueryErr) return null;
-    return purchasesQueryErr.response?.data?.error || t('purchases.failedToLoad');
+    if (isLikelyConnectivityError(purchasesQueryErr)) {
+      return { text: getConnectivityErrorMessage(purchasesQueryErr), variant: 'offline' };
+    }
+    return {
+      text: purchasesQueryErr.response?.data?.error || t('purchases.failedToLoad'),
+      variant: 'error',
+    };
   }, [purchasesErr, purchasesQueryErr, t]);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -88,7 +98,8 @@ const Purchases = ({ readOnly = false }) => {
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const invalidatePurchasesAndStock = async () => {
+  const invalidatePurchasesAndStock = async (opts) => {
+    if (opts?.offlineQueued) return;
     await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).purchasesList() });
     await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
   };
@@ -105,10 +116,11 @@ const Purchases = ({ readOnly = false }) => {
   const handleDelete = async (purchaseId) => {
     if (!window.confirm(t('purchases.deleteConfirm'))) return;
     try {
-      await purchasesAPI.delete(purchaseId);
-      await invalidatePurchasesAndStock();
+      const res = await purchasesAPI.delete(purchaseId);
+      await invalidatePurchasesAndStock(offlineOptsFromResponse(res));
     } catch (err) {
-      alert(err.response?.data?.error || t('purchases.purchaseFailed'));
+      const connectivity = getConnectivityErrorMessage(err);
+      alert(connectivity || err.response?.data?.error || t('purchases.purchaseFailed'));
     }
   };
 
@@ -190,8 +202,8 @@ const Purchases = ({ readOnly = false }) => {
         suppliers={suppliers}
         products={products}
         purchase={editingPurchase}
-        onSave={async () => {
-          await invalidatePurchasesAndStock();
+        onSave={async (opts) => {
+          await invalidatePurchasesAndStock(opts);
           setEditingPurchase(null);
           setViewingPurchase(null);
         }}
@@ -222,7 +234,11 @@ const Purchases = ({ readOnly = false }) => {
         ) : null}
       </header>
 
-      {error ? <div className="pur2-err">{error}</div> : null}
+      {errorBanner ? (
+        <div className={`pur2-err${errorBanner.variant === 'offline' ? ' pur2-err--offline' : ''}`}>
+          {errorBanner.text}
+        </div>
+      ) : null}
 
       <div className="pur2-kpis">
         <div className="pur2-kpi pur2-kpi--blue">
@@ -408,8 +424,8 @@ const Purchases = ({ readOnly = false }) => {
         <PurchaseModal
           suppliers={suppliers}
           products={products}
-          onSave={async () => {
-            await invalidatePurchasesAndStock();
+          onSave={async (opts) => {
+            await invalidatePurchasesAndStock(opts);
             setModalOpen(false);
           }}
           onClose={() => setModalOpen(false)}

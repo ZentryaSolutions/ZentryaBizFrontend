@@ -28,6 +28,8 @@ import Header from './components/Header';
 import ConnectionStatus from './components/ConnectionStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateNotification from './components/UpdateNotification';
+import OfflineSavedNotice from './components/OfflineSavedNotice';
+import { workspaceOfflineBannerStyles } from './styles/workspaceOfflineStyles';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
@@ -182,6 +184,8 @@ function AppContent({ location }) {
     >
       <ShopCacheSync />
       <UpdateNotification />
+      <OfflineSavedNotice />
+      <style>{workspaceOfflineBannerStyles}</style>
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}

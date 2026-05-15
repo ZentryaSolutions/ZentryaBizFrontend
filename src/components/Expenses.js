@@ -18,6 +18,10 @@ import {
   faFloppyDisk,
 } from '@fortawesome/free-solid-svg-icons';
 import { expensesAPI, reportsAPI } from '../services/api';
+import {
+  getConnectivityErrorMessage,
+  isOfflineQueuedResponse,
+} from '../lib/offlineUserMessages';
 import { computePresetDateRange } from '../lib/reportsQueryUtils';
 import Pagination from './Pagination';
 import './Expenses.css';
@@ -285,7 +289,9 @@ const Expenses = ({ readOnly = false }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching expenses:', err);
-      setError(err.response?.data?.error || t('expenses.failedToLoad'));
+      setError(
+        getConnectivityErrorMessage(err) || err.response?.data?.error || t('expenses.failedToLoad')
+      );
     } finally {
       if (!silent) setLoading(false);
     }
@@ -305,6 +311,11 @@ const Expenses = ({ readOnly = false }) => {
       const res = editingExpense
         ? await expensesAPI.update(editingExpense.expense_id, data)
         : await expensesAPI.create(data);
+      if (isOfflineQueuedResponse(res)) {
+        setModalOpen(false);
+        setEditingExpense(null);
+        return;
+      }
       const saved = res?.data;
       const savedYmd = expenseDateToYmd(data?.expense_date ?? saved?.expense_date);
       let s = rangeRef.current.start;
@@ -330,10 +341,11 @@ const Expenses = ({ readOnly = false }) => {
   const handleDelete = async (expenseId) => {
     if (!window.confirm(t('common.confirmDelete'))) return;
     try {
-      await expensesAPI.delete(expenseId);
+      const res = await expensesAPI.delete(expenseId);
+      if (isOfflineQueuedResponse(res)) return;
       await fetchExpenses({ silent: true });
     } catch (err) {
-      alert(err.response?.data?.error || t('expenses.failedToDelete'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('expenses.failedToDelete'));
     }
   };
 
@@ -426,7 +438,15 @@ const Expenses = ({ readOnly = false }) => {
         )}
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div
+          className={`error-message${
+            String(error).includes('saved on this device') ? ' exp-error--offline' : ''
+          }`}
+        >
+          {error}
+        </div>
+      )}
 
       <div className="zx-exp-toolbar">
         <div className="zx-exp-period-shell">
@@ -775,7 +795,7 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
         amount: String(amt),
       });
     } catch (err) {
-      alert(err.response?.data?.error || t('expenses.failedToSave'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('expenses.failedToSave'));
     } finally {
       setSaving(false);
     }

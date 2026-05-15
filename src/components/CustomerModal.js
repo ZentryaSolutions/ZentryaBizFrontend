@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getConnectivityErrorMessage } from '../lib/offlineUserMessages';
 import './SupplierModal.css';
 import './CustomerModal.custom.css';
 
@@ -91,7 +92,8 @@ const CustomerModal = ({ customer, onClose, onSave }) => {
 
       await onSave(submitData);
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to save customer';
+      const errorMessage =
+        getConnectivityErrorMessage(err) || err.response?.data?.error || 'Failed to save customer';
       alert(errorMessage);
     } finally {
       setSaving(false);

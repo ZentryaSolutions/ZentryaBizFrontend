@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { createPortal } from 'react-dom';
 import { productsAPI } from '../services/api';
 
@@ -72,11 +73,13 @@ const StockAdjustmentModal = ({ product, onClose, onSaved }) => {
     setSaving(true);
     try {
       const payload = buildUpdatePayload(product, n);
-      await productsAPI.update(product.product_id, payload);
-      await onSaved();
+      const res = await productsAPI.update(product.product_id, payload);
+      if (!isOfflineQueuedResponse(res)) {
+        await onSaved();
+      }
       onClose();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update stock');
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || 'Failed to update stock');
     } finally {
       setSaving(false);
     }

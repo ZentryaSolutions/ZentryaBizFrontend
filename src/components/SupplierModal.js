@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { getConnectivityErrorMessage } from '../lib/offlineUserMessages';
 import './SupplierModal.css';
 
 const SupplierModal = ({ supplier, onClose, onSave }) => {
@@ -103,7 +104,8 @@ const SupplierModal = ({ supplier, onClose, onSave }) => {
 
       await onSave(submitData);
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to save supplier';
+      const errorMessage =
+        getConnectivityErrorMessage(err) || err.response?.data?.error || 'Failed to save supplier';
       alert(errorMessage);
     } finally {
       setSaving(false);

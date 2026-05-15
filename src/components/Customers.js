@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -21,6 +21,9 @@ import CustomerDetailView from './CustomerDetailView';
 import Pagination from './Pagination';
 import './Customers.css';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { buildConnectivityErrorBanner } from '../lib/offlineUserMessages';
+import { getConnectivityErrorMessage } from '../lib/offlineUserMessages';
+import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import './Suppliers.css';
 
 const Customers = ({ readOnly = false }) => {
@@ -37,12 +40,13 @@ const Customers = ({ readOnly = false }) => {
     queryKey: zbKeys(activeShopId).customersList(),
     queryFn: fetchCustomersList,
     enabled: posApiQueriesEnabled(activeShopId),
+    placeholderData: keepPreviousData,
   });
 
-  const error = useMemo(() => {
-    if (!isError || !queryError) return null;
-    return queryError.response?.data?.error || t('customers.failedToLoad');
-  }, [isError, queryError, t]);
+  const errorBanner = useMemo(
+    () => buildConnectivityErrorBanner(isError, queryError, t('customers.failedToLoad')),
+    [isError, queryError, t]
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -69,12 +73,16 @@ const Customers = ({ readOnly = false }) => {
 
   const handleDelete = async (customerId) => {
     try {
-      await customersAPI.delete(customerId);
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
+      const res = await customersAPI.delete(customerId);
+      await invalidateUnlessOffline(
+        queryClient,
+        zbKeys(activeShopId).customersList(),
+        offlineOptsFromResponse(res)
+      );
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting customer:', err);
-      alert(err.response?.data?.error || t('customers.failedToDelete'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('customers.failedToDelete'));
     }
   };
 
@@ -84,18 +92,15 @@ const Customers = ({ readOnly = false }) => {
   };
 
   const handleModalSave = async (customerData) => {
-    try {
-      if (editingCustomer) {
-        await customersAPI.update(editingCustomer.customer_id, customerData);
-      } else {
-        await customersAPI.create(customerData);
-      }
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
-      handleModalClose();
-    } catch (err) {
-      console.error('Error saving customer:', err);
-      throw err;
-    }
+    const res = editingCustomer
+      ? await customersAPI.update(editingCustomer.customer_id, customerData)
+      : await customersAPI.create(customerData);
+    await invalidateUnlessOffline(
+      queryClient,
+      zbKeys(activeShopId).customersList(),
+      offlineOptsFromResponse(res)
+    );
+    handleModalClose();
   };
 
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
@@ -247,7 +252,15 @@ const Customers = ({ readOnly = false }) => {
         ) : null}
       </header>
 
-      {error ? <div className="sup2-alert sup2-alert--error">{error}</div> : null}
+      {errorBanner ? (
+        <div
+          className={`sup2-alert ${
+            errorBanner.variant === 'offline' ? 'sup2-alert--offline' : 'sup2-alert--error'
+          }`}
+        >
+          {errorBanner.text}
+        </div>
+      ) : null}
 
       <section className="sup3-mainCard">
         <div className="sup3-filterRow">

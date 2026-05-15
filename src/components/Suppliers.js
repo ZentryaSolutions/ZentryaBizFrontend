@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -22,6 +22,8 @@ import SupplierModal from './SupplierModal';
 import SupplierDetailView from './SupplierDetailView';
 import Pagination from './Pagination';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { buildConnectivityErrorBanner, getConnectivityErrorMessage } from '../lib/offlineUserMessages';
+import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import './Suppliers.css';
 
 const Suppliers = ({ readOnly = false }) => {
@@ -38,13 +40,14 @@ const Suppliers = ({ readOnly = false }) => {
     queryKey: zbKeys(activeShopId).inventoryBundle(),
     queryFn: fetchInventoryBundle,
     enabled: posApiQueriesEnabled(activeShopId),
+    placeholderData: keepPreviousData,
     select: (d) => d?.suppliers ?? [],
   });
 
-  const error = useMemo(() => {
-    if (!isError || !queryError) return null;
-    return queryError.response?.data?.error || t('suppliers.failedToLoad');
-  }, [isError, queryError, t]);
+  const errorBanner = useMemo(
+    () => buildConnectivityErrorBanner(isError, queryError, t('suppliers.failedToLoad')),
+    [isError, queryError, t]
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -81,12 +84,16 @@ const Suppliers = ({ readOnly = false }) => {
 
   const handleDelete = async (supplierId) => {
     try {
-      await suppliersAPI.delete(supplierId);
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
+      const res = await suppliersAPI.delete(supplierId);
+      await invalidateUnlessOffline(
+        queryClient,
+        zbKeys(activeShopId).inventoryBundle(),
+        offlineOptsFromResponse(res)
+      );
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting supplier:', err);
-      alert(err.response?.data?.error || t('suppliers.supplierFailed'));
+      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('suppliers.supplierFailed'));
     }
   };
 
@@ -96,18 +103,15 @@ const Suppliers = ({ readOnly = false }) => {
   };
 
   const handleModalSave = async (supplierData) => {
-    try {
-      if (editingSupplier) {
-        await suppliersAPI.update(editingSupplier.supplier_id, supplierData);
-      } else {
-        await suppliersAPI.create(supplierData);
-      }
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
-      handleModalClose();
-    } catch (err) {
-      console.error('Error saving supplier:', err);
-      throw err;
-    }
+    const res = editingSupplier
+      ? await suppliersAPI.update(editingSupplier.supplier_id, supplierData)
+      : await suppliersAPI.create(supplierData);
+    await invalidateUnlessOffline(
+      queryClient,
+      zbKeys(activeShopId).inventoryBundle(),
+      offlineOptsFromResponse(res)
+    );
+    handleModalClose();
   };
 
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
@@ -300,7 +304,15 @@ const Suppliers = ({ readOnly = false }) => {
         ) : null}
       </header>
 
-      {error ? <div className="sup2-alert sup2-alert--error">{error}</div> : null}
+      {errorBanner ? (
+        <div
+          className={`sup2-alert ${
+            errorBanner.variant === 'offline' ? 'sup2-alert--offline' : 'sup2-alert--error'
+          }`}
+        >
+          {errorBanner.text}
+        </div>
+      ) : null}
 
       <section className="sup3-mainCard">
         <div className="sup3-filterRow">

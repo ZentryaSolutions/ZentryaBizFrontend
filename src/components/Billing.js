@@ -16,6 +16,8 @@ import PageLoadingCenter from './PageLoadingCenter';
 import './Billing.css';
 import { billingExtraStyles } from './BillingExtraStyles';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
+import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 
 const billingMobileOverrides = `
 @media (max-width: 768px) {
@@ -554,22 +556,23 @@ const Billing = ({ readOnly = false }) => {
       };
 
       const response = await salesAPI.create(saleData);
+      if (isOfflineQueuedResponse(response)) {
+        resetForm();
+        return;
+      }
       const savedInvoice = response.data;
-      
-      // Update invoice number for display
+
       updateActiveBill({ invoiceNumber: savedInvoice.invoice_number });
 
-      // Print if requested
       if (shouldPrint) {
         await printInvoice(savedInvoice);
       }
 
-      // Reset form
       resetForm();
 
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).salesList() });
+      await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).inventoryBundle());
+      await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).customersList());
+      await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).salesList());
 
       window.dispatchEvent(new Event('data-refresh'));
 
@@ -583,7 +586,11 @@ const Billing = ({ readOnly = false }) => {
       );
     } catch (err) {
       console.error('Error saving invoice:', err);
-      const errorMsg = err.response?.data?.error || err.response?.data?.details || 'Failed to save invoice';
+      const errorMsg =
+        getConnectivityErrorMessage(err) ||
+        err.response?.data?.error ||
+        err.response?.data?.details ||
+        'Failed to save invoice';
       setError(errorMsg);
       showToast('error', errorMsg, 5200);
     } finally {
@@ -641,8 +648,14 @@ const Billing = ({ readOnly = false }) => {
         opening_balance: 0,
         status: 'active',
       });
+      if (isOfflineQueuedResponse(res)) {
+        setShowNewCustomerModal(false);
+        setNewCustomerName('');
+        setNewCustomerPhone('');
+        return;
+      }
       const row = res.data;
-      await queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).customersList() });
+      await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).customersList());
       const fresh = await refreshCustomerRow(row);
       updateActiveBill({ selectedCustomer: fresh });
       {
