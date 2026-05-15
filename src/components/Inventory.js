@@ -26,6 +26,7 @@ import ProductModal from './ProductModal';
 import Pagination from './Pagination';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
+import { getConnectivityErrorMessage, isLikelyConnectivityError } from '../lib/offlineUserMessages';
 import './Inventory.css';
 
 const inventoryMobileOverrides = `
@@ -121,20 +122,24 @@ const Inventory = ({ readOnly = false }) => {
     });
   }, [rawProducts, sortConfig]);
 
-  const error = useMemo(() => {
+  const errorBanner = useMemo(() => {
     if (!isError || !queryError) return null;
     const err = queryError;
-    const msg = err.message || '';
-    const code = err.code;
-    if (code === 'ECONNREFUSED' || msg.includes('Network Error')) {
-      return 'Cannot connect to backend server. Please ensure the backend is running on port 5000.';
+    if (isLikelyConnectivityError(err)) {
+      return { text: getConnectivityErrorMessage(err), variant: 'offline' };
     }
     const status = err.response?.status;
     const apiErr = err.response?.data?.error;
     if (status === 403 || apiErr === 'Access denied') {
-      return err.response?.data?.message || 'Access denied. Please contact administrator.';
+      return {
+        text: err.response?.data?.message || 'Access denied. Please contact administrator.',
+        variant: 'error',
+      };
     }
-    return err.response?.data?.error || 'Failed to load inventory data. Please check the console for details.';
+    return {
+      text: err.response?.data?.error || 'Failed to load inventory data. Please check the console for details.',
+      variant: 'error',
+    };
   }, [isError, queryError]);
 
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -386,7 +391,9 @@ const Inventory = ({ readOnly = false }) => {
         ) : null}
       </div>
 
-      {error ? <div className="inv2-alert inv2-alert--error">{error}</div> : null}
+      {errorBanner ? (
+        <div className={`inv2-alert inv2-alert--${errorBanner.variant}`}>{errorBanner.text}</div>
+      ) : null}
 
       <section className="inv3-filterBar" aria-label={t('inventory.filterByCategory')}>
         <input

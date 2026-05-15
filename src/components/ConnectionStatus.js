@@ -8,6 +8,7 @@ import {
   subscribeOfflineQueueChanged,
   flushOfflineMutationQueue,
 } from '../lib/offlineMutationQueue';
+import { OFFLINE_CONNECTION_BANNER_MESSAGE } from '../lib/offlineUserMessages';
 
 const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) => {
   const [connected, setConnected] = useState(true);
@@ -208,7 +209,7 @@ const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) =>
       {/* Only show warning if not in initial loading state and actually disconnected */}
       {!connected && !checking && (
         <div className="connection-warning" style={{ display: isClient ? 'flex' : 'none' }}>
-          <span>⚠️</span> Cannot connect to server. Please ensure backend is running on port 5000.
+          <span>⚠️</span> {OFFLINE_CONNECTION_BANNER_MESSAGE}
         </div>
       )}
     </>

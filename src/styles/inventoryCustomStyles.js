@@ -52,4 +52,5 @@ export const inventoryCustomStyles = `
 .inv3 .inv2-action{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;margin-left:6px;border-radius:8px}
 .inv3 .inv2-pagination{background:#fff!important;border-top:1px solid #f0ede4!important}
 @media (max-width:1200px){.inv3-topCards{grid-template-columns:repeat(2,minmax(0,1fr))}.inv3-filterBar{grid-template-columns:1fr 1fr auto}.inv3-title{font-size:24px}.inv3-listHead h3{font-size:24px}.inv3-subtitle{font-size:12px}.inv3 .inv2-table td{font-size:11.5px!important}.inv3 .inv2-table thead th{font-size:11px!important}}
+.inv2-alert--offline{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
 `;
