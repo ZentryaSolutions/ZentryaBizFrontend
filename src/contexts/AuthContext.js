@@ -11,6 +11,7 @@ import { authAPI } from '../services/api';
 import { queryClient } from '../lib/queryClient';
 import { notifyBackendSessionChanged } from '../lib/appMode';
 import { getDeviceId } from '../utils/deviceFingerprint';
+import { clearOfflineMutationQueue } from '../lib/offlineMutationQueue';
 
 const SS_UID = 'zb_simple_uid';
 const SS_USER = 'zb_simple_username';
@@ -675,6 +676,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = useCallback(async () => {
+    try {
+      await clearOfflineMutationQueue();
+    } catch {
+      /* ignore */
+    }
     clearSession();
     localStorage.removeItem('user');
     notifyBackendSessionChanged();

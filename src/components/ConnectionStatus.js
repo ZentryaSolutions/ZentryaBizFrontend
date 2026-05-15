@@ -3,10 +3,16 @@ import { getServerUrl, isClientMode, testConnection, setServerUrl } from '../uti
 import { isZbWebOnlyMode } from '../lib/appMode';
 import api from '../services/api';
 import './ConnectionStatus.css';
+import {
+  getOfflineQueueCount,
+  subscribeOfflineQueueChanged,
+  flushOfflineMutationQueue,
+} from '../lib/offlineMutationQueue';
 
 const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) => {
   const [connected, setConnected] = useState(true);
   const [checking, setChecking] = useState(false);
+  const [pendingSync, setPendingSync] = useState(0);
   const [serverUrl, setServerUrlState] = useState('');
   const [showConfig, setShowConfig] = useState(false);
   const [configUrl, setConfigUrl] = useState('');
@@ -39,6 +45,21 @@ const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setConnectionReadOnly]);
 
+  useEffect(() => {
+    let alive = true;
+    const refreshCount = () => {
+      getOfflineQueueCount().then((n) => {
+        if (alive) setPendingSync(n);
+      });
+    };
+    refreshCount();
+    const unsub = subscribeOfflineQueueChanged(refreshCount);
+    return () => {
+      alive = false;
+      unsub();
+    };
+  }, []);
+
   const checkConnection = async () => {
     setChecking(true);
     try {
@@ -46,6 +67,7 @@ const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) =>
       const healthResponse = await api.get('/health');
       if (healthResponse.data && healthResponse.data.status === 'ok') {
         setConnected(true);
+        void flushOfflineMutationQueue();
         // Only server-reported read-only (e.g. READ_ONLY_MODE=true). Do NOT use isClientMode() —
         // LAN clients with a custom URL are still full-access unless the API says otherwise.
         setConnectionReadOnly(healthResponse.data.mode === 'read-only');
@@ -65,6 +87,7 @@ const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) =>
   };
 
   const handleRefresh = async () => {
+    void flushOfflineMutationQueue();
     await checkConnection();
     if (onRefresh) {
       onRefresh();
@@ -121,6 +144,14 @@ const ConnectionStatus = ({ onRefresh, readOnlyMode, setConnectionReadOnly }) =>
           <span className="status-text">
             {checking ? 'Checking...' : (connected ? (isClient ? 'Connected (Client PC)' : 'Connected') : 'Offline')}
           </span>
+          {pendingSync > 0 ? (
+            <span
+              className="connection-pending-sync"
+              title="Edits saved on this device while offline. They upload automatically when the server is reachable."
+            >
+              · {pendingSync} pending sync
+            </span>
+          ) : null}
         </div>
         
         {isClient && (

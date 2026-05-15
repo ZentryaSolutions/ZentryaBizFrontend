@@ -2,6 +2,10 @@ import axios from 'axios';
 import { getServerUrl } from '../utils/connectionStatus';
 import { notifyBackendSessionChanged } from '../lib/appMode';
 import { getDeviceId } from '../utils/deviceFingerprint';
+import {
+  offlineRequestInterceptor,
+  offlineResponseErrorInterceptor,
+} from '../lib/offlineMutationQueue';
 
 // Use dynamic server URL for LAN support
 const API_BASE_URL = getServerUrl();
@@ -43,12 +47,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.request.use(
+  (config) => offlineRequestInterceptor(config),
+  (err) => Promise.reject(err)
+);
+
 // Add response interceptor to handle read-only errors
 // CRITICAL: Prevent infinite redirect loops
 let isRedirecting = false;
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    try {
+      const queued = await offlineResponseErrorInterceptor(error);
+      if (queued && queued.status === 202 && queued.data?.offlineQueued) {
+        return queued;
+      }
+    } catch {
+      /* ignore */
+    }
     if (error.response?.status === 401) {
       // Only redirect when a backend session was sent but rejected (expired/invalid).
       // Supabase-only users have no sessionId — API 401 must not force /login or we get an infinite loop
