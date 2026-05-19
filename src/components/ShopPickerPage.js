@@ -377,15 +377,46 @@ export default function ShopPickerPage() {
       if (u.searchParams.get('checkout') !== 'success') return;
       u.searchParams.delete('checkout');
       window.history.replaceState({}, '', `${u.pathname}${u.search}${u.hash}`);
-      refreshProfile?.();
-      setCheckoutOkMsg('Payment completed. Your plan will update shortly.');
       setMainPanel('organizations');
-      const t = setTimeout(() => setCheckoutOkMsg(''), 10000);
-      return () => clearTimeout(t);
+      setCheckoutOkMsg('Payment completed. Activating your plan…');
+
+      let cancelled = false;
+      const uid = user?.id;
+
+      const runSync = async () => {
+        if (!uid) return;
+        try {
+          await billingAPI.syncSubscription({ userId: uid, sendEmail: true });
+        } catch (err) {
+          console.warn('[ShopPicker] sync-subscription:', err?.response?.data || err.message);
+        }
+        if (!cancelled) await refreshProfile?.(uid);
+      };
+
+      runSync();
+      const poll = setInterval(async () => {
+        if (cancelled || !uid) return;
+        const p = await refreshProfile?.(uid);
+        const plan = String(p?.plan || profile?.plan || '').toLowerCase();
+        if (plan && plan !== 'trial' && plan !== 'expired') {
+          setCheckoutOkMsg(`Your ${plan === 'premium' ? 'Business' : plan === 'pro' ? 'Growth' : plan} plan is now active.`);
+          clearInterval(poll);
+        }
+      }, 2500);
+
+      const stopPoll = setTimeout(() => clearInterval(poll), 30000);
+      const hideMsg = setTimeout(() => setCheckoutOkMsg(''), 12000);
+
+      return () => {
+        cancelled = true;
+        clearInterval(poll);
+        clearTimeout(stopPoll);
+        clearTimeout(hideMsg);
+      };
     } catch {
       /* ignore malformed URL */
     }
-  }, [refreshProfile]);
+  }, [refreshProfile, user?.id, profile?.plan]);
 
   // Do not auto-redirect when activeShopId is set — user may open "My Shops" while already
   // inside a workspace; selectShop() already navigates to the dashboard after picking a shop.

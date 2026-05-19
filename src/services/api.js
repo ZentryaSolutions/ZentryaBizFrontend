@@ -290,6 +290,7 @@ export const otpAPI = {
 export const billingAPI = {
   createCheckoutSession: (body) => api.post('/billing/create-checkout-session', body),
   createPortalSession: (body) => api.post('/billing/create-portal-session', body),
+  syncSubscription: (body) => api.post('/billing/sync-subscription', body),
 };
 
 /** Shop picker (multi-shop stats) */
