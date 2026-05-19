@@ -295,6 +295,7 @@ export const billingAPI = {
 /** Shop picker (multi-shop stats) */
 export const shopPickerAPI = {
   quickStats: (shopIds) => api.post('/shop-picker/quick-stats', { shopIds }),
+  createShop: (body) => api.post('/shop-picker/create-shop', body),
 };
 
 // Users API (Admin only)

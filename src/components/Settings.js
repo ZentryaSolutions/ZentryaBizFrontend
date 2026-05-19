@@ -3,7 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { settingsAPI, usersAPI, authAPI, categoriesAPI, unitsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { canUsePremiumFeatures } from '../utils/planFeatures';
+import {
+  canUsePremiumFeatures,
+  isExpiredPlan,
+  isUnlimitedShops,
+  resolveShopLimitFromProfile,
+} from '../utils/planFeatures';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import PageLoadingCenter from './PageLoadingCenter';
 import InviteStaffModal from './InviteStaffModal';
@@ -2026,17 +2031,30 @@ const Settings = ({ readOnly = false }) => {
                   <div className="scard-title">{String(profile?.plan || 'Trial').replace(/[_-]+/g, ' ') || 'Trial'} Plan</div>
                   <div className="scard-sub">Subscription details</div>
                 </div>
-                <span className="badge bg-green" style={{ fontSize: 12.5, padding: '5px 14px' }}>
-                  Active
+                <span
+                  className={`badge ${isExpiredPlan(profile?.plan) ? 'bg-red' : 'bg-green'}`}
+                  style={{ fontSize: 12.5, padding: '5px 14px' }}
+                >
+                  {isExpiredPlan(profile?.plan) ? 'Expired' : 'Active'}
                 </span>
               </div>
               <div style={{ padding: '18px 24px', color: '#6b6760', fontSize: 13 }}>
-                Plan UI is ready — billing/upgrade flow will be wired to Stripe screens.
+                {(() => {
+                  const lim = resolveShopLimitFromProfile(profile);
+                  const unlimited = isUnlimitedShops(lim);
+                  if (isExpiredPlan(profile?.plan) || lim <= 0) {
+                    return 'Your subscription has expired. Renew from My Shops → Pricing to restore access and create shops.';
+                  }
+                  if (unlimited) {
+                    return 'Business plan: unlimited shops. Manage locations from My Shops.';
+                  }
+                  return `Your plan includes ${lim} shop${lim === 1 ? '' : 's'}. Add or switch shops from My Shops.`;
+                })()}
               </div>
               <div className="scard-ft" style={{ justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12.5, color: '#9c9890' }}>Need more shops or users?</span>
-                <button type="button" className="btn-indigo" onClick={() => showToast('info', 'Upgrade flow coming soon.')}>
-                  Upgrade Plan
+                <span style={{ fontSize: 12.5, color: '#9c9890' }}>Need more shops?</span>
+                <button type="button" className="btn-indigo" onClick={() => { window.location.href = '/shops'; }}>
+                  Manage plan
                 </button>
               </div>
             </div>
@@ -2067,9 +2085,9 @@ const Settings = ({ readOnly = false }) => {
                 <tbody>
                   <tr>
                     <td style={{ fontWeight: 900, color: '#4f46e5' }}>INV-2026-05</td>
-                    <td>Starter Plan</td>
+                    <td>Growth Plan</td>
                     <td style={{ color: '#6b6760' }}>May 1, 2026</td>
-                    <td style={{ fontWeight: 900 }}>$9.00</td>
+                    <td style={{ fontWeight: 900 }}>Rs 1,500</td>
                     <td>
                       <span className="badge bg-green">Paid</span>
                     </td>

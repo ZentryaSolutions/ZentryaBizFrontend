@@ -23,8 +23,24 @@ export function isExpiredPlan(plan) {
   return planRank(plan) === 0;
 }
 
-/** Treat very large limits as unlimited (Premium). */
+/** Treat very large limits as unlimited (Premium / Business). */
 export function isUnlimitedShops(shopLimit) {
   const n = Number(shopLimit);
   return Number.isFinite(n) && n >= 9999;
+}
+
+/** Max shops owner may create (align with backend planShopLimits + Stripe webhook). */
+export function getShopLimitForPlan(plan) {
+  const p = String(plan || 'trial').toLowerCase();
+  if (p === 'expired') return 0;
+  if (p === 'premium') return 99999;
+  return 1;
+}
+
+export function resolveShopLimitFromProfile(profile) {
+  if (profile?.shop_limit != null && profile.shop_limit !== '') {
+    const n = Number(profile.shop_limit);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return getShopLimitForPlan(profile?.plan);
 }

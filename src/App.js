@@ -210,7 +210,7 @@ function AppContent({ location }) {
             fontSize: '14px',
           }}
         >
-          Your subscription is expired. Renew from pricing / billing to restore Pro and Premium features.
+          Your subscription is expired. Renew from pricing / billing to restore Growth and Business features.
         </div>
       )}
       <main className={`main-content${compactTopSpacing ? ' main-content--compact-top' : ''}`}>

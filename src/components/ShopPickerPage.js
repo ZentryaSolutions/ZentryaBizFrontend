@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { isUnlimitedShops } from '../utils/planFeatures';
+import { isUnlimitedShops, isExpiredPlan, resolveShopLimitFromProfile } from '../utils/planFeatures';
 import { marketingHomeQuery } from '../utils/workspacePaths';
 import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
 import { hasPosBackendSession } from '../lib/appMode';
@@ -80,9 +80,8 @@ const BUSINESS_TYPES = [
 /** Rows in Organizations view (compact meter) */
 const PLAN_TIERS = [
   { id: 'trial', name: 'Trial', price: 'Free', shops: 1 },
-  { id: 'starter', name: 'Starter', price: '$9/mo', shops: 1 },
-  { id: 'growth', name: 'Growth', price: '$25/mo', shops: 3 },
-  { id: 'business', name: 'Business', price: '$49/mo', shops: 10 },
+  { id: 'growth', name: 'Growth', price: 'Rs 1,500/mo', shops: 1 },
+  { id: 'business', name: 'Business', price: 'Rs 2,500/mo', shops: 1, unlimited: true },
 ];
 
 const TIER_RANK = { trial: 0, starter: 1, growth: 2, business: 3 };
@@ -93,7 +92,7 @@ const PLAN_PURCHASE_DETAIL = [
     tierId: 'trial',
     title: '14-Day Trial',
     priceLine: 'Free',
-    subtitle: 'No card required · Starter features · 1 shop',
+    subtitle: 'No card required · Full app access · 1 shop',
     bullets: [
       'Unlimited salesmen',
       'Billing, inventory & stock',
@@ -102,27 +101,19 @@ const PLAN_PURCHASE_DETAIL = [
     ],
   },
   {
-    tierId: 'starter',
-    title: 'Starter',
-    priceLine: '$9',
-    subtitle: '/ month · 1 shop',
-    bullets: ['Everything in trial', 'Basic reports', 'Email sign-in workspace'],
-    popular: false,
-  },
-  {
     tierId: 'growth',
     title: 'Growth',
-    priceLine: '$25',
-    subtitle: '/ month · up to 3 shops',
-    bullets: ['All Starter features', 'Advanced reports', 'CSV export', 'Priority support'],
+    priceLine: 'Rs 1,500',
+    subtitle: '/ month · 1 shop',
+    bullets: ['Everything in trial', 'Advanced reports', 'CSV export', 'Priority support'],
     popular: true,
   },
   {
     tierId: 'business',
     title: 'Business',
-    priceLine: '$49',
-    subtitle: '/ month · high shop allowance',
-    bullets: ['All Growth features', 'Multi-location scale', 'Admin & audit tooling', 'Dedicated support'],
+    priceLine: 'Rs 2,500',
+    subtitle: '/ month · unlimited shops',
+    bullets: ['All Growth features', 'Unlimited shops', 'Multi-location scale', 'Dedicated support'],
     popular: false,
   },
 ];
@@ -131,6 +122,7 @@ function normalizePlanTier(planRaw) {
   const p = String(planRaw || 'trial')
     .toLowerCase()
     .replace(/[_\s]+/g, '');
+  if (/expired/.test(p)) return 'trial';
   if (/business|premium|enterprise/.test(p)) return 'business';
   if (/growth|pro/.test(p)) return 'growth';
   if (/starter|standard/.test(p)) return 'starter';
@@ -308,14 +300,15 @@ export default function ShopPickerPage() {
   const [portalBusy, setPortalBusy] = useState(false);
   const [shopQuickStats, setShopQuickStats] = useState({});
 
-  const shopLimitNum =
-    profile?.shop_limit != null && profile.shop_limit !== '' ? Number(profile.shop_limit) : 1;
+  const shopLimitNum = resolveShopLimitFromProfile(profile);
   const unlimitedShops = isUnlimitedShops(shopLimitNum);
+  const subscriptionExpired = isExpiredPlan(profile?.plan) || shopLimitNum <= 0;
 
   const canCreateMore = useMemo(() => {
+    if (subscriptionExpired) return false;
     if (unlimitedShops) return true;
     return shops.length < shopLimitNum;
-  }, [shopLimitNum, shops.length, unlimitedShops]);
+  }, [shopLimitNum, shops.length, unlimitedShops, subscriptionExpired]);
 
   const isEmpty = !loading && shops.length === 0;
   const shopsUsed = shops.length;
@@ -432,7 +425,15 @@ export default function ShopPickerPage() {
   };
 
   const openCreateModal = () => {
-    if (!canCreateMore && canManageShops) return;
+    if (!canManageShops) return;
+    if (!canCreateMore) {
+      setFormError(
+        subscriptionExpired
+          ? 'Your subscription has expired. Renew your plan to create shops.'
+          : 'Shop limit reached for your plan. Upgrade to add more shops.'
+      );
+      return;
+    }
     setFormError('');
     setShowCreate(true);
   };
@@ -445,7 +446,7 @@ export default function ShopPickerPage() {
 
   const createShop = async (e) => {
     e.preventDefault();
-    if (!supabase || !user?.id) return;
+    if (!user?.id) return;
     setFormError('');
     if (!form.name.trim()) {
       setFormError('Shop name is required');
@@ -457,27 +458,31 @@ export default function ShopPickerPage() {
       return;
     }
     if (!canCreateMore) {
-      setFormError('Shop limit reached for your plan.');
+      setFormError(
+        subscriptionExpired
+          ? 'Your subscription has expired. Renew your plan to create shops.'
+          : 'Shop limit reached for your plan.'
+      );
+      return;
+    }
+    if (!hasPosBackendSession()) {
+      setFormError('Session not ready. Sign out and sign in again, then create a shop.');
       return;
     }
     setCreating(true);
     try {
-      const { data: shop, error: insErr } = await supabase
-        .from('shops')
-        .insert([
-          {
-            owner_id: user.id,
-            name: form.name.trim(),
-            phone: form.phone.trim(),
-            address: form.address.trim() || null,
-            business_type: form.business_type,
-            city: form.city.trim() || null,
-            currency: form.currency || 'PKR',
-          },
-        ])
-        .select('id')
-        .single();
-      if (insErr) throw insErr;
+      const payload = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim() || null,
+        business_type: form.business_type,
+        city: form.city.trim() || null,
+        currency: form.currency || 'PKR',
+      };
+      const { data } = await shopPickerAPI.createShop(payload);
+      const shopId = data?.shopId || data?.id;
+      if (!shopId) throw new Error('Shop created but no id returned');
+      await fetchShops();
       await refreshProfile?.();
       setFormError('');
       setShowCreate(false);
@@ -489,9 +494,14 @@ export default function ShopPickerPage() {
         city: '',
         currency: 'PKR',
       });
-      selectShop(shop.id);
+      selectShop(shopId);
     } catch (err) {
-      setFormError(err.message || 'Failed to create shop');
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to create shop';
+      setFormError(msg);
     } finally {
       setCreating(false);
     }
@@ -660,9 +670,15 @@ export default function ShopPickerPage() {
     <div className="zbms-plan-info-row zbms-anim">
       {PLAN_TIERS.map((t) => {
         const active = planTier === t.id;
-        const fill = active
-          ? Math.min(100, Math.round((shopsUsed / Math.max(1, t.shops)) * 100))
-          : 0;
+        const tierCap = t.unlimited ? null : t.shops;
+        const fill =
+          active && tierCap
+            ? Math.min(100, Math.round((shopsUsed / Math.max(1, tierCap)) * 100))
+            : active && t.unlimited
+              ? unlimitedShops
+                ? 100
+                : Math.min(100, shopsUsed > 0 ? 100 : 0)
+              : 0;
         return (
           <button
             key={t.id}
@@ -678,8 +694,10 @@ export default function ShopPickerPage() {
                 <span className="zbms-pt-price">{t.price}</span>
               )}
             </div>
-            <div className="zbms-pt-shops">{t.shops}</div>
-            <div className="zbms-pt-shops-lbl">{t.shops === 1 ? 'shop included' : 'shops included'}</div>
+            <div className="zbms-pt-shops">{t.unlimited ? '∞' : t.shops}</div>
+            <div className="zbms-pt-shops-lbl">
+              {t.unlimited ? 'unlimited shops' : t.shops === 1 ? 'shop included' : 'shops included'}
+            </div>
             <div className="zbms-pt-bar">
               <div className="zbms-pt-bar-fill" style={{ width: `${fill}%` }} />
             </div>
@@ -877,9 +895,15 @@ export default function ShopPickerPage() {
                   </div>
                   <div className="zbms-ub-text">
                     <div className="zbms-ub-title">
-                      You&apos;ve reached your shop limit ({shopsUsed}/{shopLimitNum})
+                      {subscriptionExpired
+                        ? 'Your subscription has expired'
+                        : `You've reached your shop limit (${shopsUsed}/${unlimitedShops ? '∞' : shopLimitNum})`}
                     </div>
-                    <div className="zbms-ub-sub">Upgrade your plan on the marketing site to add more shops.</div>
+                    <div className="zbms-ub-sub">
+                      {subscriptionExpired
+                        ? 'Renew Growth or Business to create shops and restore full access.'
+                        : 'Upgrade to Business for unlimited shops.'}
+                    </div>
                   </div>
                   <a className="zbms-ub-btn" href={upgradeLink}>
                     Upgrade Plan →

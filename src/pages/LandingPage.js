@@ -92,46 +92,34 @@ const plans = [
     meta: 'No card required • 1 shop',
     points: [
       'Unlimited salesmen',
-      'All Starter features',
+      'Full app access',
       'One trial per email — ever',
       'Data preserved after trial',
       'Upgrade anytime',
     ],
   },
   {
-    name: 'Starter',
-    price: '$9',
+    name: 'Growth',
+    price: 'Rs 1,500',
     meta: '/mo • 1 shop',
     points: [
       'Unlimited salesmen',
       'Inventory + Sales + Billing',
       'Customer ledger (Udhar)',
-      'Vendor management',
-      'Basic reports',
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '$25',
-    meta: '/mo • 3 shops',
-    points: [
-      'Unlimited salesmen',
-      'All Starter features',
       'Advanced reports',
       'Data export (CSV)',
-      'Priority support',
     ],
     featured: true,
   },
   {
-    name: 'Premium',
-    price: '$49',
+    name: 'Business',
+    price: 'Rs 2,500',
     meta: '/mo • Unlimited shops',
     points: [
       'Unlimited salesmen',
-      'All Pro features',
-      'Admin dashboard',
-      'Audit trail / logs',
+      'All Growth features',
+      'Unlimited shops',
+      'Multi-location scale',
       'Dedicated support',
     ],
   },
@@ -144,11 +132,11 @@ const faqs = [
   },
   {
     q: 'Is the trial free, and what are the limits?',
-    a: 'Yes — no card required for the trial. You get Starter‑level features for 14 days, one trial per email (not reset by signing up again). Your data stays in your account after the trial ends.',
+    a: 'Yes — no card required for the trial. You get full app access for 14 days with one shop, one trial per email (not reset by signing up again). Your data stays in your account after the trial ends.',
   },
   {
     q: 'How many shops and salesmen are included?',
-    a: 'Starter covers 1 shop; Pro up to 3 shops; Premium unlimited shops. Salesmen are unlimited on every plan — you do not pay per cashier; billing is per owner account.',
+    a: 'Growth includes 1 shop; Business includes unlimited shops. Salesmen are unlimited on every plan — you do not pay per cashier; billing is per owner account.',
   },
   {
     q: 'How is my shop data kept safe?',
@@ -159,8 +147,8 @@ const faqs = [
     a: 'Billing and checkout, inventory and stock movement, customer ledger (Udhar), vendor payables, expenses, categories, purchases, rate lists, sales history, and reports.',
   },
   {
-    q: 'Does Pro include data export?',
-    a: 'Yes. The Pro plan includes data export (CSV) for reporting and backups, as listed on the pricing cards.',
+    q: 'Does Growth include data export?',
+    a: 'Yes. The Growth plan includes data export (CSV) for reporting and backups, as listed on the pricing cards.',
   },
   {
     q: 'Can I use it on a phone or tablet?',
@@ -411,7 +399,7 @@ export default function LandingPage() {
             <ul>
               {[
                 'One trial per email address — cannot be reset by signing up again',
-                'Trial gives full Starter plan access for 14 days',
+                'Trial gives full app access for 14 days (1 shop)',
                 'Data is preserved after trial',
                 'Upgrade anytime',
               ].map((rule) => (
