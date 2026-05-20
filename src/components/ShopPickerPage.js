@@ -525,7 +525,8 @@ export default function ShopPickerPage() {
         city: '',
         currency: 'PKR',
       });
-      selectShop(shopId);
+      setCheckoutOkMsg(`"${payload.name}" created. It appears in your shops list — open it when you are ready.`);
+      setTimeout(() => setCheckoutOkMsg(''), 8000);
     } catch (err) {
       const msg =
         err.response?.data?.message ||
