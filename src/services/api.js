@@ -302,6 +302,7 @@ export const billingAPI = {
 
 /** Shop picker (multi-shop stats) */
 export const shopPickerAPI = {
+  listShops: () => api.get('/shop-picker/my-shops'),
   quickStats: (shopIds) => api.post('/shop-picker/quick-stats', { shopIds }),
   createShop: (body) => api.post('/shop-picker/create-shop', body),
 };

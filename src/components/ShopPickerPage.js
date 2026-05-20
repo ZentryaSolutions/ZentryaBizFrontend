@@ -336,11 +336,45 @@ export default function ShopPickerPage() {
     lastShopRef = '';
   }
 
+  const applyShopList = (mapped) => {
+    const dbRoles = mapped.map((row) => String(row.memberRole || '').toLowerCase());
+    const hasManageRole = dbRoles.some((role) => ['owner', 'admin', 'administrator'].includes(role));
+    const hasStaffRole = dbRoles.some((role) =>
+      ['cashier', 'seller', 'salesman', 'staff'].includes(role)
+    );
+    setResolvedRole(hasManageRole ? 'admin' : hasStaffRole ? 'cashier' : '');
+    setShops(mapped);
+    setShopQuickStats({});
+    fetchShopPickerQuickStats(supabase, mapped).then(setShopQuickStats).catch(() => {});
+  };
+
   const fetchShops = async () => {
-    if (!supabase || !user?.id) return;
+    if (!user?.id) return;
     setPageError('');
     setLoading(true);
     try {
+      if (hasPosBackendSession()) {
+        const { data } = await shopPickerAPI.listShops();
+        const rows = Array.isArray(data?.shops) ? data.shops : [];
+        const mapped = rows.map((s) => ({
+          id: s.id,
+          name: s.name,
+          phone: s.phone,
+          address: s.address,
+          business_type: s.business_type,
+          city: s.city,
+          currency: s.currency,
+          created_at: s.created_at,
+          memberRole: s.role || s.memberRole || 'owner',
+        }));
+        applyShopList(mapped);
+        return;
+      }
+
+      if (!supabase) {
+        setPageError('Sign in again to load your shops.');
+        return;
+      }
       const { data, error: e } = await supabase
         .from('shop_users')
         .select(
@@ -350,17 +384,9 @@ export default function ShopPickerPage() {
         .order('created_at', { ascending: false, referencedTable: 'shops' });
       if (e) throw e;
       const mapped = (data || []).map((row) => ({ ...row.shop, memberRole: row.role })).filter(Boolean);
-      const dbRoles = mapped.map((row) => String(row.memberRole || '').toLowerCase());
-      const hasManageRole = dbRoles.some((role) => ['owner', 'admin', 'administrator'].includes(role));
-      const hasStaffRole = dbRoles.some((role) =>
-        ['cashier', 'seller', 'salesman', 'staff'].includes(role)
-      );
-      setResolvedRole(hasManageRole ? 'admin' : hasStaffRole ? 'cashier' : '');
-      setShops(mapped);
-      setShopQuickStats({});
-      fetchShopPickerQuickStats(supabase, mapped).then(setShopQuickStats).catch(() => {});
+      applyShopList(mapped);
     } catch (e) {
-      setPageError(e.message || 'Failed to load shops');
+      setPageError(e.response?.data?.error || e.message || 'Failed to load shops');
     } finally {
       setLoading(false);
     }
@@ -513,6 +539,26 @@ export default function ShopPickerPage() {
       const { data } = await shopPickerAPI.createShop(payload);
       const shopId = data?.shopId || data?.id;
       if (!shopId) throw new Error('Shop created but no id returned');
+      const created = data?.shop;
+      if (created?.id) {
+        setShops((prev) => {
+          if (prev.some((s) => String(s.id) === String(created.id))) return prev;
+          return [
+            {
+              id: created.id,
+              name: created.name || payload.name,
+              phone: created.phone ?? payload.phone,
+              address: created.address ?? payload.address,
+              business_type: created.business_type || payload.business_type,
+              city: created.city ?? payload.city,
+              currency: created.currency || payload.currency,
+              created_at: created.created_at,
+              memberRole: created.memberRole || created.role || 'owner',
+            },
+            ...prev,
+          ];
+        });
+      }
       await fetchShops();
       await refreshProfile?.();
       setFormError('');
