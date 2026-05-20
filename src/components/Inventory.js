@@ -616,15 +616,16 @@ const Inventory = ({ readOnly = false }) => {
         </div>
       ) : null}
 
+      {importOpen ? (
+        <ProductImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
+          }}
+        />
+      ) : null}
+
       {modalOpen ? (
-        {importOpen ? (
-          <ProductImportModal
-            onClose={() => setImportOpen(false)}
-            onImported={() => {
-              queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
-            }}
-          />
-        ) : null}
         <ProductModal
           product={editingProduct}
           suppliers={suppliers}
