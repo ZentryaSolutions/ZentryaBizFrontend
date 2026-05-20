@@ -23,6 +23,7 @@ import { fetchInventoryBundle, sortRowsByRecencyDesc } from '../lib/workspaceQue
 import { withCurrentScope } from '../utils/appRouteScope';
 import { inventoryCustomStyles } from '../styles/inventoryCustomStyles';
 import ProductModal from './ProductModal';
+import ProductImportModal from './ProductImportModal';
 import Pagination from './Pagination';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
@@ -88,6 +89,7 @@ const Inventory = ({ readOnly = false }) => {
   const [showFrequentlySoldOnly, setShowFrequentlySoldOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -386,10 +388,16 @@ const Inventory = ({ readOnly = false }) => {
           <p className="inv3-subtitle">Manage your products, prices and stock levels</p>
         </div>
         {!readOnly ? (
-          <button type="button" className="inv3-addBtn" onClick={handleAdd}>
-            <FontAwesomeIcon icon={faPlus} />
-            Add Product
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="inv3-addBtn" style={{ background: '#fff', color: '#334155', border: '1px solid #cbd5e1' }} onClick={() => setImportOpen(true)}>
+              <FontAwesomeIcon icon={faDownload} />
+              Import
+            </button>
+            <button type="button" className="inv3-addBtn" onClick={handleAdd}>
+              <FontAwesomeIcon icon={faPlus} />
+              Add Product
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -609,6 +617,14 @@ const Inventory = ({ readOnly = false }) => {
       ) : null}
 
       {modalOpen ? (
+        {importOpen ? (
+          <ProductImportModal
+            onClose={() => setImportOpen(false)}
+            onImported={() => {
+              queryClient.invalidateQueries({ queryKey: zbKeys(activeShopId).inventoryBundle() });
+            }}
+          />
+        ) : null}
         <ProductModal
           product={editingProduct}
           suppliers={suppliers}

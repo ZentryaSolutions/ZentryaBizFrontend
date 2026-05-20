@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { zbKeys } from '../lib/queryKeys';
 import { isZbWebOnlyMode, posApiQueriesEnabled } from '../lib/appMode';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { DashboardWeeklyChart, DashboardSnapshotDonut } from './DashboardCharts';
+import DailyClosingModal from './DailyClosingModal';
 import './Dashboard.css';
 
 function formatPk(amount) {
@@ -175,6 +176,7 @@ const Dashboard = () => {
   const { activeShopId, isAdmin, logout } = useAuth();
   const queryClient = useQueryClient();
   const admin = isAdmin();
+  const [showCloseDay, setShowCloseDay] = useState(false);
 
   const {
     data: dashboardData,
@@ -351,7 +353,14 @@ const Dashboard = () => {
         <button type="button" className="zb-qa-btn" onClick={() => go('/reports')}>
           View Reports
         </button>
+        {admin ? (
+          <button type="button" className="zb-qa-btn" onClick={() => setShowCloseDay(true)}>
+            Close Day
+          </button>
+        ) : null}
       </div>
+
+      {showCloseDay ? <DailyClosingModal onClose={() => setShowCloseDay(false)} /> : null}
 
       <div className="zb-kpi-grid">
         <div className="zb-kpi" role="presentation">

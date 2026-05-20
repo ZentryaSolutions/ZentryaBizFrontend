@@ -106,6 +106,7 @@ export const productsAPI = {
   create: (data) => api.post('/products', data),
   update: (id, data) => api.put(`/products/${id}`, data),
   delete: (id) => api.delete(`/products/${id}`),
+  importBulk: (body) => api.post('/products/import-bulk', body),
 };
 
 // Suppliers API
@@ -134,7 +135,13 @@ export const salesAPI = {
   create: (data) => api.post('/sales', data),
   update: (id, data) => api.put(`/sales/${id}`, data),
   delete: (id) => api.delete(`/sales/${id}`),
+  createReturn: (id, data) => api.post(`/sales/${id}/return`, data),
   print: (id) => api.get(`/sales/${id}/print`),
+};
+
+export const dailyClosingAPI = {
+  todaySummary: () => api.get('/daily-closing/today-summary'),
+  close: (body) => api.post('/daily-closing/close', body),
 };
 
 // Reports API

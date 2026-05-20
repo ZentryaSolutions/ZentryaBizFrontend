@@ -18,6 +18,7 @@ import { billingExtraStyles } from './BillingExtraStyles';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
+import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
 
 const billingMobileOverrides = `
 @media (max-width: 768px) {
@@ -162,6 +163,10 @@ const Billing = ({ readOnly = false }) => {
   const [shopName, setShopName] = useState('My Shop');
   const [shopPhone, setShopPhone] = useState('');
   const [shopAddress, setShopAddress] = useState('');
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRatePct, setTaxRatePct] = useState(17);
+  const [taxLabel, setTaxLabel] = useState('GST');
+  const [lastSavedSale, setLastSavedSale] = useState(null);
   const invoiceNumber = activeBill?.invoiceNumber || '';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [customerSearchQuery, setCustomerSearchQuery] = useState(''); // UI-only
@@ -206,6 +211,9 @@ const Billing = ({ readOnly = false }) => {
         setShopName(otherSettings.shop_name || 'My Shop');
         setShopPhone(otherSettings.shop_phone || '');
         setShopAddress(otherSettings.shop_address || '');
+        setTaxEnabled(Boolean(otherSettings.tax_enable));
+        setTaxRatePct(parseFloat(otherSettings.tax_rate_pct) || 17);
+        setTaxLabel(String(otherSettings.tax_label || 'GST'));
       } else if (data.shop_name) {
         setShopName(String(data.shop_name));
       }
@@ -436,12 +444,16 @@ const Billing = ({ readOnly = false }) => {
     });
 
     const discountAmount = parseFloat(discount) || 0;
-    const grandTotal = Math.max(0, subtotal - discountAmount);
+    const afterDiscount = Math.max(0, subtotal - discountAmount);
+    const taxAmount = taxEnabled
+      ? Math.round(afterDiscount * (parseFloat(taxRatePct) || 0)) / 100
+      : 0;
+    const grandTotal = Math.max(0, afterDiscount + taxAmount);
     const paid = parseFloat(paidAmount) || 0;
     const remainingDue = Math.max(0, grandTotal - paid);
-    const change = Math.max(0, paid - grandTotal); // Change to return if overpaid
+    const change = Math.max(0, paid - grandTotal);
 
-    return { subtotal, discountAmount, grandTotal, remainingDue, change, paid };
+    return { subtotal, discountAmount, taxAmount, grandTotal, remainingDue, change, paid };
   };
 
   useEffect(() => {
@@ -546,7 +558,7 @@ const Billing = ({ readOnly = false }) => {
         payment_mode: paymentMode,
         paid_amount: paid,
         discount: parseFloat(discount) || 0,
-        tax: 0, // No tax for now
+        tax: calculateTotals().taxAmount || 0,
         sale_notes: saleNotes.trim() || undefined,
         items: invoiceItems.map(item => ({
           product_id: item.product_id,
@@ -561,6 +573,7 @@ const Billing = ({ readOnly = false }) => {
         return;
       }
       const savedInvoice = response.data;
+      setLastSavedSale({ ...savedInvoice, items: invoiceItems, shopName });
 
       updateActiveBill({ invoiceNumber: savedInvoice.invoice_number });
 
@@ -876,7 +889,7 @@ const Billing = ({ readOnly = false }) => {
     return `INV-${year}-${String(idx).padStart(4, '0')}`;
   }, [invoiceNumber, bills, activeBillId]);
 
-  const { subtotal, grandTotal, remainingDue, change, paid } = calculateTotals();
+  const { subtotal, discountAmount, taxAmount, grandTotal, remainingDue, change, paid } = calculateTotals();
 
   if (loading) {
     return (
@@ -1445,12 +1458,35 @@ const Billing = ({ readOnly = false }) => {
                   />
                 </div>
               </div>
+              {taxEnabled && taxAmount > 0 ? (
+                <div className="sum-row">
+                  <span className="sl">{taxLabel}</span>
+                  <span className="sv">{formatCurrency(taxAmount)}</span>
+                </div>
+              ) : null}
             </div>
 
             <div className="grand-block">
               <span className="gb-lbl">{t('billing.grandTotal', { defaultValue: 'Grand Total' })}</span>
               <span className="gb-val">{formatCurrency(grandTotal)}</span>
             </div>
+
+            {lastSavedSale ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', marginTop: 8 }}
+                onClick={() => {
+                  const phone =
+                    selectedCustomer?.phone ||
+                    window.prompt('Customer WhatsApp number:', '') ||
+                    '';
+                  openWhatsAppInvoice(lastSavedSale, phone);
+                }}
+              >
+                Send last invoice via WhatsApp
+              </button>
+            ) : null}
 
             <div className="rp-sep" />
 

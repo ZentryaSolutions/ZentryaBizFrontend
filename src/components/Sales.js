@@ -18,8 +18,12 @@ import {
   faSackDollar,
   faTrash,
   faWallet,
+  faRotateLeft,
 } from '@fortawesome/free-solid-svg-icons';
+import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { salesAPI } from '../services/api';
+import ReturnSaleModal from './ReturnSaleModal';
+import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { fetchSalesList } from '../lib/workspaceQueries';
@@ -70,12 +74,15 @@ function enrichSale(sale) {
   const rawIc = sale.item_count;
   const nIc = Number(rawIc);
   const ic = rawIc == null || rawIc === '' || Number.isNaN(nIc) ? null : nIc;
+  const inv = String(sale.invoice_number || '');
+  const isCreditNote = inv.toUpperCase().startsWith('CN-') || String(sale.sale_kind || '') === 'return';
   return {
     ...sale,
     _due: due,
     _statusKey: statusKey,
     _itemCount: ic,
     _itemsPreview: sale.items_preview || '',
+    _isCreditNote: isCreditNote,
   };
 }
 
@@ -125,6 +132,9 @@ const Sales = ({ readOnly = false }) => {
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [listTab, setListTab] = useState('invoices');
+  const [returnSale, setReturnSale] = useState(null);
+  const [customerPhonePrompt, setCustomerPhonePrompt] = useState('');
 
   const formatCurrency = (amount) =>
     `PKR ${Number(amount || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -191,6 +201,8 @@ const Sales = ({ readOnly = false }) => {
   const filteredSales = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return enriched.filter((sale) => {
+      if (listTab === 'invoices' && sale._isCreditNote) return false;
+      if (listTab === 'credit_notes' && !sale._isCreditNote) return false;
       if (methodFilter !== 'all' && String(sale.payment_mode || sale.payment_type || '').toLowerCase() !== methodFilter) {
         return false;
       }
@@ -202,7 +214,7 @@ const Sales = ({ readOnly = false }) => {
       const prev = (sale._itemsPreview || '').toLowerCase();
       return inv.includes(q) || cust.includes(q) || prev.includes(q) || String(sale.sale_id).includes(q);
     });
-  }, [enriched, searchQuery, statusFilter, methodFilter, dateFilter]);
+  }, [enriched, searchQuery, statusFilter, methodFilter, dateFilter, listTab]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -253,6 +265,35 @@ const Sales = ({ readOnly = false }) => {
       console.error('Error fetching sale details:', err);
       alert(t('sales.failedToLoad'));
     }
+  };
+
+  const handleStartReturn = async (saleId) => {
+    try {
+      const response = await salesAPI.getById(saleId);
+      if (String(response.data?.invoice_number || '').toUpperCase().startsWith('CN-')) {
+        alert('This is already a credit note.');
+        return;
+      }
+      setReturnSale(response.data);
+    } catch (err) {
+      alert(getConnectivityErrorMessage(err) || t('sales.failedToLoad'));
+    }
+  };
+
+  const handleReturnSuccess = async () => {
+    await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).salesList());
+    await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).inventoryBundle());
+    alert('Return saved. Stock and balances updated.');
+  };
+
+  const handleWhatsApp = (sale) => {
+    const phone =
+      sale.customer_phone ||
+      customerPhonePrompt ||
+      window.prompt('Customer WhatsApp number (e.g. 03001234567):', '') ||
+      '';
+    const r = openWhatsAppInvoice(sale, phone);
+    if (!r.ok) alert(r.error);
   };
 
   const handleEdit = async (saleId) => {
@@ -562,6 +603,26 @@ const Sales = ({ readOnly = false }) => {
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {[
+          { id: 'invoices', label: 'Invoices' },
+          { id: 'credit_notes', label: 'Credit notes' },
+          { id: 'all', label: 'All' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`sal2-chipBtn${listTab === tab.id ? ' sal2-chipBtn--on' : ''}`}
+            onClick={() => {
+              setListTab(tab.id);
+              setCurrentPage(1);
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <header className="sal2-hd">
         <div>
           <h1 className="sal2-hd-tit">{t('sales.historyTitle')}</h1>
@@ -692,6 +753,31 @@ const Sales = ({ readOnly = false }) => {
                           <button type="button" className="sal2-iconbtn" title={t('sales.printInvoice')} onClick={() => handlePrintInvoice(sale)}>
                             <FontAwesomeIcon icon={faPrint} />
                           </button>
+                          <button
+                            type="button"
+                            className="sal2-iconbtn"
+                            title="Send via WhatsApp"
+                            onClick={async () => {
+                              if (selectedSale?.sale_id === sale.sale_id) handleWhatsApp(selectedSale);
+                              else {
+                                const r = await salesAPI.getById(sale.sale_id);
+                                handleWhatsApp(r.data);
+                              }
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faCommentDots} />
+                          </button>
+                          {isAdmin() && !readOnly && !sale._isCreditNote ? (
+                            <button
+                              type="button"
+                              className="sal2-iconbtn"
+                              title="Return / Refund"
+                              onClick={() => handleStartReturn(sale.sale_id)}
+                              disabled={sale.is_finalized}
+                            >
+                              <FontAwesomeIcon icon={faRotateLeft} />
+                            </button>
+                          ) : null}
                           {isAdmin() && !readOnly ? (
                             <>
                               <button type="button" className="sal2-iconbtn" title={t('common.edit')} onClick={() => handleEdit(sale.sale_id)} disabled={sale.is_finalized}>
@@ -806,6 +892,21 @@ const Sales = ({ readOnly = false }) => {
                     <button type="button" className="btn btn-primary" onClick={() => handlePrintInvoice(selectedSale)}>
                       {t('sales.printInvoice')}
                     </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => handleWhatsApp(selectedSale)}>
+                      WhatsApp
+                    </button>
+                    {isAdmin() && !readOnly && !String(selectedSale.invoice_number || '').toUpperCase().startsWith('CN-') ? (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setSelectedSale(null);
+                          handleStartReturn(selectedSale.sale_id);
+                        }}
+                      >
+                        Return
+                      </button>
+                    ) : null}
                     <button type="button" className="btn btn-secondary" onClick={() => setSelectedSale(null)}>
                       {t('common.close')}
                     </button>
@@ -981,6 +1082,14 @@ const Sales = ({ readOnly = false }) => {
             </div>
           )
         : null}
+
+      {returnSale ? (
+        <ReturnSaleModal
+          sale={returnSale}
+          onClose={() => setReturnSale(null)}
+          onSuccess={handleReturnSuccess}
+        />
+      ) : null}
     </div>
   );
 };

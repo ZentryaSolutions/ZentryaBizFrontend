@@ -78,6 +78,9 @@ const Settings = ({ readOnly = false }) => {
   const [maxDiscountPct, setMaxDiscountPct] = useState('20');
   const [cashierCanDiscount, setCashierCanDiscount] = useState(false);
   const [requireDiscountReason, setRequireDiscountReason] = useState(true);
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRatePct, setTaxRatePct] = useState('17');
+  const [taxLabel, setTaxLabel] = useState('GST');
 
   // Security prefs (stored in other_app_settings)
   const [twoFactor, setTwoFactor] = useState(false);
@@ -216,6 +219,9 @@ const Settings = ({ readOnly = false }) => {
         setMaxDiscountPct(String(otherSettings.disc_max_pct ?? '20'));
         setCashierCanDiscount(Boolean(otherSettings.disc_cashier_ok || false));
         setRequireDiscountReason(otherSettings.disc_reason_required !== false);
+        setTaxEnabled(Boolean(otherSettings.tax_enable));
+        setTaxRatePct(String(otherSettings.tax_rate_pct ?? '17'));
+        setTaxLabel(String(otherSettings.tax_label || 'GST'));
         setTwoFactor(Boolean(otherSettings.sec_2fa || false));
         setSessionTimeout(otherSettings.sec_session_timeout || '30 minutes');
         setLoginNotif(otherSettings.sec_login_notif !== false);
@@ -385,6 +391,9 @@ const Settings = ({ readOnly = false }) => {
         disc_max_pct: maxDiscountPct,
         disc_cashier_ok: cashierCanDiscount,
         disc_reason_required: requireDiscountReason,
+        tax_enable: taxEnabled,
+        tax_rate_pct: taxRatePct,
+        tax_label: taxLabel,
         sec_2fa: twoFactor,
         sec_session_timeout: sessionTimeout,
         sec_login_notif: loginNotif,
@@ -1060,6 +1069,39 @@ const Settings = ({ readOnly = false }) => {
                   <input className="inp inp-sm" value={footerMsg} onChange={(e) => setFooterMsg(e.target.value)} disabled={!canEdit} />
                 </div>
               </div>
+
+              <div className="srow">
+                <div>
+                  <div className="srow-label">Enable tax on invoices</div>
+                  <div className="srow-desc">Shows tax line on billing and printed invoices (e.g. GST)</div>
+                </div>
+                <div className="srow-ctrl">
+                  <label className="sw">
+                    <input type="checkbox" checked={taxEnabled} onChange={(e) => setTaxEnabled(e.target.checked)} disabled={!canEdit} />
+                    <span className="sw-ui" />
+                  </label>
+                </div>
+              </div>
+              {taxEnabled ? (
+                <>
+                  <div className="srow">
+                    <div>
+                      <div className="srow-label">Tax rate (%)</div>
+                    </div>
+                    <div className="srow-ctrl">
+                      <input className="inp inp-xs" type="number" min={0} max={100} value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} disabled={!canEdit} />
+                    </div>
+                  </div>
+                  <div className="srow">
+                    <div>
+                      <div className="srow-label">Tax label</div>
+                    </div>
+                    <div className="srow-ctrl">
+                      <input className="inp inp-sm" value={taxLabel} onChange={(e) => setTaxLabel(e.target.value)} disabled={!canEdit} />
+                    </div>
+                  </div>
+                </>
+              ) : null}
 
               {!readOnly ? (
                 <div className="srow">

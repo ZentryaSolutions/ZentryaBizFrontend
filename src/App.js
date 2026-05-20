@@ -26,6 +26,7 @@ import Users from './components/Users';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ConnectionStatus from './components/ConnectionStatus';
+import OfflineTopBanner from './components/OfflineTopBanner';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateNotification from './components/UpdateNotification';
 import OfflineSavedNotice from './components/OfflineSavedNotice';
@@ -192,6 +193,7 @@ function AppContent({ location }) {
       />
       <div className="zb-main-col">
       <Header onMenuClick={() => setMobileNavOpen(true)} />
+      <OfflineTopBanner />
       <ConnectionStatus 
         onRefresh={handleRefresh}
         readOnlyMode={readOnlyMode}
