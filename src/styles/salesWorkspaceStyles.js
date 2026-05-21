@@ -82,4 +82,55 @@ export const salesWorkspaceStyles = `
 .sal2-modal .modal-close:hover{background:#f8fafc;color:#0f172a;border-color:#d1d5db}
 .sal2-modal .modal-content{padding:16px}
 .sal2-modal .modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+/* WhatsApp send — compact card (not full-width sal2-modal) */
+.sal2-wa-modal{width:min(440px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(2,6,23,.35);border:1px solid rgba(226,232,240,.95);font-family:'DM Sans',Inter,system-ui,sans-serif}
+.sal2-wa-modal__hd{display:flex;align-items:flex-start;gap:14px;padding:22px 22px 18px;border-bottom:1px solid #f1f5f9}
+.sal2-wa-modal__ico{flex-shrink:0;width:48px;height:48px;border-radius:14px;background:#ecfdf5;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:22px}
+.sal2-wa-modal__hdText{flex:1;min-width:0}
+.sal2-wa-modal__tit{margin:0;font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:1.15rem;font-weight:800;color:#0f172a;letter-spacing:-.02em;line-height:1.25}
+.sal2-wa-modal__sub{margin:6px 0 0;font-size:13px;color:#64748b;font-weight:500;line-height:1.45}
+.sal2-wa-modal__close{flex-shrink:0;width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#64748b;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+.sal2-wa-modal__close:hover{background:#f8fafc;color:#0f172a;border-color:#d1d5db}
+.sal2-wa-modal__body{padding:20px 22px 22px}
+.sal2-wa-modal__label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:8px}
+.sal2-wa-modal__input{height:46px;width:100%;border:1px solid #e5e7eb;border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;background:#fff;color:#111827;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+.sal2-wa-modal__input:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+.sal2-wa-modal__hint{margin:8px 0 0;font-size:12px;color:#94a3b8;font-weight:500}
+.sal2-wa-modal__err{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px;font-weight:500;line-height:1.4}
+.sal2-wa-modal__link{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0}
+.sal2-wa-modal__link a{font-weight:700;color:#15803d;text-decoration:none;font-size:14px}
+.sal2-wa-modal__link a:hover{text-decoration:underline}
+.sal2-wa-modal__ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.sal2-wa-modal__btnCancel{height:42px;padding:0 18px;border-radius:11px;border:1px solid #e5e7eb;background:#fff;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.sal2-wa-modal__btnCancel:hover{background:#f8fafc;border-color:#d1d5db;color:#0f172a}
+.sal2-wa-modal__btnGo{height:42px;padding:0 20px;border-radius:11px;border:none;background:#111827;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(17,24,39,.18)}
+.sal2-wa-modal__btnGo:hover{background:#1e293b}
+`;
+
+/** Injected by WhatsAppSendModal when used outside Sales page */
+export const whatsappModalStyles = `
+.sal2-wa-modal{width:min(440px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(2,6,23,.35);border:1px solid rgba(226,232,240,.95);font-family:'DM Sans',Inter,system-ui,sans-serif}
+.sal2-wa-modal__hd{display:flex;align-items:flex-start;gap:14px;padding:22px 22px 18px;border-bottom:1px solid #f1f5f9}
+.sal2-wa-modal__ico{flex-shrink:0;width:48px;height:48px;border-radius:14px;background:#ecfdf5;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:22px}
+.sal2-wa-modal__hdText{flex:1;min-width:0}
+.sal2-wa-modal__tit{margin:0;font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:1.15rem;font-weight:800;color:#0f172a;letter-spacing:-.02em;line-height:1.25}
+.sal2-wa-modal__sub{margin:6px 0 0;font-size:13px;color:#64748b;font-weight:500;line-height:1.45}
+.sal2-wa-modal__close{flex-shrink:0;width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#64748b;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+.sal2-wa-modal__close:hover{background:#f8fafc;color:#0f172a;border-color:#d1d5db}
+.sal2-wa-modal__body{padding:20px 22px 22px}
+.sal2-wa-modal__label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:8px}
+.sal2-wa-modal__input{height:46px;width:100%;border:1px solid #e5e7eb;border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;background:#fff;color:#111827;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+.sal2-wa-modal__input:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+.sal2-wa-modal__hint{margin:8px 0 0;font-size:12px;color:#94a3b8;font-weight:500}
+.sal2-wa-modal__err{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px;font-weight:500;line-height:1.4}
+.sal2-wa-modal__link{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0}
+.sal2-wa-modal__link a{font-weight:700;color:#15803d;text-decoration:none;font-size:14px}
+.sal2-wa-modal__link a:hover{text-decoration:underline}
+.sal2-wa-modal__ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.sal2-wa-modal__btnCancel{height:42px;padding:0 18px;border-radius:11px;border:1px solid #e5e7eb;background:#fff;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.sal2-wa-modal__btnCancel:hover{background:#f8fafc;border-color:#d1d5db;color:#0f172a}
+.sal2-wa-modal__btnGo{height:42px;padding:0 20px;border-radius:11px;border:none;background:#111827;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(17,24,39,.18)}
+.sal2-wa-modal__btnGo:hover{background:#1e293b}
+.sal2-modal-overlay{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 `;
