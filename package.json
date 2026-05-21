@@ -1,50 +1,49 @@
 {
-    "name":  "hisaabkitab-frontend",
-    "version":  "1.0.0",
-    "private":  true,
-    "dependencies":  {
-                         "@fortawesome/fontawesome-svg-core":  "^7.2.0",
-                         "@fortawesome/free-solid-svg-icons":  "^7.2.0",
-                         "@fortawesome/react-fontawesome":  "^3.3.1",
-                         "@supabase/supabase-js":  "^2.105.3",
-                         "@tanstack/react-query":  "^5.100.8",
-                         "axios":  "^1.6.2",
-                         "chart.js":  "^4.4.1",
-                         "i18next":  "^23.7.6",
-                         "i18next-browser-languagedetector":  "^7.2.0",
-                         "react":  "^18.2.0",
-                         "react-dom":  "^18.2.0",
-                         "react-i18next":  "^13.5.0",
-                         "react-router-dom":  "^6.20.0"
-                     },
-    "devDependencies":  {
-                            "@types/react":  "^18.2.43",
-                            "@types/react-dom":  "^18.2.17",
-                            "react-scripts":  "5.0.1"
-                        },
-    "scripts":  {
-                    "start":  "react-scripts start",
-                    "build":  "react-scripts build",
-                    "test":  "react-scripts test",
-                    "eject":  "react-scripts eject"
-                },
-    "eslintConfig":  {
-                         "extends":  [
-                                         "react-app"
-                                     ]
-                     },
-    "browserslist":  {
-                         "production":  [
-                                            "\u003e0.2%",
-                                            "not dead",
-                                            "not op_mini all"
-                                        ],
-                         "development":  [
-                                             "last 1 chrome version",
-                                             "last 1 firefox version",
-                                             "last 1 safari version"
-                                         ]
-                     },
-    "proxy":  "http://localhost:5000",
-    "deploySync":  "2026-05-22 00:42:12"
+  "name": "hisaabkitab-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "@fortawesome/react-fontawesome": "^3.3.1",
+    "@supabase/supabase-js": "^2.105.3",
+    "@tanstack/react-query": "^5.100.8",
+    "axios": "^1.6.2",
+    "chart.js": "^4.4.1",
+    "i18next": "^23.7.6",
+    "i18next-browser-languagedetector": "^7.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-router-dom": "^6.20.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5000"
 }
