@@ -134,3 +134,50 @@ export const whatsappModalStyles = `
 .sal2-wa-modal__btnGo:hover{background:#1e293b}
 .sal2-modal-overlay{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 `;
+
+/** Return / Refund modal — injected by ReturnSaleModal */
+export const returnModalStyles = `
+.sal2-modal-overlay{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sal2-ret-modal{width:min(640px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(2,6,23,.35);border:1px solid rgba(226,232,240,.95);font-family:'DM Sans',Inter,system-ui,sans-serif;display:flex;flex-direction:column}
+.sal2-ret-modal__hd{display:flex;align-items:flex-start;gap:14px;padding:22px 22px 18px;border-bottom:1px solid #f1f5f9;flex-shrink:0}
+.sal2-ret-modal__ico{flex-shrink:0;width:48px;height:48px;border-radius:14px;background:#fff7ed;color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:20px}
+.sal2-ret-modal__hdText{flex:1;min-width:0}
+.sal2-ret-modal__tit{margin:0;font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:1.12rem;font-weight:800;color:#0f172a;letter-spacing:-.02em;line-height:1.3}
+.sal2-ret-modal__sub{margin:6px 0 0;font-size:13px;color:#64748b;font-weight:500;line-height:1.45}
+.sal2-ret-modal__close{flex-shrink:0;width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#64748b;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+.sal2-ret-modal__close:hover{background:#f8fafc;color:#0f172a;border-color:#d1d5db}
+.sal2-ret-modal__body{padding:18px 22px 20px;flex:1;overflow:auto}
+.sal2-ret-table-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fcfcfc}
+.sal2-ret-table{width:100%;border-collapse:collapse;font-size:13px}
+.sal2-ret-table th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb}
+.sal2-ret-table th.sal2-ret-th--num{text-align:right}
+.sal2-ret-table th.sal2-ret-th--qty{text-align:center}
+.sal2-ret-table td{padding:12px 14px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle}
+.sal2-ret-table tbody tr:last-child td{border-bottom:none}
+.sal2-ret-table tbody tr:hover td{background:#fafafa}
+.sal2-ret-td-name{font-weight:600;color:#0f172a}
+.sal2-ret-td-num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#475569}
+.sal2-ret-td-qty{text-align:center}
+.sal2-ret-qty{width:88px;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;font-size:14px;font-weight:600;font-family:inherit;text-align:center;background:#fff;color:#111827;box-sizing:border-box}
+.sal2-ret-qty:focus{outline:none;border-color:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.12)}
+.sal2-ret-refund{margin-top:20px}
+.sal2-ret-refund__lbl{font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;display:block}
+.sal2-ret-options{display:flex;flex-direction:column;gap:8px}
+@media(min-width:480px){.sal2-ret-options{flex-direction:row;flex-wrap:wrap}}
+.sal2-ret-option{flex:1;min-width:min(100%,200px);display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:border-color .15s,background .15s}
+.sal2-ret-option:hover{border-color:#d1d5db;background:#f8fafc}
+.sal2-ret-option--on{border-color:#ea580c;background:#fff7ed}
+.sal2-ret-option input{accent-color:#ea580c;margin-top:2px;flex-shrink:0}
+.sal2-ret-option__text{font-size:13px;font-weight:600;color:#334155;line-height:1.4}
+.sal2-ret-option__amt{display:block;font-size:12px;color:#64748b;font-weight:500;margin-top:2px}
+.sal2-ret-total{margin-top:18px;padding:14px 16px;border-radius:12px;background:#f8fafc;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sal2-ret-total__lbl{font-size:13px;font-weight:600;color:#64748b}
+.sal2-ret-total__val{font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:1.2rem;font-weight:800;color:#0f172a;letter-spacing:-.02em}
+.sal2-ret-err{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px;font-weight:500}
+.sal2-ret-modal__ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px 20px;border-top:1px solid #f1f5f9;flex-shrink:0;flex-wrap:wrap}
+.sal2-ret-btnCancel{height:42px;padding:0 18px;border-radius:11px;border:1px solid #e5e7eb;background:#fff;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.sal2-ret-btnCancel:hover:not(:disabled){background:#f8fafc;border-color:#d1d5db;color:#0f172a}
+.sal2-ret-btnSave{height:42px;padding:0 20px;border-radius:11px;border:none;background:#111827;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(17,24,39,.18)}
+.sal2-ret-btnSave:hover:not(:disabled){background:#1e293b}
+.sal2-ret-btnSave:disabled,.sal2-ret-btnCancel:disabled{opacity:.55;cursor:not-allowed}
+`;
