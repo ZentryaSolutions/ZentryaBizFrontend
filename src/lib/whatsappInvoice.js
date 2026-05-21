@@ -11,11 +11,43 @@ function formatMoney(n) {
   return `PKR ${v.toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
 }
 
+/** Pakistan mobile → wa.me digits (no +). */
+export function normalizePakPhone(digits) {
+  const d = digitsOnly(digits);
+  if (!d) return '';
+  if (d.startsWith('92') && d.length >= 12) return d;
+  if (d.startsWith('0') && d.length >= 11) return `92${d.slice(1)}`;
+  if (d.length === 10 && d.startsWith('3')) return `92${d}`;
+  if (d.length >= 10 && !d.startsWith('92')) return `92${d}`;
+  return d;
+}
+
+/** Prefer <a> click (works with form submit); fallback to window.open. */
+export function tryOpenExternalUrl(url) {
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  } catch {
+    /* continue */
+  }
+  try {
+    const w = window.open(url, '_blank');
+    return w != null;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * @param {{ invoice_number?: string, date?: string, customer_name?: string, items?: Array<{ product_name?: string, name?: string, quantity?: number, selling_price?: number }>, subtotal?: number, discount?: number, tax?: number, total_amount?: number, paid_amount?: number, shopName?: string }} sale
- * @param {{ phone?: string, customerPhone?: string }} opts
  */
-export function buildInvoiceWhatsAppText(sale, opts = {}) {
+export function buildInvoiceWhatsAppText(sale) {
   const shop = sale.shopName || 'Zentrya Biz';
   const lines = [
     `*${shop}*`,
@@ -33,6 +65,10 @@ export function buildInvoiceWhatsAppText(sale, opts = {}) {
     lines.push(`• ${name} × ${qty} @ ${formatMoney(rate)} = ${formatMoney(qty * rate)}`);
   });
 
+  if (!(sale.items || []).length) {
+    lines.push('• (Open invoice in app for line items)');
+  }
+
   lines.push('');
   if (Number(sale.discount) > 0) lines.push(`Discount: -${formatMoney(sale.discount)}`);
   if (Number(sale.tax) > 0) lines.push(`Tax: +${formatMoney(sale.tax)}`);
@@ -45,14 +81,27 @@ export function buildInvoiceWhatsAppText(sale, opts = {}) {
   return lines.join('\n');
 }
 
+/**
+ * @returns {{ ok: boolean, error?: string, url?: string }}
+ */
 export function openWhatsAppInvoice(sale, phoneRaw) {
   const phone = digitsOnly(phoneRaw);
   if (!phone || phone.length < 10) {
-    return { ok: false, error: 'Customer phone number is required for WhatsApp.' };
+    return { ok: false, error: 'Enter a valid mobile number (e.g. 03001234567).' };
+  }
+  const intl = normalizePakPhone(phone);
+  if (!intl || intl.length < 12) {
+    return { ok: false, error: 'Enter a valid Pakistani mobile number (e.g. 03001234567).' };
   }
   const text = buildInvoiceWhatsAppText(sale);
-  const intl = phone.startsWith('92') ? phone : phone.startsWith('0') ? `92${phone.slice(1)}` : `92${phone}`;
   const url = `https://wa.me/${intl}?text=${encodeURIComponent(text)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-  return { ok: true };
+  const opened = tryOpenExternalUrl(url);
+  if (!opened) {
+    return {
+      ok: false,
+      error: 'Browser blocked the popup. Tap the link below to open WhatsApp.',
+      url,
+    };
+  }
+  return { ok: true, url };
 }

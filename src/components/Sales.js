@@ -296,11 +296,20 @@ const Sales = ({ readOnly = false }) => {
     alert('Return saved. Stock and balances updated.');
   };
 
-  const handleWhatsApp = (sale) => {
+  const handleWhatsApp = async (sale) => {
     if (!sale) return;
+    let full = sale;
+    if (!full.items?.length && full.sale_id) {
+      try {
+        const r = await salesAPI.getById(full.sale_id);
+        full = r.data;
+      } catch (err) {
+        console.warn('WhatsApp: could not load sale items', err);
+      }
+    }
     setWhatsappModal({
-      sale: { ...sale, shopName: shopDisplayName },
-      initialPhone: sale.customer_phone || '',
+      sale: { ...full, shopName: shopDisplayName },
+      initialPhone: full.customer_phone || '',
     });
   };
 
@@ -780,18 +789,7 @@ const Sales = ({ readOnly = false }) => {
                             type="button"
                             className="sal2-iconbtn"
                             title="Send via WhatsApp"
-                            onClick={async () => {
-                              try {
-                                if (selectedSale?.sale_id === sale.sale_id && selectedSale.items?.length) {
-                                  handleWhatsApp(selectedSale);
-                                } else {
-                                  const r = await salesAPI.getById(sale.sale_id);
-                                  handleWhatsApp(r.data);
-                                }
-                              } catch {
-                                alert(t('sales.failedToLoad'));
-                              }
-                            }}
+                            onClick={() => handleWhatsApp(sale)}
                           >
                             <FontAwesomeIcon icon={faCommentDots} />
                           </button>
