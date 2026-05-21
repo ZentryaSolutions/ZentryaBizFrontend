@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { isUnlimitedShops, isExpiredPlan, resolveShopLimitFromProfile } from '../utils/planFeatures';
+import { isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { marketingHomeQuery } from '../utils/workspacePaths';
 import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
 import { hasPosBackendSession } from '../lib/appMode';
@@ -589,7 +590,48 @@ export default function ShopPickerPage() {
         city: form.city.trim() || null,
         currency: form.currency || 'PKR',
       };
-      const { data } = await shopPickerAPI.createShop(payload);
+
+      let data = null;
+
+      if (supabase && user?.id) {
+        const { data: rpcRaw, error: rpcErr } = await supabase.rpc('zb_create_shop', {
+          p_profile_id: user.id,
+          p_name: payload.name,
+          p_phone: payload.phone,
+          p_address: payload.address,
+          p_business_type: payload.business_type,
+          p_city: payload.city,
+          p_currency: payload.currency,
+        });
+        const rpcData = typeof rpcRaw === 'string' ? JSON.parse(rpcRaw) : rpcRaw;
+        if (!rpcErr && rpcData?.ok && (rpcData.shopId || rpcData.id)) {
+          data = { ...rpcData, persisted: true, via: 'supabase' };
+        } else if (
+          rpcErr?.message?.includes('zb_create_shop') ||
+          String(rpcData?.error || '').includes('zb_create_shop')
+        ) {
+          console.warn('[ShopPicker] zb_create_shop RPC missing — run migration 010 in Supabase SQL');
+        } else if (rpcData?.error) {
+          throw new Error(rpcData.error);
+        }
+      }
+
+      if (!data && hasPosBackendSession()) {
+        const res = await shopPickerAPI.createShop(payload);
+        if (isOfflineQueuedResponse(res)) {
+          throw new Error(
+            'You appear offline — shop was not saved to the server. Connect and try again.'
+          );
+        }
+        data = res?.data;
+      }
+
+      if (!data) {
+        throw new Error(
+          'Could not save shop. Run database/migrations/010_shops_phone_and_create_rpc.sql in Supabase, then try again.'
+        );
+      }
+
       const shopId = data?.shopId || data?.id;
       if (!shopId) throw new Error('Shop created but no id returned');
       const created = data?.shop;
@@ -613,6 +655,20 @@ export default function ShopPickerPage() {
         });
       }
       await fetchShops();
+
+      if (supabase) {
+        const { data: row, error: verifyErr } = await supabase
+          .from('shops')
+          .select('id, name')
+          .eq('id', shopId)
+          .maybeSingle();
+        if (verifyErr || !row) {
+          throw new Error(
+            'Shop was not found in the database after save. Run migration 010 in Supabase SQL Editor, then try again.'
+          );
+        }
+      }
+
       await refreshProfile?.();
       setFormError('');
       setShowCreate(false);
