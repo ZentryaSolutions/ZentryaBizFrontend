@@ -19,6 +19,8 @@ import { posApiQueriesEnabled } from '../lib/appMode';
 import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
+import WhatsAppSendModal from './WhatsAppSendModal';
+import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 
 const billingMobileOverrides = `
 @media (max-width: 768px) {
@@ -167,6 +169,7 @@ const Billing = ({ readOnly = false }) => {
   const [taxRatePct, setTaxRatePct] = useState(17);
   const [taxLabel, setTaxLabel] = useState('GST');
   const [lastSavedSale, setLastSavedSale] = useState(null);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const invoiceNumber = activeBill?.invoiceNumber || '';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [customerSearchQuery, setCustomerSearchQuery] = useState(''); // UI-only
@@ -221,6 +224,29 @@ const Billing = ({ readOnly = false }) => {
       console.error(e);
     }
   }, [settingsData]);
+
+  useEffect(() => {
+    if (!isSupabaseBrowserConfigured() || !supabase || !activeShopId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: shopRow, error } = await supabase
+          .from('shops')
+          .select('name, phone, address')
+          .eq('id', activeShopId)
+          .maybeSingle();
+        if (cancelled || error || !shopRow) return;
+        if (shopRow.name && String(shopRow.name).trim()) setShopName(String(shopRow.name).trim());
+        if (shopRow.phone && String(shopRow.phone).trim()) setShopPhone(String(shopRow.phone).trim());
+        if (shopRow.address && String(shopRow.address).trim()) setShopAddress(String(shopRow.address).trim());
+      } catch {
+        /* keep settings */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeShopId]);
 
   const loading = invLoading || custLoading || settingsLoading;
 
@@ -573,7 +599,12 @@ const Billing = ({ readOnly = false }) => {
         return;
       }
       const savedInvoice = response.data;
-      setLastSavedSale({ ...savedInvoice, items: invoiceItems, shopName });
+      setLastSavedSale({
+        ...savedInvoice,
+        items: invoiceItems,
+        shopName,
+        customer_phone: selectedCustomer?.phone || '',
+      });
 
       updateActiveBill({ invoiceNumber: savedInvoice.invoice_number });
 
@@ -1476,13 +1507,7 @@ const Billing = ({ readOnly = false }) => {
                 type="button"
                 className="btn btn-secondary"
                 style={{ width: '100%', marginTop: 8 }}
-                onClick={() => {
-                  const phone =
-                    selectedCustomer?.phone ||
-                    window.prompt('Customer WhatsApp number:', '') ||
-                    '';
-                  openWhatsAppInvoice(lastSavedSale, phone);
-                }}
+                onClick={() => setWhatsappModalOpen(true)}
               >
                 Send last invoice via WhatsApp
               </button>
@@ -1601,6 +1626,18 @@ const Billing = ({ readOnly = false }) => {
           </div>
         </div>
       )}
+
+      <WhatsAppSendModal
+        open={whatsappModalOpen && Boolean(lastSavedSale)}
+        initialPhone={lastSavedSale?.customer_phone || selectedCustomer?.phone || ''}
+        onClose={() => setWhatsappModalOpen(false)}
+        onSend={(phone) =>
+          openWhatsAppInvoice(
+            { ...lastSavedSale, shopName: lastSavedSale?.shopName || shopName },
+            phone
+          )
+        }
+      />
     </div>
   );
 };

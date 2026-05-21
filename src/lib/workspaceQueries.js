@@ -12,6 +12,7 @@ import {
   supplierPaymentsAPI,
 } from '../services/api';
 import { zbKeys } from './queryKeys';
+import { fetchShopBranding } from './shopBranding';
 import { defaultMonthlyReportParams } from './reportsQueryUtils';
 
 /**
@@ -86,6 +87,10 @@ export async function fetchCustomersList() {
 export async function fetchSettingsDoc() {
   const response = await settingsAPI.get();
   return response.data;
+}
+
+export async function fetchShopBrandingQuery(activeShopId) {
+  return fetchShopBranding(activeShopId);
 }
 
 export async function fetchSalesList() {

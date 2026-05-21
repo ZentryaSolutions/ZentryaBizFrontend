@@ -11,6 +11,7 @@ export function zbKeys(shopId) {
     dashboard: () => ['zb', sid, 'dashboard'],
     customersList: () => ['zb', sid, 'customers'],
     settingsDoc: () => ['zb', sid, 'settings'],
+    shopBranding: () => ['zb', sid, 'shopBranding'],
     salesList: () => ['zb', sid, 'sales'],
     purchasesList: () => ['zb', sid, 'purchases'],
     /** Single cached payload for CustomerDetailView (customer + sales + payments history) */

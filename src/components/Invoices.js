@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { salesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { zbKeys } from '../lib/queryKeys';
+import { fetchShopBrandingQuery } from '../lib/workspaceQueries';
+import { posApiQueriesEnabled } from '../lib/appMode';
 import Pagination from './Pagination';
 import './Invoices.css';
 
 const Invoices = ({ readOnly = false }) => {
+  const { activeShopId } = useAuth();
+  const { data: shopBranding } = useQuery({
+    queryKey: zbKeys(activeShopId).shopBranding(),
+    queryFn: () => fetchShopBrandingQuery(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
+    staleTime: 5 * 60 * 1000,
+  });
+  const shopDisplayName = shopBranding?.name || 'My Shop';
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -174,7 +187,7 @@ const Invoices = ({ readOnly = false }) => {
         </head>
         <body>
           <div class="header">
-            <div class="shop-name">${invoiceData.shop_name || 'My Shop'}</div>
+            <div class="shop-name">${(invoiceData.shop_name || shopDisplayName).replace(/</g, '&lt;')}</div>
           </div>
           
           <div class="invoice-info">

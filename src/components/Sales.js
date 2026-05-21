@@ -23,10 +23,11 @@ import {
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { salesAPI } from '../services/api';
 import ReturnSaleModal from './ReturnSaleModal';
+import WhatsAppSendModal from './WhatsAppSendModal';
 import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
-import { fetchSalesList } from '../lib/workspaceQueries';
+import { fetchSalesList, fetchShopBrandingQuery } from '../lib/workspaceQueries';
 import { withCurrentScope } from '../utils/appRouteScope';
 import { salesWorkspaceStyles } from '../styles/salesWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
@@ -134,7 +135,16 @@ const Sales = ({ readOnly = false }) => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [listTab, setListTab] = useState('invoices');
   const [returnSale, setReturnSale] = useState(null);
-  const [customerPhonePrompt, setCustomerPhonePrompt] = useState('');
+  const [whatsappModal, setWhatsappModal] = useState(null);
+
+  const { data: shopBranding } = useQuery({
+    queryKey: zbKeys(activeShopId).shopBranding(),
+    queryFn: () => fetchShopBrandingQuery(activeShopId),
+    enabled: posApiQueriesEnabled(activeShopId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const shopDisplayName = shopBranding?.name || 'My Shop';
 
   const formatCurrency = (amount) =>
     `PKR ${Number(amount || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -287,13 +297,16 @@ const Sales = ({ readOnly = false }) => {
   };
 
   const handleWhatsApp = (sale) => {
-    const phone =
-      sale.customer_phone ||
-      customerPhonePrompt ||
-      window.prompt('Customer WhatsApp number (e.g. 03001234567):', '') ||
-      '';
-    const r = openWhatsAppInvoice(sale, phone);
-    if (!r.ok) alert(r.error);
+    if (!sale) return;
+    setWhatsappModal({
+      sale: { ...sale, shopName: shopDisplayName },
+      initialPhone: sale.customer_phone || '',
+    });
+  };
+
+  const handleWhatsAppSend = (phone) => {
+    if (!whatsappModal?.sale) return { ok: false, error: 'No invoice selected.' };
+    return openWhatsAppInvoice(whatsappModal.sale, phone);
   };
 
   const handleEdit = async (saleId) => {
@@ -354,14 +367,22 @@ const Sales = ({ readOnly = false }) => {
     }
   };
 
-  const handlePrintInvoice = (sale) => {
+  const handlePrintInvoice = async (sale) => {
+    let saleData = selectedSale?.sale_id === sale.sale_id ? selectedSale : sale;
+    if (!saleData.items || saleData.items.length === 0) {
+      try {
+        const r = await salesAPI.getById(sale.sale_id);
+        saleData = r.data;
+      } catch {
+        /* use list row */
+      }
+    }
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow popups to print invoice');
       return;
     }
 
-    const saleData = selectedSale || sale;
     const items = saleData.items || [];
 
     printWindow.document.write(`
@@ -452,7 +473,7 @@ const Sales = ({ readOnly = false }) => {
         </head>
         <body>
           <div class="header">
-            <div class="shop-name">My Shop</div>
+            <div class="shop-name">${shopDisplayName.replace(/</g, '&lt;')}</div>
           </div>
           
           <div class="invoice-info">
@@ -758,10 +779,15 @@ const Sales = ({ readOnly = false }) => {
                             className="sal2-iconbtn"
                             title="Send via WhatsApp"
                             onClick={async () => {
-                              if (selectedSale?.sale_id === sale.sale_id) handleWhatsApp(selectedSale);
-                              else {
-                                const r = await salesAPI.getById(sale.sale_id);
-                                handleWhatsApp(r.data);
+                              try {
+                                if (selectedSale?.sale_id === sale.sale_id && selectedSale.items?.length) {
+                                  handleWhatsApp(selectedSale);
+                                } else {
+                                  const r = await salesAPI.getById(sale.sale_id);
+                                  handleWhatsApp(r.data);
+                                }
+                              } catch {
+                                alert(t('sales.failedToLoad'));
                               }
                             }}
                           >
@@ -1090,6 +1116,13 @@ const Sales = ({ readOnly = false }) => {
           onSuccess={handleReturnSuccess}
         />
       ) : null}
+
+      <WhatsAppSendModal
+        open={Boolean(whatsappModal)}
+        initialPhone={whatsappModal?.initialPhone}
+        onClose={() => setWhatsappModal(null)}
+        onSend={handleWhatsAppSend}
+      />
     </div>
   );
 };
