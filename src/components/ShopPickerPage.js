@@ -224,7 +224,10 @@ async function fetchShopPickerQuickStats(supabaseClient, mappedShops) {
       return out;
     }
     throw new Error('no-backend-session');
-  } catch {
+  } catch (apiErr) {
+    if (apiErr?.response?.status !== 500) {
+      console.warn('[ShopPicker] quick-stats:', apiErr?.response?.data || apiErr.message);
+    }
     const [saleRes, prodRes] = await Promise.all([
       supabaseClient.from('sales').select('shop_id,total_amount').in('shop_id', ids).eq('date', todayStr),
       supabaseClient.from('products').select('shop_id').in('shop_id', ids),
@@ -348,42 +351,80 @@ export default function ShopPickerPage() {
     fetchShopPickerQuickStats(supabase, mapped).then(setShopQuickStats).catch(() => {});
   };
 
+  const mapSupabaseShopRows = (data) =>
+    (data || []).map((row) => ({ ...row.shop, memberRole: row.role })).filter(Boolean);
+
+  const mapApiShopRows = (rows) =>
+    (rows || []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      phone: s.phone,
+      address: s.address,
+      business_type: s.business_type,
+      city: s.city,
+      currency: s.currency,
+      created_at: s.created_at,
+      memberRole: s.role || s.memberRole || 'owner',
+    }));
+
+  const mergeShopLists = (...lists) => {
+    const byId = new Map();
+    lists.flat().forEach((s) => {
+      if (!s?.id) return;
+      const key = String(s.id);
+      byId.set(key, { ...(byId.get(key) || {}), ...s, id: key });
+    });
+    return [...byId.values()].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+  };
+
+  const fetchShopsFromSupabase = async () => {
+    if (!supabase) return [];
+    const { data, error: e } = await supabase
+      .from('shop_users')
+      .select(
+        'role, shop:shops(id, name, phone, address, business_type, city, currency, created_at)'
+      )
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false, referencedTable: 'shops' });
+    if (e) throw e;
+    return mapSupabaseShopRows(data);
+  };
+
   const fetchShops = async () => {
     if (!user?.id) return;
     setPageError('');
     setLoading(true);
     try {
+      let mapped = [];
+
       if (hasPosBackendSession()) {
-        const { data } = await shopPickerAPI.listShops();
-        const rows = Array.isArray(data?.shops) ? data.shops : [];
-        const mapped = rows.map((s) => ({
-          id: s.id,
-          name: s.name,
-          phone: s.phone,
-          address: s.address,
-          business_type: s.business_type,
-          city: s.city,
-          currency: s.currency,
-          created_at: s.created_at,
-          memberRole: s.role || s.memberRole || 'owner',
-        }));
-        applyShopList(mapped);
-        return;
+        try {
+          const { data } = await shopPickerAPI.listShops();
+          mapped = mapApiShopRows(Array.isArray(data?.shops) ? data.shops : []);
+        } catch (apiErr) {
+          console.warn('[ShopPicker] listShops:', apiErr?.response?.data || apiErr.message);
+        }
       }
 
-      if (!supabase) {
+      if (supabase) {
+        try {
+          const supaRows = await fetchShopsFromSupabase();
+          mapped = mergeShopLists(mapped, supaRows);
+        } catch (supaErr) {
+          if (!mapped.length) throw supaErr;
+          console.warn('[ShopPicker] supabase shops:', supaErr.message);
+        }
+      }
+
+      if (!mapped.length) {
         setPageError('Sign in again to load your shops.');
         return;
       }
-      const { data, error: e } = await supabase
-        .from('shop_users')
-        .select(
-          'role, shop:shops(id, name, phone, address, business_type, city, currency, created_at)'
-        )
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false, referencedTable: 'shops' });
-      if (e) throw e;
-      const mapped = (data || []).map((row) => ({ ...row.shop, memberRole: row.role })).filter(Boolean);
+
       applyShopList(mapped);
     } catch (e) {
       setPageError(e.response?.data?.error || e.message || 'Failed to load shops');
