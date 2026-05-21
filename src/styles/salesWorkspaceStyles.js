@@ -20,6 +20,11 @@ export const salesWorkspaceStyles = `
 .sal2-kpi-val{font-size:1.35rem;font-weight:800;font-family:'Bricolage Grotesque','DM Sans',sans-serif;color:#0f172a;letter-spacing:-.02em;line-height:1.15;margin-bottom:6px}
 .sal2-kpi-lbl{font-size:13px;font-weight:600;color:#334155}
 .sal2-kpi-sub{margin-top:4px;font-size:12px;color:#94a3b8;font-weight:500}
+.sal2-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.sal2-chipBtn{height:40px;padding:0 16px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#475569;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s,color .15s}
+.sal2-chipBtn:hover{background:#f8fafc;border-color:#d1d5db;color:#0f172a}
+.sal2-chipBtn--on{background:#111827;border-color:#111827;color:#fff;box-shadow:0 2px 8px rgba(17,24,39,.15)}
+.sal2-chipBtn--on:hover{background:#1e293b;border-color:#1e293b;color:#fff}
 .sal2-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap}
 .sal2-hd-tit{margin:0;font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:clamp(1.35rem,2.2vw,1.65rem);font-weight:800;letter-spacing:-.03em;color:#0f172a}
 .sal2-hd-sub{margin:6px 0 0;font-size:14px;color:#64748b;font-weight:500;max-width:52ch;line-height:1.4}

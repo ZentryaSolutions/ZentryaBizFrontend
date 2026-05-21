@@ -624,15 +624,17 @@ const Sales = ({ readOnly = false }) => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="sal2-tabs" role="tablist" aria-label={t('sales.listFilter', { defaultValue: 'Invoice list filter' })}>
         {[
-          { id: 'invoices', label: 'Invoices' },
-          { id: 'credit_notes', label: 'Credit notes' },
-          { id: 'all', label: 'All' },
+          { id: 'invoices', label: t('sales.tabInvoices', { defaultValue: 'Invoices' }) },
+          { id: 'credit_notes', label: t('sales.tabCreditNotes', { defaultValue: 'Credit notes' }) },
+          { id: 'all', label: t('sales.tabAll', { defaultValue: 'All' }) },
         ].map((tab) => (
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={listTab === tab.id}
             className={`sal2-chipBtn${listTab === tab.id ? ' sal2-chipBtn--on' : ''}`}
             onClick={() => {
               setListTab(tab.id);
