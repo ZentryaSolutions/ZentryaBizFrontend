@@ -15,6 +15,7 @@ import {
   faPenToSquare,
   faEye,
   faDownload,
+  faFileImport,
 } from '@fortawesome/free-solid-svg-icons';
 import { productsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -389,8 +390,14 @@ const Inventory = ({ readOnly = false }) => {
         </div>
         {!readOnly ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="inv3-addBtn" style={{ background: '#fff', color: '#334155', border: '1px solid #cbd5e1' }} onClick={() => setImportOpen(true)}>
-              <FontAwesomeIcon icon={faDownload} />
+            <button
+              type="button"
+              className="inv3-addBtn"
+              style={{ background: '#fff', color: '#334155', border: '1px solid #cbd5e1' }}
+              onClick={() => setImportOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <FontAwesomeIcon icon={faFileImport} />
               Import
             </button>
             <button type="button" className="inv3-addBtn" onClick={handleAdd}>

@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { productsAPI } from '../services/api';
+import { hasPosBackendSession } from '../lib/appMode';
+import { salesWorkspaceStyles } from '../styles/salesWorkspaceStyles';
+
+const importModalExtraStyles = `
+.zb-import-modal .btn{border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#334155}
+.zb-import-modal .btn-primary{background:#111827;color:#fff;border-color:#111827}
+.zb-import-modal .btn-secondary{background:#fff;color:#334155}
+.zb-import-modal .btn:disabled{opacity:.55;cursor:not-allowed}
+.zb-import-modal .sales-items-table{width:100%;border-collapse:collapse}
+.zb-import-modal .sales-items-table th,.zb-import-modal .sales-items-table td{padding:8px 10px;text-align:left;border-bottom:1px solid #f1f5f9}
+`;
 
 const TEMPLATE_HEADERS = [
   'Name',
@@ -79,13 +90,28 @@ export default function ProductImportModal({ onClose, onImported }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError('');
+    if (!hasPosBackendSession()) {
+      setError('Session not ready. Sign out and sign in again, then import.');
+      return;
+    }
     try {
       const text = await file.text();
       const rows = parseCsv(text);
+      if (!rows.length) {
+        setError('CSV is empty or missing data rows. Use the template and add at least one product row.');
+        return;
+      }
       const res = await productsAPI.importBulk({ rows, previewOnly: true });
       setPreview(res.data);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to parse file');
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to parse file';
+      setError(msg);
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -116,7 +142,9 @@ export default function ProductImportModal({ onClose, onImported }) {
   };
 
   return createPortal(
-    <div className="sal2-modal-overlay" onClick={onClose}>
+    <>
+      <style>{`${salesWorkspaceStyles}${importModalExtraStyles}`}</style>
+      <div className="sal2-modal-overlay zb-import-modal" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="sal2-modal modal" onClick={(ev) => ev.stopPropagation()}>
         <div className="modal-header">
           <h2>Import products</h2>
@@ -188,7 +216,8 @@ export default function ProductImportModal({ onClose, onImported }) {
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body
   );
 }
