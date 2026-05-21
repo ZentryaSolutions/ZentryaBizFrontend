@@ -383,15 +383,27 @@ export default function ShopPickerPage() {
 
   const fetchShopsFromSupabase = async () => {
     if (!supabase) return [];
-    const { data, error: e } = await supabase
-      .from('shop_users')
-      .select(
-        'role, shop:shops(id, name, phone, address, business_type, city, currency, created_at)'
-      )
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false, referencedTable: 'shops' });
-    if (e) throw e;
-    return mapSupabaseShopRows(data);
+    const [memberRes, ownedRes] = await Promise.all([
+      supabase
+        .from('shop_users')
+        .select(
+          'role, shop:shops(id, name, phone, address, business_type, city, currency, created_at)'
+        )
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false, referencedTable: 'shops' }),
+      supabase
+        .from('shops')
+        .select('id, name, phone, address, business_type, city, currency, created_at')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false }),
+    ]);
+    if (memberRes.error && ownedRes.error) throw memberRes.error;
+    const fromMembers = mapSupabaseShopRows(memberRes.data);
+    const fromOwned = (ownedRes.data || []).map((s) => ({
+      ...s,
+      memberRole: 'owner',
+    }));
+    return mergeShopLists(fromMembers, fromOwned);
   };
 
   const fetchShops = async () => {

@@ -45,6 +45,15 @@ api.interceptors.request.use((config) => {
     config.headers['x-shop-id'] = shopId;
   }
 
+  const profileId =
+    localStorage.getItem('zb_simple_uid') ||
+    sessionStorage.getItem('zb_simple_uid') ||
+    localStorage.getItem('zb_pending_uid') ||
+    sessionStorage.getItem('zb_pending_uid');
+  if (profileId && /^[0-9a-f-]{36}$/i.test(String(profileId).trim())) {
+    config.headers['x-zb-profile-id'] = String(profileId).trim();
+  }
+
   return config;
 });
 
