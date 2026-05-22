@@ -23,6 +23,11 @@ export const authLayoutExtraStyles = `
   font-size:14px !important;
 }
 .zb-auth__ctaRow{margin-top:12px !important;}
+.zb-auth__divider{display:flex;align-items:center;gap:12px;margin:16px 0 14px;color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.zb-auth__divider::before,.zb-auth__divider::after{content:'';flex:1;height:1px;background:#e5e7eb}
+.zb-auth__googleWrap{display:flex;flex-direction:column;align-items:center;width:100%}
+.zb-auth__googleBtnHost{display:flex;justify-content:center;width:100%;min-height:44px}
+.zb-auth__googleErr{margin:8px 0 0;font-size:12px;color:#b91c1c;text-align:center}
 
 @media (max-width: 980px){
   .zb-auth__card--split{width:min(780px, calc(100vw - 40px)) !important;}

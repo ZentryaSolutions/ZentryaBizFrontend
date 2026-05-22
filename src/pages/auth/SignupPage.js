@@ -3,7 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import AuthPasswordField from './AuthPasswordField';
 import { isSupabaseBrowserConfigured } from '../../lib/supabaseClient';
+import { isGoogleSignInConfigured } from '../../lib/googleAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { otpAPI } from '../../services/api';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { IconEnvelope, IconUser } from './authIcons';
 import './AuthPages.css';
 
@@ -11,13 +14,34 @@ const PENDING_KEY = 'zb_pending_signup';
 
 export default function SignupPage() {
   const nav = useNavigate();
+  const { signInWithGoogle } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleGoogleCredential = async (credential) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const r = await signInWithGoogle(credential, true);
+      if (!r.success) {
+        setError(r.error || 'Google sign-up failed');
+        return;
+      }
+      if (r.pendingOtp) {
+        nav(`/login?next=${encodeURIComponent('/shops')}`, { replace: true });
+        return;
+      }
+      nav('/shops', { replace: true });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleContinue = async (e) => {
     e.preventDefault();
@@ -133,10 +157,17 @@ export default function SignupPage() {
         <button
           className="zb-auth__submit zb-auth__submit--green zb-auth__submit--pill"
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
         >
           {loading ? 'Sending code…' : 'Create account'}
         </button>
+
+        {isGoogleSignInConfigured() ? (
+          <>
+            <div className="zb-auth__divider">or</div>
+            <GoogleSignInButton onCredential={handleGoogleCredential} disabled={loading || googleLoading} />
+          </>
+        ) : null}
       </form>
 
       <div className="zb-auth__switch">

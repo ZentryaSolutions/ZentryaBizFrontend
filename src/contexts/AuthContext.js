@@ -24,6 +24,7 @@ const SS_PENDING_NAME = 'zb_pending_full_name';
 const SS_PENDING_EMAIL = 'zb_pending_email';
 const SS_PENDING_OTP_KIND = 'zb_pending_otp_kind';
 const SS_PENDING_REMEMBER = 'zb_pending_remember';
+const SS_PENDING_AUTH_METHOD = 'zb_pending_auth_method';
 
 /** Epoch ms when local auth + POS session should be treated as expired (4-day browser session). */
 const LS_EXPIRES = 'zb_auth_expires_at';
@@ -156,6 +157,7 @@ function clearPendingOtp() {
   sessionStorage.removeItem(SS_PENDING_EMAIL);
   sessionStorage.removeItem(SS_PENDING_OTP_KIND);
   sessionStorage.removeItem(SS_PENDING_REMEMBER);
+  sessionStorage.removeItem(SS_PENDING_AUTH_METHOD);
 }
 
 /**
@@ -269,6 +271,66 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
   return zbNodeSessionInFlight;
 }
 
+/**
+ * Google Sign-In → POST /auth/google (does not use zb_login or password).
+ */
+async function tryEstablishGoogleSession(credential, rememberLong = true) {
+  let deviceId;
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('deviceId') || 'unknown';
+  }
+  const cfg = {
+    headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+    timeout: 60000,
+  };
+  const base = getServerUrl();
+  const save = (data) => {
+    if (data?.sessionId) {
+      storePosSessionId(data.sessionId, rememberLong);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      notifyBackendSessionChanged();
+    }
+  };
+
+  try {
+    const { data } = await axios.post(`${base}/auth/google`, { credential }, cfg);
+    if (data?.success && data?.requiresOtp) {
+      return {
+        ok: true,
+        pendingOtp: true,
+        emailHint: data.emailHint || '',
+        otpKind: data.otpKind === 'new_device' ? 'new_device' : 'mfa',
+        user_id: data.user_id,
+        username: data.username,
+        full_name: data.full_name,
+        email: data.email,
+        isNewAccount: Boolean(data.isNewAccount),
+      };
+    }
+    if (data?.sessionId) {
+      save(data);
+      return {
+        ok: true,
+        user_id: data.user_id,
+        username: data.username,
+        full_name: data.full_name,
+        email: data.email,
+        isNewAccount: Boolean(data.isNewAccount),
+      };
+    }
+    const hint = data?.message || data?.error || 'Google sign-in returned no session';
+    return { ok: false, hint };
+  } catch (e) {
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
+    const code = e.response?.status;
+    return { ok: false, hint: code ? `Google sign-in HTTP ${code}: ${msg}` : msg };
+  }
+}
+
 async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mfa', rememberLong = true) {
   let deviceId;
   try {
@@ -294,6 +356,60 @@ async function completeZbNodeLoginWithOtp(username, password, otp, otpKind = 'mf
       }
       notifyBackendSessionChanged();
       return { ok: true };
+    }
+    return {
+      ok: false,
+      hint: data?.message || data?.error || 'No session returned',
+    };
+  } catch (e) {
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
+    const code = e.response?.status;
+    const msgLc = String(msg || '').toLowerCase();
+    if (code === 400 && (msgLc.includes('incorrect') || msgLc.includes('invalid') || msgLc.includes('otp'))) {
+      return { ok: false, hint: 'Invalid OTP' };
+    }
+    return {
+      ok: false,
+      hint: code ? `Verify OTP HTTP ${code}: ${msg}` : msg,
+    };
+  }
+}
+
+async function completeGoogleLoginWithOtp(email, otp, otpKind = 'mfa', rememberLong = true) {
+  let deviceId;
+  try {
+    deviceId = getDeviceId();
+  } catch {
+    deviceId = localStorage.getItem('deviceId') || 'unknown';
+  }
+  const cfg = {
+    headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+    timeout: 60000,
+  };
+  const base = getServerUrl();
+  try {
+    const { data } = await axios.post(
+      `${base}/auth/google/verify-otp`,
+      {
+        email: String(email || '').trim().toLowerCase(),
+        otp,
+        otpKind,
+      },
+      cfg
+    );
+    if (data?.sessionId) {
+      storePosSessionId(data.sessionId, rememberLong);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      notifyBackendSessionChanged();
+      return {
+        ok: true,
+        user_id: data.user_id,
+        username: data.username,
+        full_name: data.full_name,
+        email: data.email,
+      };
     }
     return {
       ok: false,
@@ -590,6 +706,81 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
+  /** Sign in with Google (GIS credential). Email/password login unchanged. */
+  const signInWithGoogle = async (credential, rememberLong = false) => {
+    if (!credential) {
+      return { success: false, error: 'Google sign-in was cancelled' };
+    }
+    const apiSess = await tryEstablishGoogleSession(credential, rememberLong);
+    if (apiSess.ok && apiSess.pendingOtp) {
+      persistPendingOtp(
+        apiSess.user_id,
+        apiSess.username,
+        apiSess.full_name,
+        apiSess.email,
+        apiSess.otpKind || 'mfa',
+        rememberLong
+      );
+      sessionStorage.setItem(SS_PENDING_AUTH_METHOD, 'google');
+      try {
+        await refreshProfile(apiSess.user_id);
+      } catch {
+        setProfile(null);
+      }
+      return {
+        success: true,
+        pendingOtp: true,
+        emailHint: apiSess.emailHint || '',
+        otpKind: apiSess.otpKind || 'mfa',
+        isNewAccount: Boolean(apiSess.isNewAccount),
+      };
+    }
+    if (!apiSess.ok) {
+      clearPendingOtp();
+      return { success: false, error: apiSess.hint || 'Google sign-in failed' };
+    }
+
+    clearPendingOtp();
+    sessionStorage.removeItem(SS_PENDING_AUTH_METHOD);
+    persistSession(apiSess.user_id, apiSess.username, apiSess.full_name, apiSess.email, rememberLong);
+    applyLocalUser(apiSess.user_id);
+    try {
+      await refreshProfile(apiSess.user_id);
+    } catch {
+      setProfile(null);
+    }
+    return { success: true, isNewAccount: Boolean(apiSess.isNewAccount) };
+  };
+
+  const completeSignInWithGoogleOtp = async (email, otp) => {
+    const otpKind = sessionStorage.getItem(SS_PENDING_OTP_KIND) || 'mfa';
+    const rememberLong = sessionStorage.getItem(SS_PENDING_REMEMBER) !== '0';
+    const r = await completeGoogleLoginWithOtp(
+      String(email || '').trim().toLowerCase(),
+      otp,
+      otpKind === 'new_device' ? 'new_device' : 'mfa',
+      rememberLong
+    );
+    if (!r.ok) {
+      return { success: false, error: r.hint || 'Verification failed' };
+    }
+    const pendingUser = sessionStorage.getItem(SS_PENDING_USER) || '';
+    const pendingName = sessionStorage.getItem(SS_PENDING_NAME) || pendingUser;
+    const pendingEmail = sessionStorage.getItem(SS_PENDING_EMAIL) || email;
+    clearPendingOtp();
+    sessionStorage.removeItem(SS_PENDING_AUTH_METHOD);
+    if (r.user_id) {
+      persistSession(r.user_id, r.username || pendingUser, r.full_name || pendingName, pendingEmail, rememberLong);
+      applyLocalUser(r.user_id);
+    }
+    try {
+      if (r.user_id) await refreshProfile(r.user_id);
+    } catch {
+      setProfile(null);
+    }
+    return { success: true };
+  };
+
   const signUpWithEmail = async ({ password, fullName, email, otp }) => {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
     const em = String(email || '').trim().toLowerCase();
@@ -730,7 +921,9 @@ export const AuthProvider = ({ children }) => {
       setActiveShopId,
       refreshProfile,
       signInWithPassword,
+      signInWithGoogle,
       completeSignInWithNodeOtp,
+      completeSignInWithGoogleOtp,
       signUpWithEmail,
       logout,
       isAdmin,

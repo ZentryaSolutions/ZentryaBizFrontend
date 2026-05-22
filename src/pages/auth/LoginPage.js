@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseBrowserConfigured } from '../../lib/supabaseClient';
+import { isGoogleSignInConfigured } from '../../lib/googleAuth';
 import { authAPI, otpAPI } from '../../services/api';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AuthPasswordField from './AuthPasswordField';
 import AuthOtpBoxes from './AuthOtpBoxes';
 import { IconEnvelope } from './authIcons';
@@ -12,9 +14,11 @@ import './AuthPages.css';
 const REMEMBER_EMAIL_KEY = 'zb_auth_remember_email';
 const PENDING_OTP_EMAIL_KEY = 'zb_pending_email';
 const PENDING_OTP_KIND_KEY = 'zb_pending_otp_kind';
+const PENDING_AUTH_METHOD_KEY = 'zb_pending_auth_method';
 
 export default function LoginPage() {
-  const { signInWithPassword, completeSignInWithNodeOtp, logout } = useAuth();
+  const { signInWithPassword, signInWithGoogle, completeSignInWithNodeOtp, completeSignInWithGoogleOtp, logout } =
+    useAuth();
   const nav = useNavigate();
   const location = useLocation();
 
@@ -40,6 +44,8 @@ export default function LoginPage() {
   const [loginOtp, setLoginOtp] = useState('');
   const [nodeOtpHint, setNodeOtpHint] = useState('');
   const [otpSending, setOtpSending] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [pendingAuthMethod, setPendingAuthMethod] = useState('');
 
   const searchParams = new URLSearchParams(location.search);
   const next = searchParams.get('next') || '/app';
@@ -64,6 +70,7 @@ export default function LoginPage() {
         setEmail(String(pendingEmail).trim());
         setNodeOtpStep(true);
         setNodeOtpKind(kind === 'new_device' ? 'new_device' : 'mfa');
+        setPendingAuthMethod(sessionStorage.getItem(PENDING_AUTH_METHOD_KEY) || '');
         setNodeOtpHint(
           kind === 'new_device'
             ? 'New browser — enter the security code we emailed you.'
@@ -74,6 +81,38 @@ export default function LoginPage() {
       /* ignore */
     }
   }, []);
+
+  const handleGoogleCredential = async (credential) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const r = await signInWithGoogle(credential, rememberMe);
+      if (!r.success) {
+        setError(r.error || 'Google sign-in failed');
+        return;
+      }
+      if (r.pendingOtp) {
+        setPendingAuthMethod('google');
+        setNodeOtpKind(r.otpKind === 'new_device' ? 'new_device' : 'mfa');
+        setNodeOtpStep(true);
+        setLoginOtp('');
+        setNodeOtpHint(
+          r.otpKind === 'new_device'
+            ? 'New browser — enter the security code we emailed you.'
+            : 'Enter the code we sent to your email.'
+        );
+        if (r.emailHint) setEmail((prev) => prev || email);
+        return;
+      }
+      if (r.isNewAccount) {
+        nav('/shops', { replace: true });
+      } else {
+        nav(next, { replace: true });
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const openForgot = () => {
     setMode('forgot');
@@ -154,7 +193,12 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const r = await completeSignInWithNodeOtp(email.trim().toLowerCase(), password, code);
+      const method =
+        pendingAuthMethod || sessionStorage.getItem(PENDING_AUTH_METHOD_KEY) || '';
+      const r =
+        method === 'google'
+          ? await completeSignInWithGoogleOtp(email.trim().toLowerCase(), code)
+          : await completeSignInWithNodeOtp(email.trim().toLowerCase(), password, code);
       if (!r.success) {
         setError(r.error || 'Verification failed');
         setLoading(false);
@@ -186,7 +230,16 @@ export default function LoginPage() {
     setError('');
     setOtpSending(true);
     try {
-      if (nodeOtpKind === 'new_device') {
+      const method =
+        pendingAuthMethod || sessionStorage.getItem(PENDING_AUTH_METHOD_KEY) || '';
+      if (method === 'google') {
+        const { data } = await authAPI.googleResendOtp({ email: em });
+        if (!data?.success) {
+          setError(data?.error || 'Could not resend code');
+          return;
+        }
+        setNodeOtpHint('A new code was sent to your email.');
+      } else if (nodeOtpKind === 'new_device') {
         const { data } = await authAPI.zbSimpleSession({ username: em, password });
         if (!(data?.success && data?.requiresOtp)) {
           setError(data?.error || data?.message || 'Could not resend security code. Try signing in again.');
@@ -211,7 +264,13 @@ export default function LoginPage() {
     setNodeOtpKind('mfa');
     setLoginOtp('');
     setNodeOtpHint('');
+    setPendingAuthMethod('');
     setError('');
+    try {
+      sessionStorage.removeItem(PENDING_AUTH_METHOD_KEY);
+    } catch {
+      /* ignore */
+    }
     await logout();
   };
 
@@ -374,10 +433,20 @@ export default function LoginPage() {
                 <button
                   className="zb-auth__submit zb-auth__submit--green zb-auth__submit--pill"
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || googleLoading}
                 >
                   <span>{loading ? 'Logging in…' : 'Login'}</span>
                 </button>
+
+                {isGoogleSignInConfigured() ? (
+                  <>
+                    <div className="zb-auth__divider">or</div>
+                    <GoogleSignInButton
+                      onCredential={handleGoogleCredential}
+                      disabled={loading || googleLoading}
+                    />
+                  </>
+                ) : null}
               </form>
             ) : (
               <>

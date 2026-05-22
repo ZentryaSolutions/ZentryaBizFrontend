@@ -288,6 +288,10 @@ export const authAPI = {
   zbSimpleSession: (data) => api.post('/auth/zb-simple-session', data),
   /** Completes MFA login — no session cookie required */
   zbSimpleSessionVerifyOtp: (data) => api.post('/auth/zb-simple-session/verify-otp', data),
+  /** Google Sign-In (GIS id_token) */
+  googleSignIn: (data) => api.post('/auth/google', data),
+  googleSignInVerifyOtp: (data) => api.post('/auth/google/verify-otp', data),
+  googleResendOtp: (data) => api.post('/auth/google/resend-otp', data),
   /** Email OTP MFA flag on zb_simple_users (requires POS API session + x-shop-id irrelevant) */
   zbEmailMfaGet: () => api.get('/auth/zb-email-mfa'),
   zbEmailMfaPut: (body) => api.put('/auth/zb-email-mfa', body),
