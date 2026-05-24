@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import AuthPasswordField from './AuthPasswordField';
 import { isSupabaseBrowserConfigured } from '../../lib/supabaseClient';
-import { isGoogleSignInConfigured } from '../../lib/googleAuth';
 import { useAuth } from '../../contexts/AuthContext';
 import { otpAPI } from '../../services/api';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
@@ -162,12 +161,12 @@ export default function SignupPage() {
           {loading ? 'Sending code…' : 'Create account'}
         </button>
 
-        {isGoogleSignInConfigured() ? (
-          <>
-            <div className="zb-auth__divider">or</div>
-            <GoogleSignInButton onCredential={handleGoogleCredential} disabled={loading || googleLoading} />
-          </>
-        ) : null}
+        <div className="zb-auth__divider">or</div>
+        <GoogleSignInButton
+          onCredential={handleGoogleCredential}
+          onMissingConfig={(msg) => setError(msg)}
+          disabled={loading || googleLoading}
+        />
       </form>
 
       <div className="zb-auth__switch">

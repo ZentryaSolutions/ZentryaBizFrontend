@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseBrowserConfigured } from '../../lib/supabaseClient';
-import { isGoogleSignInConfigured } from '../../lib/googleAuth';
 import { authAPI, otpAPI } from '../../services/api';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AuthPasswordField from './AuthPasswordField';
@@ -438,15 +437,12 @@ export default function LoginPage() {
                   <span>{loading ? 'Logging in…' : 'Login'}</span>
                 </button>
 
-                {isGoogleSignInConfigured() ? (
-                  <>
-                    <div className="zb-auth__divider">or</div>
-                    <GoogleSignInButton
-                      onCredential={handleGoogleCredential}
-                      disabled={loading || googleLoading}
-                    />
-                  </>
-                ) : null}
+                <div className="zb-auth__divider">or</div>
+                <GoogleSignInButton
+                  onCredential={handleGoogleCredential}
+                  onMissingConfig={(msg) => setError(msg)}
+                  disabled={loading || googleLoading}
+                />
               </form>
             ) : (
               <>

@@ -32,6 +32,8 @@ import UpdateNotification from './components/UpdateNotification';
 import OfflineSavedNotice from './components/OfflineSavedNotice';
 import { workspaceOfflineBannerStyles } from './styles/workspaceOfflineStyles';
 import LandingPage from './pages/LandingPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import SignupVerifyPage from './pages/auth/SignupVerifyPage';
@@ -102,6 +104,8 @@ function AppContent({ location }) {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
         <Route path="/staff-invite" element={<StaffInvitePage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -141,7 +145,13 @@ function AppContent({ location }) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
-  // Logged in: home — marketing landing with logo nav; “My workspace” / Logout when session valid (4d TTL in AuthContext)
+  // Logged in: marketing home + legal pages (same header as landing)
+  if (user && location?.pathname === '/privacy') {
+    return <PrivacyPolicyPage />;
+  }
+  if (user && location?.pathname === '/terms') {
+    return <TermsOfServicePage />;
+  }
   if (user && location?.pathname === '/') {
     return <LandingPage />;
   }
