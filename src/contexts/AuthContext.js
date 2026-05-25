@@ -205,11 +205,21 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
           pendingOtp: true,
           emailHint: data.emailHint || '',
           otpKind: data.otpKind === 'new_device' ? 'new_device' : 'mfa',
+          user_id: data.user_id,
+          username: data.username,
+          full_name: data.full_name,
+          email: data.email,
         };
       }
       if (data?.sessionId) {
         save(data);
-        return { ok: true };
+        return {
+          ok: true,
+          user_id: data.user_id,
+          username: data.username,
+          full_name: data.full_name,
+          email: data.email,
+        };
       }
       hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
     } catch (e) {
@@ -327,6 +337,12 @@ async function tryEstablishGoogleSession(credential, rememberLong = true) {
   } catch (e) {
     const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
     const code = e.response?.status;
+    if (code === 404) {
+      return {
+        ok: false,
+        hint: 'Google sign-in is not active on the backend yet. Redeploy the backend and try again.',
+      };
+    }
     return { ok: false, hint: code ? `Google sign-in HTTP ${code}: ${msg}` : msg };
   }
 }
@@ -595,42 +611,26 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const unwrapRpc = (data) => {
-    if (data == null) return null;
-    if (typeof data === 'string') {
-      try {
-        return JSON.parse(data);
-      } catch {
-        return null;
-      }
-    }
-    return data;
-  };
-
   const signInWithPassword = async (email, password, rememberLong = false) => {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
     const em = String(email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
       return { success: false, error: 'Enter a valid email address' };
     }
-    const { data: raw, error } = await supabase.rpc('zb_login', {
-      p_username: em,
-      p_password: password,
-    });
-    if (error) return { success: false, error: error.message };
-    const data = unwrapRpc(raw);
-    if (!data?.ok) return { success: false, error: data?.error || 'Login failed' };
 
     const apiSess = await tryEstablishNodeSession(em, password, rememberLong);
     if (apiSess.ok && apiSess.pendingOtp) {
       // Do NOT mark user as logged-in yet; App.js would redirect away from /login.
       // Store minimal pending info so OTP page survives refresh.
-      persistPendingOtp(data.user_id, data.username, data.full_name, em, apiSess.otpKind || 'mfa', rememberLong);
-      try {
-        await refreshProfile(data.user_id);
-      } catch {
-        setProfile(null);
-      }
+      persistPendingOtp(
+        apiSess.user_id,
+        apiSess.username,
+        apiSess.full_name,
+        apiSess.email || em,
+        apiSess.otpKind || 'mfa',
+        rememberLong
+      );
+      void refreshProfile(apiSess.user_id).catch(() => setProfile(null));
       return {
         success: true,
         pendingOtp: true,
@@ -661,13 +661,12 @@ export const AuthProvider = ({ children }) => {
     }
 
     clearPendingOtp();
-    persistSession(data.user_id, data.username, data.full_name, em, rememberLong);
-    applyLocalUser(data.user_id);
-    try {
-      await refreshProfile(data.user_id);
-    } catch {
-      setProfile(null);
+    if (!apiSess.user_id) {
+      return { success: false, error: 'Login succeeded but user profile was not returned. Please redeploy backend.' };
     }
+    persistSession(apiSess.user_id, apiSess.username, apiSess.full_name, apiSess.email || em, rememberLong);
+    applyLocalUser(apiSess.user_id);
+    void refreshProfile(apiSess.user_id).catch(() => setProfile(null));
     return { success: true };
   };
 

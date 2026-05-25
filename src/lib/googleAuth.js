@@ -3,6 +3,8 @@
 const GSI_SCRIPT = 'https://accounts.google.com/gsi/client';
 
 let scriptPromise = null;
+let initializedClientId = '';
+let activeCredentialCallback = null;
 
 export function getGoogleClientId() {
   return String(process.env.REACT_APP_GOOGLE_CLIENT_ID || '').trim();
@@ -47,14 +49,18 @@ export async function mountGoogleSignInButton(container, onCredential) {
 
   await loadGoogleIdentityScript();
 
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: (response) => {
-      if (response?.credential) onCredential(response.credential);
-    },
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  });
+  activeCredentialCallback = onCredential;
+  if (initializedClientId !== clientId) {
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        if (response?.credential) activeCredentialCallback?.(response.credential);
+      },
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+    initializedClientId = clientId;
+  }
 
   container.innerHTML = '';
   window.google.accounts.id.renderButton(container, {
