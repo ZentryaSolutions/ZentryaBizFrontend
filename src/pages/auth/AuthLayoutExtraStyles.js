@@ -31,9 +31,8 @@ export const authLayoutExtraStyles = `
 .zb-auth__googleFallback{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;padding:0 18px;border-radius:999px;border:1px solid #dadce0;background:#fff;color:#3c4043;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 1px 2px rgba(60,64,67,.08)}
 .zb-auth__googleFallback:hover:not(:disabled){background:#f8f9fa;border-color:#c6c9cc}
 .zb-auth__googleFallback:disabled{opacity:.55;cursor:not-allowed}
-.zb-auth__googleFallbackIcon{width:20px;height:20px;border-radius:4px;background:linear-gradient(135deg,#4285f4 33%,#34a853 66%,#fbbc05 100%);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-.zb-auth__googleHint{margin:8px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.4}
-.zb-auth__googleHint code{font-size:10px;background:#f1f5f9;padding:2px 5px;border-radius:4px}
+.zb-auth__googleFallbackIcon{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px}
+.zb-auth__googleFallbackIcon svg{display:block;width:18px;height:18px}
 
 @media (max-width: 980px){
   .zb-auth__card--split{width:min(780px, calc(100vw - 40px)) !important;}
