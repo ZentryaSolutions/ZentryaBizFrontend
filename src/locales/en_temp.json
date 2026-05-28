@@ -1,6 +1,6 @@
 {
     "app":  {
-                "name":  "HisaabKitab",
+                "name": "Zentrya Biz",
                 "subtitle":  "POS \u0026 Inventory",
                 "version":  "Version 1.0.0",
                 "offlineMode":  "â— Offline Mode"
@@ -485,7 +485,7 @@
                    "scheduledTime":  "Scheduled Time",
                    "scheduledTimeDesc":  "Daily backup will be created at this time (local system time)",
                    "backupLocation":  "Backup Location",
-                   "backupLocationDesc":  "Default: /HisaabKitab/backup/",
+                   "backupLocationDesc":  "Default: /ZentryaBiz/backup/",
                    "change":  "Change",
                    "retention":  "Backup Retention",
                    "retentionDesc":  "Older backups will be automatically deleted",
@@ -781,7 +781,7 @@
                    "profileSettings":  "Profile Settings"
                },
     "setup":  {
-                  "welcome":  "Welcome to HisaabKitab POS!",
+                  "welcome":  "Welcome to Zentrya Biz!",
                   "welcomeMessage":  "Let\u0027s set up your first administrator account to get started.",
                   "basicInfo":  "Basic Information",
                   "setPassword":  "Set Password",

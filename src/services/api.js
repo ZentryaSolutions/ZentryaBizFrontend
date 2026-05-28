@@ -31,7 +31,7 @@ api.interceptors.request.use((config) => {
   }
   config.headers['x-device-id'] = deviceId;
 
-  // Express/HisaabKitab session (LAN desktop). Tab-only login keeps sessionId in sessionStorage.
+  // Express LAN desktop session. Tab-only login keeps sessionId in sessionStorage.
   const sessionId =
     sessionStorage.getItem('sessionId') || localStorage.getItem('sessionId');
   if (sessionId) {

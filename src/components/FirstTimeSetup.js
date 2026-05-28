@@ -187,7 +187,7 @@ function FirstTimeSetup({ onCancelRegister }) {
         {step === 1 && (
           <div className="setup-step welcome-step">
             <div className="setup-header">
-              <h1>Welcome to HisaabKitab POS</h1>
+              <h1>Welcome to Zentrya Biz</h1>
               <h2>Let's set up your shop in 3 minutes</h2>
               <p>We'll guide you through a quick setup process to get you started.</p>
             </div>

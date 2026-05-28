@@ -193,7 +193,7 @@ function DatabaseSetup({ onSetupComplete }) {
                     </li>
                     <li>
                       <strong>Step 2:</strong> In the Command Prompt window, type this command and press Enter:
-                      <code className="code-block">cd /d E:\POS\HisaabKitab</code>
+                      <code className="code-block">cd /d E:\POS\ZentryaBiz</code>
                       <br />
                       <span className="step-note">(This opens the application folder)</span>
                     </li>

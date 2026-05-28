@@ -19,7 +19,7 @@ export function posApiQueriesEnabled(shopId) {
   return Boolean(shopId) && hasPosBackendSession();
 }
 
-/** Logged in via Supabase zb_simple_* only — no Express / HisaabKitab session. */
+/** Logged in via Supabase zb_simple_* only — no Express / legacy LAN session. */
 export function isZbWebOnlyMode() {
   if (typeof window === 'undefined') return false;
   const uid =

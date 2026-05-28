@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "HisaabKitab",
+    "name": "Zentrya Biz",
     "brandName": "Zentrya Biz",
     "subtitle": "POS & Inventory",
     "version": "Version 1.0.0",
@@ -611,7 +611,7 @@
     "scheduledTime": "Scheduled Time",
     "scheduledTimeDesc": "Daily backup will be created at this time (local system time)",
     "backupLocation": "Backup Location",
-    "backupLocationDesc": "Default: /HisaabKitab/backup/",
+    "backupLocationDesc": "Default: /ZentryaBiz/backup/",
     "change": "Change",
     "retention": "Backup Retention",
     "retentionDesc": "Older backups will be automatically deleted",
@@ -949,7 +949,7 @@
     "ownerNameLabel": "Owner name"
   },
   "setup": {
-    "welcome": "Welcome to HisaabKitab POS!",
+    "welcome": "Welcome to Zentrya Biz!",
     "welcomeMessage": "Let's set up your first administrator account to get started.",
     "basicInfo": "Basic Information",
     "setPassword": "Set Password",

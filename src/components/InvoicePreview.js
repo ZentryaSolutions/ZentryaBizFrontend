@@ -4,7 +4,7 @@ import { hasPosBackendSession } from '../lib/appMode';
 import './InvoicePreview.css';
 
 const InvoicePreview = ({ invoiceNumber, customerName, items, totalAmount, totalProfit, onClose, onPrint }) => {
-  const [shopName, setShopName] = useState('HisaabKitab');
+  const [shopName, setShopName] = useState('Zentrya Biz');
   const [shopAddress, setShopAddress] = useState('');
   const [shopPhone, setShopPhone] = useState('');
 
@@ -17,7 +17,7 @@ const InvoicePreview = ({ invoiceNumber, customerName, items, totalAmount, total
         const settings = typeof data.other_app_settings === 'string' 
           ? JSON.parse(data.other_app_settings) 
           : data.other_app_settings;
-        setShopName(settings.shop_name || 'HisaabKitab');
+        setShopName(settings.shop_name || 'Zentrya Biz');
         setShopAddress(settings.shop_address || '');
         setShopPhone(settings.shop_phone || '');
       }

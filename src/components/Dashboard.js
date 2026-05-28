@@ -229,7 +229,7 @@ const Dashboard = () => {
             {webOnly
               ? t('dashboard.hintMissingApiSession', {
                   defaultValue:
-                    'No POS API session (missing sessionId). Common causes: LAN/localhost server saved in this browser (same site as /api), wrong REACT_APP_BACKEND_URL on the last deploy, or zb-simple-session failing. Clear hisaabkitab_server_url from localStorage / Settings → connection, then sign out and sign in again; check Network → zb-simple-session = 200.',
+                    'No POS API session (missing sessionId). Common causes: LAN/localhost server saved in this browser (same site as /api), wrong REACT_APP_BACKEND_URL on the last deploy, or zb-simple-session failing. Clear the LAN server URL override in Settings → Connection (or localStorage), then sign out and sign in again; check Network → zb-simple-session = 200.',
                 })
               : t('dashboard.hintBackendOrCors', {
                   defaultValue:

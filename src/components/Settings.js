@@ -552,7 +552,7 @@ const Settings = ({ readOnly = false }) => {
       commands += `${ESC}@`; // Initialize
       commands += `${ESC}a\x01`; // Center align
       commands += `${ESC}!\x18`; // Double height and width
-      commands += 'HISAABKITAB\n';
+      commands += 'ZENTRYA BIZ\n';
       commands += `${ESC}!\x00`; // Normal size
       commands += 'POS & Inventory\n';
       commands += '----------------\n\n';
@@ -582,7 +582,7 @@ const Settings = ({ readOnly = false }) => {
             <html>
               <head><title>Test Print</title></head>
               <body style="font-family: monospace; padding: 20px;">
-                <h2>HISAABKITAB</h2>
+                <h2>ZENTRYA BIZ</h2>
                 <p>POS & Inventory</p>
                 <hr>
                 <p><strong>TEST PRINT</strong></p>

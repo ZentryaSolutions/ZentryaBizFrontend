@@ -8,6 +8,7 @@ import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AuthPasswordField from './AuthPasswordField';
 import AuthOtpBoxes from './AuthOtpBoxes';
 import { IconEnvelope } from './authIcons';
+import { shopsPath } from '../../utils/workspacePaths';
 import './AuthPages.css';
 
 const REMEMBER_EMAIL_KEY = 'zb_auth_remember_email';
@@ -103,6 +104,10 @@ export default function LoginPage() {
         if (r.emailHint) setEmail((prev) => prev || email);
         return;
       }
+      if (r.subscriptionExpired && r.userId) {
+        nav(shopsPath(r.userId), { replace: true });
+        return;
+      }
       if (r.isNewAccount) {
         nav('/shops', { replace: true });
       } else {
@@ -175,6 +180,10 @@ export default function LoginPage() {
         }
       } catch {
         /* ignore */
+      }
+      if (r.subscriptionExpired && r.userId) {
+        nav(shopsPath(r.userId), { replace: true });
+        return;
       }
       nav(next, { replace: true });
     } finally {

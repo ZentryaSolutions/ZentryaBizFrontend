@@ -61,7 +61,7 @@ export function generateDeviceFingerprint() {
       canvas.height = 50;
       ctx.textBaseline = 'top';
       ctx.font = '14px Arial';
-      ctx.fillText('HisaabKitab Device Fingerprint', 2, 2);
+      ctx.fillText('Zentrya Biz Device Fingerprint', 2, 2);
       components.push(canvas.toDataURL());
     } catch (e) {
       // Canvas not available, skip

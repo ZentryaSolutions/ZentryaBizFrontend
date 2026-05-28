@@ -328,7 +328,7 @@ function Login({ embedded = false, onBackToSetup }) {
           <div className="login-brand-badge" aria-hidden="true">
             HK
           </div>
-          <h1>HisaabKitab</h1>
+          <h1>Zentrya Biz</h1>
           <p>{t('auth.welcomeBack')}</p>
         </div>
 

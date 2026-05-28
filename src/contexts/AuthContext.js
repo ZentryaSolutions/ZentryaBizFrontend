@@ -55,6 +55,10 @@ export const useAuth = () => {
 let zbNodeSessionInFlight = null;
 let zbNodeSessionCooldownUntilMs = 0;
 
+function isExpiredPlanValue(plan) {
+  return String(plan || '').trim().toLowerCase() === 'expired';
+}
+
 function persistSession(uid, username, fullName, email = null, rememberLong = true) {
   if (rememberLong) {
     const exp = Date.now() + FOUR_DAYS_MS;
@@ -209,6 +213,9 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
           username: data.username,
           full_name: data.full_name,
           email: data.email,
+          plan: data.plan,
+          trial_ends_at: data.trial_ends_at,
+          stripe_current_period_end: data.stripe_current_period_end,
         };
       }
       if (data?.sessionId) {
@@ -219,6 +226,9 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
           username: data.username,
           full_name: data.full_name,
           email: data.email,
+          plan: data.plan,
+          trial_ends_at: data.trial_ends_at,
+          stripe_current_period_end: data.stripe_current_period_end,
         };
       }
       hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
@@ -318,6 +328,9 @@ async function tryEstablishGoogleSession(credential, rememberLong = true) {
         username: data.username,
         full_name: data.full_name,
         email: data.email,
+        plan: data.plan,
+        trial_ends_at: data.trial_ends_at,
+        stripe_current_period_end: data.stripe_current_period_end,
         isNewAccount: Boolean(data.isNewAccount),
       };
     }
@@ -329,6 +342,9 @@ async function tryEstablishGoogleSession(credential, rememberLong = true) {
         username: data.username,
         full_name: data.full_name,
         email: data.email,
+        plan: data.plan,
+        trial_ends_at: data.trial_ends_at,
+        stripe_current_period_end: data.stripe_current_period_end,
         isNewAccount: Boolean(data.isNewAccount),
       };
     }
@@ -667,7 +683,13 @@ export const AuthProvider = ({ children }) => {
     persistSession(apiSess.user_id, apiSess.username, apiSess.full_name, apiSess.email || em, rememberLong);
     applyLocalUser(apiSess.user_id);
     void refreshProfile(apiSess.user_id).catch(() => setProfile(null));
-    return { success: true };
+    return {
+      success: true,
+      userId: apiSess.user_id,
+      subscriptionExpired: isExpiredPlanValue(apiSess.plan),
+      plan: apiSess.plan,
+      trialEndsAt: apiSess.trial_ends_at,
+    };
   };
 
   const completeSignInWithNodeOtp = async (username, password, otp) => {
@@ -748,7 +770,14 @@ export const AuthProvider = ({ children }) => {
     } catch {
       setProfile(null);
     }
-    return { success: true, isNewAccount: Boolean(apiSess.isNewAccount) };
+    return {
+      success: true,
+      isNewAccount: Boolean(apiSess.isNewAccount),
+      userId: apiSess.user_id,
+      subscriptionExpired: isExpiredPlanValue(apiSess.plan),
+      plan: apiSess.plan,
+      trialEndsAt: apiSess.trial_ends_at,
+    };
   };
 
   const completeSignInWithGoogleOtp = async (email, otp) => {

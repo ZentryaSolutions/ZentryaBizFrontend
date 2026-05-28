@@ -161,6 +161,12 @@ function AppContent({ location }) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
+  // Expired trial/subscription may still have an old activeShopId in storage.
+  // Keep the user in My Shops/Pricing instead of opening the workspace.
+  if (profile && isExpiredPlan(profile.plan) && !onOwnShopsPicker) {
+    return <Navigate to={shopsPath(user.id)} replace />;
+  }
+
   // /{compact}/shops — shop picker ("My Shops"). Must run before extractAppScope; otherwise
   // /uid/shops is misread as /uid/:shopId with shopId "shops" and user gets bounced to /app.
   if (onOwnShopsPicker) {
