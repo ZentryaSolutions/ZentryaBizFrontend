@@ -360,7 +360,7 @@ export default function LoginPage() {
   const heroTitle = mode === 'login' ? 'Welcome back' : 'Secure your account';
   const heroText =
     mode === 'login'
-      ? 'Manage your shops, sales, and daily hisaab from one calm dashboard. Glad to see you again.'
+      ? 'Manage your shops, sales, and daily accounts from one calm dashboard. Glad to see you again.'
       : 'Choose a strong password and you’ll be back to your workspace in a moment.';
 
   return (

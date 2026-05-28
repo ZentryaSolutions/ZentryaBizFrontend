@@ -162,7 +162,7 @@ export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
                       onChange={() => setRefundType('credit')}
                     />
                     <span className="sal2-ret-option__text">
-                      Reduce customer credit (Udhar)
+                      Reduce customer credit balance
                       <span className="sal2-ret-option__amt">Adjust outstanding balance</span>
                     </span>
                   </label>

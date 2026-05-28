@@ -80,7 +80,7 @@ function SalesBarChart() {
 const featureItems = [
   { title: 'Fast billing', desc: 'Quick search, stock checks, smoother checkout flow.', icon: faBolt },
   { title: 'Inventory', desc: 'Stock in/out with accurate movement history.', icon: faBoxesStacked },
-  { title: 'Customer ledger', desc: 'Udhar balances, received payments, clear statements.', icon: faFileInvoiceDollar },
+  { title: 'Customer ledger', desc: 'Outstanding balances, received payments, clear statements.', icon: faFileInvoiceDollar },
   { title: 'Vendor payables', desc: 'Purchases, due amounts, and payment tracking.', icon: faTruck },
   { title: 'Reports', desc: 'Sales, low stock, receivables, payables, profitability.', icon: faChartColumn },
   { title: 'Multi-shop', desc: 'One owner account, multiple shops, role-based access.', icon: faShop },
@@ -106,7 +106,7 @@ const plans = [
     points: [
       'Unlimited salesmen',
       'Inventory + Sales + Billing',
-      'Customer ledger (Udhar)',
+      'Customer ledger & credit sales',
       'Advanced reports',
       'Data export (CSV)',
     ],
@@ -145,7 +145,7 @@ const faqs = [
   },
   {
     q: 'What can I run in the app day to day?',
-    a: 'Billing and checkout, inventory and stock movement, customer ledger (Udhar), vendor payables, expenses, categories, purchases, rate lists, sales history, and reports.',
+    a: 'Billing and checkout, inventory and stock movement, customer ledger and credit sales, vendor payables, expenses, categories, purchases, rate lists, sales history, and reports.',
   },
   {
     q: 'Does Growth include data export?',
@@ -229,7 +229,7 @@ export default function LandingPage() {
             <div className="zbx-heroFullCopy">
               <p className="zbx-tag zbx-tag--hero">Modern SaaS for retail</p>
               <h1>Run the shop. See the profit. Sleep better.</h1>
-              <h2>POS, stock, udhar, and owner-grade reports — one calm system your team will actually use.</h2>
+              <h2>POS, stock, customer credit, and owner-grade reports — one calm system your team will actually use.</h2>
               <p className="zbx-lead zbx-lead--hero">
                 Illustrative charts below show the kind of clarity owners get: trends, daily sales rhythm, and signals to act on — not spreadsheet chaos.
               </p>

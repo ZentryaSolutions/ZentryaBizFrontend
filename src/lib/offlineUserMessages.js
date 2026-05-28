@@ -7,9 +7,6 @@ export const OFFLINE_SAVED_POPUP_TITLE = "You're offline";
 export const OFFLINE_SAVED_POPUP_BODY =
   'Your changes are saved on this device. As soon as you connect to the internet, they will sync automatically.';
 
-export const OFFLINE_SAVED_POPUP_BODY_UR =
-  'آپ فی الوقت آف لائن ہیں۔ انٹرنیٹ سے کنیکٹ ہوتے ہی آپ کی تبدیلیاں محفوظ ہو جائیں گی۔';
-
 export const OFFLINE_CHANGES_SAVED_MESSAGE = OFFLINE_SAVED_POPUP_BODY;
 
 export const OFFLINE_CONNECTION_BANNER_MESSAGE =

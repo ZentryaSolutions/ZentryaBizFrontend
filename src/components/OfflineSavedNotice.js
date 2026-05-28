@@ -3,11 +3,7 @@ import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloudArrowUp, faWifi } from '@fortawesome/free-solid-svg-icons';
 import { OFFLINE_SAVED_EVENT } from '../lib/offlineMutationFeedback';
-import {
-  OFFLINE_SAVED_POPUP_BODY,
-  OFFLINE_SAVED_POPUP_BODY_UR,
-  OFFLINE_SAVED_POPUP_TITLE,
-} from '../lib/offlineUserMessages';
+import { OFFLINE_SAVED_POPUP_BODY, OFFLINE_SAVED_POPUP_TITLE } from '../lib/offlineUserMessages';
 import './OfflineSavedNotice.css';
 
 const AUTO_DISMISS_MS = 7000;
@@ -54,9 +50,6 @@ export default function OfflineSavedNotice() {
           {OFFLINE_SAVED_POPUP_TITLE}
         </h2>
         <p className="zb-offline-saved-body">{OFFLINE_SAVED_POPUP_BODY}</p>
-        <p className="zb-offline-saved-ur" dir="rtl" lang="ur">
-          {OFFLINE_SAVED_POPUP_BODY_UR}
-        </p>
         <button type="button" className="zb-offline-saved-ok" onClick={dismiss}>
           OK
         </button>

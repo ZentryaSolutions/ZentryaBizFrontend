@@ -387,7 +387,7 @@ const CustomerDetailView = ({ customerId, onClose, readOnly = false }) => {
               <p><strong>Date:</strong> {formatDateShort(viewSaleModal.date)}</p>
               <p><strong>Total:</strong> {formatCurrency(viewSaleModal.total_amount)}</p>
               <p><strong>Paid:</strong> {formatCurrency(viewSaleModal.paid_amount)}</p>
-              <p><strong>Udhar:</strong> {formatCurrency(Math.max(0, (parseFloat(viewSaleModal.total_amount) || 0) - (parseFloat(viewSaleModal.paid_amount) || 0)))}</p>
+              <p><strong>Balance due:</strong> {formatCurrency(Math.max(0, (parseFloat(viewSaleModal.total_amount) || 0) - (parseFloat(viewSaleModal.paid_amount) || 0)))}</p>
             </div>
           </div>
         </div>

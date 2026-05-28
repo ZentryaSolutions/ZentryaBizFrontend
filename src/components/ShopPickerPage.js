@@ -97,7 +97,7 @@ const PLAN_PURCHASE_DETAIL = [
     bullets: [
       'Unlimited salesmen',
       'Billing, inventory & stock',
-      'Customer ledger (Udhar) & vendors',
+      'Customer ledger & vendors',
       'One trial per email',
     ],
   },

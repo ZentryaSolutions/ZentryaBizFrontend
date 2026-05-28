@@ -88,7 +88,7 @@ export default function SignupPage() {
       title="Create your account"
       subtitle="Enter your details, then confirm the verification code we email you."
       heroTitle="Get started with Zentrya Biz"
-      heroText="Open your shop ledger, track sales, and keep hisaab clear. Create an account to get your workspace ready in minutes."
+      heroText="Open your shop ledger, track sales, and keep your books clear. Create an account to get your workspace ready in minutes."
     >
       {!isSupabaseBrowserConfigured() ? (
         <div className="zb-auth__notice zb-auth__notice--warn">
