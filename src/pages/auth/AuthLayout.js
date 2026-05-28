@@ -87,7 +87,7 @@ export default function AuthLayout({ title, subtitle, heroTitle, heroText, child
                 <img
                   className="zb-auth__logoImg"
                   src={`${process.env.PUBLIC_URL}/companylogo.jpeg`}
-                  alt=""
+                  alt="Zentrya Biz"
                   width={40}
                   height={40}
                   decoding="async"

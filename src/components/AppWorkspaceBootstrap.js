@@ -25,7 +25,7 @@ function WorkspaceLoadingOverlay() {
       <div className="zb-workspace-boot__panel">
         <img
           src={logoSrc}
-          alt=""
+          alt="Zentrya Biz"
           width={72}
           height={72}
           decoding="async"

@@ -902,7 +902,7 @@ export default function ShopPickerPage() {
         <div className="zbms-sb-top">
           <Link to={marketingLink()} className="zbms-sb-brand">
             <div className="zbms-sb-logo-wrap">
-              <img src={logoSrc} alt="" className="zbms-sb-logo-img" width={34} height={34} />
+              <img src={logoSrc} alt="Zentrya Biz" className="zbms-sb-logo-img" width={34} height={34} />
             </div>
             <span className="zbms-sb-brand-name">Zentrya Biz</span>
           </Link>

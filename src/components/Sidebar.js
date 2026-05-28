@@ -220,7 +220,7 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
             {hasBrandImage ? (
               <img
                 src={brandLogoSrc}
-                alt=""
+                alt="Zentrya Biz"
                 className="zb-sb-logo-img"
                 decoding="async"
                 onError={() => setBrandLogoIdx((i) => i + 1)}

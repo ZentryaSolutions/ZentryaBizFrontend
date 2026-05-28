@@ -325,8 +325,14 @@ function Login({ embedded = false, onBackToSetup }) {
           </button>
         )}
         <div className="login-header">
-          <div className="login-brand-badge" aria-hidden="true">
-            HK
+          <div className="login-brand-badge">
+            <img
+              src={`${process.env.PUBLIC_URL}/companylogo.jpeg`}
+              alt="Zentrya Biz"
+              width={56}
+              height={56}
+              decoding="async"
+            />
           </div>
           <h1>Zentrya Biz</h1>
           <p>{t('auth.welcomeBack')}</p>

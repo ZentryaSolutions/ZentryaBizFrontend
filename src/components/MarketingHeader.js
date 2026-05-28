@@ -24,7 +24,7 @@ export default function MarketingHeader() {
           <img
             className="zbx-brandImg"
             src={`${process.env.PUBLIC_URL}/companylogo.jpeg`}
-            alt=""
+            alt="Zentrya Biz"
             width={44}
             height={44}
             decoding="async"
