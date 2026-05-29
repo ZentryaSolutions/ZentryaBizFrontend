@@ -302,11 +302,17 @@ const Sales = ({ readOnly = false }) => {
 
   const handleReturnSuccess = async () => {
     await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).salesList());
+    await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).returnsList());
     await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).inventoryBundle());
     await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).customersList());
     setListTab('credit_notes');
     setCurrentPage(1);
-    alert('Sales return saved. It appears under Sales returns. Stock and customer balances were updated.');
+    alert(
+      t('returns.savedMessage', {
+        defaultValue:
+          'Return saved. View it under Returns in the sidebar. Stock and customer balances were updated.',
+      })
+    );
   };
 
   const handleWhatsApp = async (sale) => {

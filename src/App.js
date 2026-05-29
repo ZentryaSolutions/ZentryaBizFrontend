@@ -20,6 +20,8 @@ import Expenses from './components/Expenses';
 import RateList from './components/RateList';
 import Invoices from './components/Invoices';
 import Sales from './components/Sales';
+import Returns from './components/Returns';
+import ReturnDetailView from './components/ReturnDetailView';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import AuditHistory from './components/AuditHistory';
@@ -252,6 +254,8 @@ function AppContent({ location }) {
             <Route path="/:uid/:shopId/rate-list" element={<RateList key={readOnlyMode} />} />
             <Route path="/:uid/:shopId/invoices" element={<Invoices key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/sales" element={<Sales key={refreshTrigger} readOnly={readOnlyMode} />} />
+            <Route path="/:uid/:shopId/returns/:returnId" element={<ReturnDetailView readOnly={readOnlyMode} />} />
+            <Route path="/:uid/:shopId/returns" element={<Returns key={refreshTrigger} readOnly={readOnlyMode} />} />
             {/* Same as expenses: avoid remount clearing tab/period state on refreshTrigger */}
             <Route path="/:uid/:shopId/reports" element={<Reports readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/users" element={<Users key={refreshTrigger} />} />

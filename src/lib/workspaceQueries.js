@@ -8,6 +8,7 @@ import {
   customerPaymentsAPI,
   settingsAPI,
   salesAPI,
+  returnsAPI,
   purchasesAPI,
   supplierPaymentsAPI,
 } from '../services/api';
@@ -95,6 +96,14 @@ export async function fetchShopBrandingQuery(activeShopId) {
 
 export async function fetchSalesList() {
   const response = await salesAPI.getAll({ limit: 1000 });
+  const payload = response?.data;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+export async function fetchReturnsList() {
+  const response = await returnsAPI.getAll({ limit: 1000 });
   const payload = response?.data;
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;

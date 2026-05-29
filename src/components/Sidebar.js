@@ -12,6 +12,7 @@ import {
   faGear,
   faClipboardList,
   faShop,
+  faRotateLeft,
   faTableCells,
   faTruck,
   faUser,
@@ -143,6 +144,7 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
 
   const menuFinance = [
     { id: 'sales', labelKey: 'menu.sales', path: '/sales', icon: faShop },
+    { id: 'returns', labelKey: 'menu.returns', path: '/returns', icon: faRotateLeft },
     {
       id: 'expenses',
       labelKey: 'menu.expenses',

@@ -7,6 +7,7 @@ import {
   fetchCustomersList,
   fetchSettingsDoc,
   fetchSalesList,
+  fetchReturnsList,
   fetchPurchasesList,
   fetchCustomerDetailPack,
   fetchProductDetailPack,
@@ -79,6 +80,7 @@ export default function AppWorkspaceBootstrap({ shopId, children }) {
       { queryKey: keys.customersList(), queryFn: fetchCustomersList },
       { queryKey: keys.settingsDoc(), queryFn: fetchSettingsDoc },
       { queryKey: keys.salesList(), queryFn: fetchSalesList },
+      { queryKey: keys.returnsList(), queryFn: fetchReturnsList },
       { queryKey: keys.purchasesList(), queryFn: fetchPurchasesList },
       ...reportsMonthlyPrefetchTaskDefs(shopId),
     ];

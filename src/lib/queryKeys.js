@@ -13,6 +13,8 @@ export function zbKeys(shopId) {
     settingsDoc: () => ['zb', sid, 'settings'],
     shopBranding: () => ['zb', sid, 'shopBranding'],
     salesList: () => ['zb', sid, 'sales'],
+    returnsList: () => ['zb', sid, 'returns'],
+    returnDetail: (returnId) => ['zb', sid, 'returnDetail', String(returnId)],
     purchasesList: () => ['zb', sid, 'purchases'],
     /** Single cached payload for CustomerDetailView (customer + sales + payments history) */
     customerDetailPack: (customerId) => ['zb', sid, 'customerPack', String(customerId)],

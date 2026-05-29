@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronDown, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { auditAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from './Pagination';
@@ -131,16 +133,16 @@ function formatAuditAction(log) {
   return log.action || '—';
 }
 
-function AuditChangeTable({ log }) {
+function getAuditChangeRows(log) {
   const oldV = parseAuditValues(log.old_values);
   const newV = parseAuditValues(log.new_values);
-  if (!oldV && !newV) return null;
+  if (!oldV && !newV) return [];
 
   const keys = [
     ...new Set([...Object.keys(oldV || {}), ...Object.keys(newV || {})]),
   ].filter((k) => !['product_id', 'import_count'].includes(k));
 
-  const rows = keys
+  return keys
     .map((key) => {
       const o = oldV?.[key];
       const n = newV?.[key];
@@ -157,24 +159,27 @@ function AuditChangeTable({ log }) {
       return { key, label, before: formatFieldValue(key, o), after: formatFieldValue(key, n) };
     })
     .filter(Boolean);
+}
 
+function AuditChangeTable({ log }) {
+  const rows = getAuditChangeRows(log);
   if (!rows.length) return null;
 
   return (
-    <table className="zb-audit-changes" style={{ width: '100%', marginTop: 8, fontSize: 12 }}>
+    <table className="zb-audit-changes">
       <thead>
         <tr>
-          <th style={{ textAlign: 'left', padding: '4px 8px' }}>Field</th>
-          <th style={{ textAlign: 'left', padding: '4px 8px' }}>Before</th>
-          <th style={{ textAlign: 'left', padding: '4px 8px' }}>After</th>
+          <th>Field</th>
+          <th>Before</th>
+          <th>After</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r) => (
           <tr key={r.key}>
-            <td style={{ padding: '4px 8px', color: '#6b7280' }}>{r.label}</td>
-            <td style={{ padding: '4px 8px' }}>{r.before}</td>
-            <td style={{ padding: '4px 8px', fontWeight: 600 }}>{r.after}</td>
+            <td>{r.label}</td>
+            <td className="zb-audit-val-before">{r.before}</td>
+            <td className="zb-audit-val-after">{r.after}</td>
           </tr>
         ))}
       </tbody>
@@ -182,19 +187,84 @@ function AuditChangeTable({ log }) {
   );
 }
 
-function formatWhen(ts) {
-  if (!ts) return '—';
+function AuditExpandPanel({ log }) {
+  const [showTech, setShowTech] = useState(false);
+  const changeRows = getAuditChangeRows(log);
+
+  return (
+    <div className="zb-audit-expand-inner">
+      {changeRows.length > 0 ? (
+        <>
+          <p className="zb-audit-changes-title">What changed</p>
+          <AuditChangeTable log={log} />
+        </>
+      ) : (
+        <p className="zb-audit-no-changes">No before/after details for this entry.</p>
+      )}
+      <div className="zb-audit-expand-footer">
+        {log.record_id != null ? <span>Record #{log.record_id}</span> : null}
+        {log.ip_address ? <span>IP {log.ip_address}</span> : null}
+        <button
+          type="button"
+          className="zb-audit-tech-toggle"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowTech((v) => !v);
+          }}
+        >
+          {showTech ? 'Hide technical data' : 'Technical data'}
+        </button>
+      </div>
+      {showTech ? (
+        <div className="zb-audit-tech-body">
+          <div>
+            <h4>Before</h4>
+            <JsonBlock data={log.old_values} />
+          </div>
+          <div>
+            <h4>After</h4>
+            <JsonBlock data={log.new_values} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function formatWhenParts(ts) {
+  if (!ts) return { date: '—', time: '' };
   try {
-    return new Date(ts).toLocaleString('en-PK', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = new Date(ts);
+    return {
+      date: d.toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: d.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' }),
+    };
   } catch {
-    return String(ts);
+    return { date: String(ts), time: '' };
   }
+}
+
+function actionPillClass(action) {
+  if (action === 'create') return 'zb-audit-pill-create';
+  if (action === 'update') return 'zb-audit-pill-update';
+  if (action === 'delete' || action === 'login_failed') return 'zb-audit-pill-delete';
+  if (action === 'login' || action === 'logout') return 'zb-audit-pill-login';
+  return 'zb-audit-pill-default';
+}
+
+function formatUserRole(role) {
+  const r = String(role || '').trim().toLowerCase();
+  if (!r) return '—';
+  if (r === 'administrator' || r === 'admin' || r === 'owner') return 'Admin';
+  if (r === 'cashier') return 'Cashier';
+  return r.charAt(0).toUpperCase() + r.slice(1);
+}
+
+function userRolePillClass(role) {
+  const r = String(role || '').trim().toLowerCase();
+  if (r === 'administrator' || r === 'admin' || r === 'owner') return 'zb-audit-role-admin';
+  if (r === 'cashier') return 'zb-audit-role-cashier';
+  return 'zb-audit-role-default';
 }
 
 function JsonBlock({ data }) {
@@ -239,6 +309,7 @@ const AuditHistory = () => {
   });
   const [filterOptions, setFilterOptions] = useState({ actions: [], tables: [] });
   const [filterHint, setFilterHint] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const normalizeDateRange = (start, end) => {
     const s = String(start || '').trim();
@@ -249,13 +320,15 @@ const AuditHistory = () => {
     return { start_date: s, end_date: e, swapped: false };
   };
 
-  const hasActiveFilters =
-    Boolean(filters.userId) ||
-    Boolean(filters.action) ||
-    Boolean(filters.tableName) ||
-    Boolean(filters.search.trim()) ||
-    Boolean(filters.start_date) ||
-    Boolean(filters.end_date);
+  const activeFilterCount = [
+    filters.userId,
+    filters.action,
+    filters.tableName,
+    filters.start_date,
+    filters.end_date,
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = activeFilterCount > 0 || Boolean(filters.search.trim());
 
   const loadUsers = useCallback(async () => {
     try {
@@ -318,6 +391,10 @@ const AuditHistory = () => {
     loadLogs();
   }, [loadLogs]);
 
+  useEffect(() => {
+    if (hasActiveFilters) setShowFilters(true);
+  }, [hasActiveFilters]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const tableOptions = useMemo(() => {
@@ -335,241 +412,335 @@ const AuditHistory = () => {
     );
   }
 
+  const clearFilters = () => {
+    setFilters({ userId: '', action: '', tableName: '', search: '', start_date: '', end_date: '' });
+    setFilterHint('');
+    setPage(1);
+  };
+
   return (
     <div className="zb-audit-page">
       <style>{`
-        .zb-audit-page{max-width:1200px;margin:0 auto;padding:8px 4px 32px;font-family:Inter,system-ui,sans-serif}
-        .zb-audit-hd{margin-bottom:20px}
-        .zb-audit-hd h1{margin:0 0 6px;font-size:1.5rem;font-weight:700;color:#111827}
-        .zb-audit-hd p{margin:0;color:#6b7280;font-size:14px}
-        .zb-audit-filters{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px;padding:14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px}
-        .zb-audit-filters label{display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
-        .zb-audit-filters input,.zb-audit-filters select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px}
-        .zb-audit-actions{display:flex;gap:8px;align-items:flex-end}
-        .zb-audit-btn{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #d1d5db;background:#fff}
-        .zb-audit-btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
-        .zb-audit-table-wrap{overflow:auto;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
-        .zb-audit-table{width:100%;border-collapse:collapse;font-size:13px}
-        .zb-audit-table th,.zb-audit-table td{padding:10px 12px;text-align:left;border-bottom:1px solid #f3f4f6;vertical-align:top}
-        .zb-audit-table th{background:#f9fafb;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}
-        .zb-audit-table tr:hover td{background:#fafafa}
-        .zb-audit-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+        .zb-audit-page{max-width:1100px;margin:0 auto;padding:0 4px 32px}
+        .zb-audit-hd{margin-bottom:18px}
+        .zb-audit-hd h1{margin:0 0 4px;font-size:1.35rem;font-weight:700;color:#111827;letter-spacing:-.02em}
+        .zb-audit-hd p{margin:0;color:#6b7280;font-size:13px;line-height:1.45;max-width:52ch}
+        .zb-audit-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px}
+        .zb-audit-search-wrap{flex:1 1 220px;min-width:180px;position:relative}
+        .zb-audit-search-wrap input{width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;background:#fff}
+        .zb-audit-search-wrap input:focus{outline:none;border-color:#5e5adb;box-shadow:0 0 0 3px rgba(94,90,219,.12)}
+        .zb-audit-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none}
+        .zb-audit-toolbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+        .zb-audit-count{font-size:12px;font-weight:600;color:#6b7280;white-space:nowrap}
+        .zb-audit-btn{padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#374151;font-family:inherit}
+        .zb-audit-btn:hover{background:#f9fafb}
+        .zb-audit-btn-primary{background:#111827;color:#fff;border-color:#111827}
+        .zb-audit-btn-primary:hover{background:#1f2937}
+        .zb-audit-btn-filter{display:inline-flex;align-items:center;gap:6px}
+        .zb-audit-filter-badge{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#5e5adb;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+        .zb-audit-filters-panel{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px 14px;padding:14px 16px;margin-bottom:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px}
+        .zb-audit-filters-panel label{display:block;font-size:11px;font-weight:600;color:#6b7280;margin-bottom:5px}
+        .zb-audit-filters-panel input,.zb-audit-filters-panel select{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;background:#fff;font-family:inherit}
+        .zb-audit-hint{margin:-8px 0 12px;padding:8px 12px;font-size:12px;color:#b45309;background:#fffbeb;border-radius:8px;border:1px solid #fde68a}
+        .zb-audit-err{color:#dc2626;margin-bottom:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;font-size:13px}
+        .zb-audit-list{border:1px solid #e5e7eb;border-radius:12px;background:#fff;overflow:hidden}
+        .zb-audit-list-header{display:grid;grid-template-columns:130px 110px 76px 96px 1fr 40px;gap:12px;padding:10px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}
+        .zb-audit-row{border-bottom:1px solid #f3f4f6}
+        .zb-audit-row:last-child{border-bottom:none}
+        .zb-audit-row-main{display:grid;grid-template-columns:130px 110px 76px 96px 1fr 40px;gap:12px;align-items:center;padding:12px 16px;cursor:pointer;transition:background .1s}
+        .zb-audit-row-main:hover{background:#fafafa}
+        .zb-audit-row-main.is-open{background:#f8fafc}
+        .zb-audit-col-time{font-size:12px;color:#6b7280;line-height:1.35}
+        .zb-audit-col-time strong{display:block;color:#111827;font-weight:600;font-size:13px}
+        .zb-audit-col-user{font-size:13px;font-weight:600;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .zb-audit-user-role-inline{display:none;font-weight:500;color:#9ca3af}
+        .zb-audit-col-role{font-size:12px}
+        .zb-audit-role{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap}
+        .zb-audit-role-admin{background:#ede9fe;color:#5b21b6}
+        .zb-audit-role-cashier{background:#f3f4f6;color:#4b5563}
+        .zb-audit-role-default{background:#f9fafb;color:#6b7280}
+        .zb-audit-col-event{min-width:0}
+        .zb-audit-event-summary{font-size:13px;color:#374151;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .zb-audit-event-meta{margin-top:4px;font-size:11px;color:#9ca3af}
+        .zb-audit-chevron{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#9ca3af;cursor:pointer;transition:transform .15s,background .12s}
+        .zb-audit-chevron:hover{background:#f3f4f6;color:#374151}
+        .zb-audit-chevron.is-open{transform:rotate(180deg);color:#5e5adb}
+        .zb-audit-expand{padding:0 16px 14px;border-top:1px dashed #e5e7eb;background:#fafbfc}
+        .zb-audit-expand-inner{padding-top:12px}
+        .zb-audit-changes-title{margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280}
+        .zb-audit-changes{width:100%;border-collapse:collapse;font-size:13px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fff}
+        .zb-audit-changes th{background:#f9fafb;font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;text-align:left;padding:8px 12px}
+        .zb-audit-changes td{padding:8px 12px;border-top:1px solid #f3f4f6;vertical-align:top}
+        .zb-audit-changes td:first-child{color:#6b7280;width:28%}
+        .zb-audit-val-before{color:#9ca3af}
+        .zb-audit-val-after{font-weight:600;color:#111827}
+        .zb-audit-no-changes{font-size:13px;color:#6b7280;margin:0}
+        .zb-audit-expand-footer{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid #f3f4f6;font-size:12px;color:#9ca3af}
+        .zb-audit-tech-toggle{margin:0;padding:0;border:none;background:none;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}
+        .zb-audit-tech-toggle:hover{color:#111827}
+        .zb-audit-tech-body{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .zb-audit-tech-body h4{margin:0 0 6px;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase}
+        .zb-audit-json{margin:0;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;font-size:11px;max-height:160px;overflow:auto;white-space:pre-wrap}
+        .zb-audit-pill{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap}
         .zb-audit-pill-create{background:#dcfce7;color:#166534}
         .zb-audit-pill-update{background:#dbeafe;color:#1e40af}
         .zb-audit-pill-delete{background:#fee2e2;color:#991b1b}
         .zb-audit-pill-login{background:#e0e7ff;color:#3730a3}
         .zb-audit-pill-default{background:#f3f4f6;color:#374151}
-        .zb-audit-changes{border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
-        .zb-audit-changes th{background:#f9fafb;font-size:11px;text-transform:uppercase;color:#6b7280}
-        .zb-audit-muted{color:#9ca3af;font-size:12px}
-        .zb-audit-json{margin:8px 0 0;padding:10px;background:#f9fafb;border-radius:8px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap}
-        .zb-audit-detail-row td{background:#fefefe}
-        .zb-audit-err{color:#dc2626;margin-bottom:12px}
+        .zb-audit-muted{color:#9ca3af;font-size:13px}
+        .zb-audit-empty{text-align:center;padding:48px 24px;color:#6b7280;font-size:14px;line-height:1.5}
+        .zb-audit-pagination{margin-top:16px}
+        @media(max-width:768px){
+          .zb-audit-filters-panel{grid-template-columns:1fr 1fr}
+          .zb-audit-list-header{display:none}
+          .zb-audit-row-main{grid-template-columns:1fr auto;grid-template-rows:auto auto auto;gap:6px 10px}
+          .zb-audit-col-time{grid-column:1;grid-row:1}
+          .zb-audit-col-user{grid-column:1;grid-row:2;font-size:12px;font-weight:500;color:#6b7280}
+          .zb-audit-user-role-inline{display:inline}
+          .zb-audit-col-role{display:none}
+          .zb-audit-pill-wrap{grid-column:2;grid-row:1;justify-self:end}
+          .zb-audit-col-event{grid-column:1/-1;grid-row:3}
+          .zb-audit-chevron{grid-column:2;grid-row:3;justify-self:end;align-self:start}
+          .zb-audit-tech-body{grid-template-columns:1fr}
+        }
       `}</style>
 
       <header className="zb-audit-hd">
         <h1>Audit History</h1>
-        <p>Who changed what — product prices, stock, sales, sign-in/out, and deletions. Expand a row for before/after values.</p>
+        <p>Track sign-ins, product edits, sales, and deletions. Click a row to see what changed.</p>
       </header>
 
-      <div className="zb-audit-filters">
-        <div>
-          <label>User</label>
-          <select
-            value={filters.userId}
-            onChange={(e) => { setPage(1); setFilters({ ...filters, userId: e.target.value }); }}
-          >
-            <option value="">All users</option>
-            {users.map((u) => (
-              <option key={u.user_id} value={u.user_id}>
-                {u.name || u.username || `User #${u.user_id}`}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Action</label>
-          <select
-            value={filters.action}
-            onChange={(e) => { setPage(1); setFilters({ ...filters, action: e.target.value }); }}
-          >
-            <option value="">All actions</option>
-            {(filterOptions.actions || []).map((a) => (
-              <option key={a} value={a}>{ACTION_LABELS[a] || a}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Module</label>
-          <select
-            value={filters.tableName}
-            onChange={(e) => { setPage(1); setFilters({ ...filters, tableName: e.target.value }); }}
-          >
-            <option value="">All modules</option>
-            {tableOptions.map((tbl) => (
-              <option key={tbl} value={tbl}>{tbl}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>From</label>
-          <input
-            type="date"
-            value={filters.start_date}
-            onChange={(e) => { setPage(1); setFilters({ ...filters, start_date: e.target.value }); }}
-          />
-        </div>
-        <div>
-          <label>To</label>
-          <input
-            type="date"
-            value={filters.end_date}
-            onChange={(e) => { setPage(1); setFilters({ ...filters, end_date: e.target.value }); }}
-          />
-        </div>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label>Search</label>
+      <div className="zb-audit-toolbar">
+        <div className="zb-audit-search-wrap">
+          <FontAwesomeIcon icon={faMagnifyingGlass} className="zb-audit-search-icon" />
           <input
             type="search"
-            placeholder="Notes, user, module, action…"
+            placeholder="Search notes, user, module…"
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); loadLogs(); } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setPage(1);
+                loadLogs();
+              }
+            }}
           />
         </div>
-        <div className="zb-audit-actions">
-          <button type="button" className="zb-audit-btn zb-audit-btn-primary" onClick={() => { setPage(1); loadLogs(); }}>
-            Apply
+        <div className="zb-audit-toolbar-actions">
+          <button
+            type="button"
+            className="zb-audit-btn zb-audit-btn-filter"
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            Filters
+            {activeFilterCount > 0 ? (
+              <span className="zb-audit-filter-badge">{activeFilterCount}</span>
+            ) : null}
           </button>
           <button
             type="button"
-            className="zb-audit-btn"
+            className="zb-audit-btn zb-audit-btn-primary"
             onClick={() => {
-              setFilters({ userId: '', action: '', tableName: '', search: '', start_date: '', end_date: '' });
-              setFilterHint('');
               setPage(1);
+              loadLogs();
             }}
           >
-            Clear
+            Apply
           </button>
+          {hasActiveFilters ? (
+            <button type="button" className="zb-audit-btn" onClick={clearFilters}>
+              Clear
+            </button>
+          ) : null}
+          {!loading && total > 0 ? (
+            <span className="zb-audit-count">{total.toLocaleString()} entries</span>
+          ) : null}
         </div>
       </div>
 
-      {filterHint ? (
-        <p style={{ marginBottom: 10, color: '#b45309', fontSize: 13 }}>{filterHint}</p>
+      {showFilters ? (
+        <div className="zb-audit-filters-panel">
+          <div>
+            <label>User</label>
+            <select
+              value={filters.userId}
+              onChange={(e) => {
+                setPage(1);
+                setFilters({ ...filters, userId: e.target.value });
+              }}
+            >
+              <option value="">All users</option>
+              {users.map((u) => (
+                <option key={u.user_id} value={u.user_id}>
+                  {u.name || u.username || `User #${u.user_id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Action</label>
+            <select
+              value={filters.action}
+              onChange={(e) => {
+                setPage(1);
+                setFilters({ ...filters, action: e.target.value });
+              }}
+            >
+              <option value="">All actions</option>
+              {(filterOptions.actions || []).map((a) => (
+                <option key={a} value={a}>
+                  {ACTION_LABELS[a] || a}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Module</label>
+            <select
+              value={filters.tableName}
+              onChange={(e) => {
+                setPage(1);
+                setFilters({ ...filters, tableName: e.target.value });
+              }}
+            >
+              <option value="">All modules</option>
+              {tableOptions.map((tbl) => (
+                <option key={tbl} value={tbl}>
+                  {formatModuleName(tbl)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>From</label>
+            <input
+              type="date"
+              value={filters.start_date}
+              onChange={(e) => {
+                setPage(1);
+                setFilters({ ...filters, start_date: e.target.value });
+              }}
+            />
+          </div>
+          <div>
+            <label>To</label>
+            <input
+              type="date"
+              value={filters.end_date}
+              onChange={(e) => {
+                setPage(1);
+                setFilters({ ...filters, end_date: e.target.value });
+              }}
+            />
+          </div>
+        </div>
       ) : null}
 
+      {filterHint ? <p className="zb-audit-hint">{filterHint}</p> : null}
       {error ? <div className="zb-audit-err">{error}</div> : null}
 
       {loading ? (
-        <p>{t('common.loading')}</p>
+        <p className="zb-audit-muted">{t('common.loading')}</p>
       ) : (
         <>
-          <div className="zb-audit-table-wrap">
-            <table className="zb-audit-table">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>User</th>
-                  <th>Action</th>
-                  <th>Module</th>
-                  <th>Record</th>
-                  <th>Summary</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="zb-audit-muted" style={{ textAlign: 'center', padding: 24 }}>
-                      {hasActiveFilters
-                        ? 'No entries match these filters. Click Clear, then try again.'
-                        : 'No audit entries yet. Save a sale, edit a product, or add an expense — then refresh this page.'}
-                    </td>
-                  </tr>
-                ) : (
-                  logs.map((log) => {
-                    const actionCls =
-                      log.action === 'create'
-                        ? 'zb-audit-pill-create'
-                        : log.action === 'update'
-                          ? 'zb-audit-pill-update'
-                          : log.action === 'delete'
-                            ? 'zb-audit-pill-delete'
-                            : log.action === 'login' || log.action === 'logout'
-                              ? 'zb-audit-pill-login'
-                              : log.action === 'login_failed'
-                                ? 'zb-audit-pill-delete'
-                                : 'zb-audit-pill-default';
-                    const open = expandedId === log.log_id;
-                    return (
-                      <React.Fragment key={log.log_id}>
-                        <tr>
-                          <td>{formatWhen(log.timestamp)}</td>
-                          <td>{log.user_name || log.username || 'System'}</td>
-                          <td>
-                            <span className={`zb-audit-pill ${actionCls}`}>
-                              {formatAuditAction(log)}
-                            </span>
-                          </td>
-                          <td>{formatModuleName(log.table_name)}</td>
-                          <td>{log.record_id != null ? `#${log.record_id}` : '—'}</td>
-                          <td style={{ maxWidth: 320 }}>
-                            <span title={formatAuditSummary(log)}>{formatAuditSummary(log)}</span>
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="zb-audit-btn"
-                              style={{ padding: '4px 10px', fontSize: 12 }}
-                              onClick={() => setExpandedId(open ? null : log.log_id)}
-                            >
-                              {open ? 'Hide' : 'Details'}
-                            </button>
-                          </td>
-                        </tr>
-                        {open ? (
-                          <tr className="zb-audit-detail-row">
-                            <td colSpan={7}>
-                              <AuditChangeTable log={log} />
-                              <details style={{ marginTop: 10 }}>
-                                <summary className="zb-audit-muted" style={{ cursor: 'pointer' }}>
-                                  Raw JSON
-                                </summary>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
-                                  <div>
-                                    <strong>Before</strong>
-                                    <JsonBlock data={log.old_values} />
-                                  </div>
-                                  <div>
-                                    <strong>After</strong>
-                                    <JsonBlock data={log.new_values} />
-                                  </div>
-                                </div>
-                              </details>
-                              {log.ip_address ? (
-                                <p className="zb-audit-muted" style={{ marginTop: 8 }}>
-                                  IP: {log.ip_address}
-                                </p>
-                              ) : null}
-                            </td>
-                          </tr>
-                        ) : null}
-                      </React.Fragment>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div className="zb-audit-list">
+            {logs.length > 0 ? (
+              <div className="zb-audit-list-header">
+                <span>Time</span>
+                <span>User</span>
+                <span>Role</span>
+                <span>Action</span>
+                <span>What happened</span>
+                <span />
+              </div>
+            ) : null}
+            {logs.length === 0 ? (
+              <div className="zb-audit-empty">
+                {hasActiveFilters
+                  ? 'No entries match your filters. Try Clear or widen the date range.'
+                  : 'No activity yet. Edits to products, sales, or sign-ins will appear here.'}
+              </div>
+            ) : (
+              logs.map((log) => {
+                const open = expandedId === log.log_id;
+                const when = formatWhenParts(log.timestamp);
+                const pillCls = actionPillClass(log.action);
+                const moduleLabel = formatModuleName(log.table_name);
+                const summary = formatAuditSummary(log);
+
+                return (
+                  <article key={log.log_id} className="zb-audit-row">
+                    <div
+                      className={`zb-audit-row-main${open ? ' is-open' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setExpandedId(open ? null : log.log_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedId(open ? null : log.log_id);
+                        }
+                      }}
+                    >
+                      <div className="zb-audit-col-time">
+                        <strong>{when.date}</strong>
+                        {when.time}
+                      </div>
+                      <div className="zb-audit-col-user">
+                        {log.user_name || log.username || 'System'}
+                        <span className="zb-audit-user-role-inline">
+                          {' '}
+                          · {formatUserRole(log.user_role)}
+                        </span>
+                      </div>
+                      <div className="zb-audit-col-role">
+                        <span className={`zb-audit-role ${userRolePillClass(log.user_role)}`}>
+                          {formatUserRole(log.user_role)}
+                        </span>
+                      </div>
+                      <div className="zb-audit-pill-wrap">
+                        <span className={`zb-audit-pill ${pillCls}`}>
+                          {formatAuditAction(log)}
+                        </span>
+                      </div>
+                      <div className="zb-audit-col-event">
+                        <div className="zb-audit-event-summary" title={summary}>
+                          {summary}
+                        </div>
+                        <div className="zb-audit-event-meta">{moduleLabel}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`zb-audit-chevron${open ? ' is-open' : ''}`}
+                        aria-label={open ? 'Collapse details' : 'Expand details'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedId(open ? null : log.log_id);
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faChevronDown} />
+                      </button>
+                    </div>
+                    {open ? (
+                      <div className="zb-audit-expand">
+                        <AuditExpandPanel log={log} />
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })
+            )}
           </div>
           {total > 0 ? (
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              itemsPerPage={pageSize}
-              totalItems={total}
-              onPageChange={setPage}
-            />
+            <div className="zb-audit-pagination">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                itemsPerPage={pageSize}
+                totalItems={total}
+                onPageChange={setPage}
+              />
+            </div>
           ) : null}
         </>
       )}

@@ -148,6 +148,11 @@ export const salesAPI = {
   print: (id) => api.get(`/sales/${id}/print`),
 };
 
+export const returnsAPI = {
+  getAll: (params) => api.get('/returns', { params }),
+  getById: (id) => api.get(`/returns/${id}`),
+};
+
 export const dailyClosingAPI = {
   todaySummary: () => api.get('/daily-closing/today-summary'),
   close: (body) => api.post('/daily-closing/close', body),
