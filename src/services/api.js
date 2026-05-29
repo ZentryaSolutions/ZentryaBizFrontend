@@ -331,6 +331,11 @@ export const usersAPI = {
   generatePassword: (id) => api.post(`/users/${id}/generate-password`),
 };
 
+// Audit history (shop-scoped, admin)
+export const auditAPI = {
+  getLogs: (params) => api.get('/audit', { params }),
+};
+
 // Notifications API
 export const notificationsAPI = {
   getAll: (params) => api.get('/notifications', { params }),

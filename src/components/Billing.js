@@ -352,6 +352,7 @@ const Billing = ({ readOnly = false }) => {
         product_name: product.item_name_english || product.name,
         quantity: 1,
         selling_price: defaultPrice,
+        line_discount: 0,
         purchase_price: product.purchase_price || 0,
         stock_available: avail,
         unit_type: product.unit_type || 'piece',
@@ -460,16 +461,33 @@ const Billing = ({ readOnly = false }) => {
     updateActiveBill({ invoiceItems: updatedItems });
   };
 
+  const handleLineDiscountChange = (index, value) => {
+    const updatedItems = [...invoiceItems];
+    const item = updatedItems[index];
+    const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+    const price = parseFloat(item.selling_price) || 0;
+    const gross = qty * price;
+    let disc = Math.max(0, parseFloat(value) || 0);
+    if (disc > gross) disc = gross;
+    updatedItems[index] = { ...item, line_discount: disc };
+    const totalLineDisc = updatedItems.reduce((s, it) => s + (parseFloat(it.line_discount) || 0), 0);
+    updateActiveBill({ invoiceItems: updatedItems, discount: totalLineDisc });
+  };
+
   // Calculate totals
   const calculateTotals = () => {
     let subtotal = 0;
-    invoiceItems.forEach(item => {
+    let lineDiscountTotal = 0;
+    invoiceItems.forEach((item) => {
       const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
       const price = parseFloat(item.selling_price) || 0;
-      subtotal += qty * price;
+      const gross = qty * price;
+      const lineDisc = Math.min(gross, Math.max(0, parseFloat(item.line_discount) || 0));
+      subtotal += gross;
+      lineDiscountTotal += lineDisc;
     });
 
-    const discountAmount = parseFloat(discount) || 0;
+    const discountAmount = lineDiscountTotal;
     const afterDiscount = Math.max(0, subtotal - discountAmount);
     const taxAmount = taxEnabled
       ? Math.round(afterDiscount * (parseFloat(taxRatePct) || 0)) / 100
@@ -583,13 +601,14 @@ const Billing = ({ readOnly = false }) => {
         payment_type: paymentType,
         payment_mode: paymentMode,
         paid_amount: paid,
-        discount: parseFloat(discount) || 0,
+        discount: calculateTotals().discountAmount,
         tax: calculateTotals().taxAmount || 0,
         sale_notes: saleNotes.trim() || undefined,
-        items: invoiceItems.map(item => ({
+        items: invoiceItems.map((item) => ({
           product_id: item.product_id,
           quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
           selling_price: item.selling_price,
+          line_discount: Math.max(0, parseFloat(item.line_discount) || 0),
         })),
       };
 
@@ -1296,6 +1315,7 @@ const Billing = ({ readOnly = false }) => {
                   <th>{t('billing.productName')}</th>
                   <th>{t('billing.qty')}</th>
                   <th>{t('billing.price')}</th>
+                  <th>{t('billing.lineDiscount', { defaultValue: 'Discount' })}</th>
                   <th>{t('common.total')}</th>
                   <th></th>
                 </tr>
@@ -1303,7 +1323,7 @@ const Billing = ({ readOnly = false }) => {
               <tbody>
                 {invoiceItems.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="billing-empty-items">
+                    <td colSpan="6" className="billing-empty-items">
                       <div>{t('billing.noItemsInBill')}</div>
                     </td>
                   </tr>
@@ -1360,12 +1380,28 @@ const Billing = ({ readOnly = false }) => {
                               min="0"
                               className="billing-price-input"
                               value={item.selling_price}
-                              onChange={(e) => handlePriceChange(index, e.target.value)}
-                            />
-                          </div>
+                            onChange={(e) => handlePriceChange(index, e.target.value)}
+                          />
+                        </div>
+                      </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="billing-price-input"
+                            style={{ maxWidth: 88 }}
+                            value={item.line_discount ?? 0}
+                            onChange={(e) => handleLineDiscountChange(index, e.target.value)}
+                            title={t('billing.lineDiscountHint', { defaultValue: 'Discount for this line (PKR)' })}
+                          />
                         </td>
                         <td className="billing-item-total">
-                          {formatCurrency(item.quantity * item.selling_price)}
+                          {formatCurrency(
+                            (typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0)
+                              * (parseFloat(item.selling_price) || 0)
+                              - (parseFloat(item.line_discount) || 0)
+                          )}
                         </td>
                         <td>
                           <button
@@ -1475,20 +1511,12 @@ const Billing = ({ readOnly = false }) => {
                 <span className="sl">{t('billing.subtotal', { defaultValue: 'Subtotal' })}</span>
                 <span className="sv">{formatCurrency(subtotal)}</span>
               </div>
-              <div className="sum-row">
-                <span className="sl">{t('billing.discount', { defaultValue: 'Discount' })}</span>
-                <div className="disc-ctrl">
-                  <button type="button" className="disc-tog" disabled>
-                    PKR
-                  </button>
-                  <input
-                    className="disc-inp"
-                    type="number"
-                    value={discount}
-                    onChange={(e) => updateActiveBill({ discount: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  />
+              {discountAmount > 0 ? (
+                <div className="sum-row">
+                  <span className="sl">{t('billing.itemDiscountsTotal', { defaultValue: 'Item discounts' })}</span>
+                  <span className="sv" style={{ color: '#dc2626' }}>-{formatCurrency(discountAmount)}</span>
                 </div>
-              </div>
+              ) : null}
               {taxEnabled && taxAmount > 0 ? (
                 <div className="sum-row">
                   <span className="sl">{taxLabel}</span>

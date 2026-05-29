@@ -12,6 +12,7 @@ const formatCurrency = (amount) => {
 
 export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
   const [lines, setLines] = useState([]);
+  const [returnReason, setReturnReason] = useState('');
   const [refundType, setRefundType] = useState('cash');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
     );
     const pt = String(sale.payment_type || sale.payment_mode || 'cash').toLowerCase();
     setRefundType(sale.customer_id && (pt === 'credit' || pt === 'split') ? 'credit' : 'cash');
+    setReturnReason('');
   }, [sale]);
 
   const totalReturn = lines.reduce(
@@ -50,9 +52,18 @@ export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
       setError('Select quantity to return for at least one item.');
       return;
     }
+    const reason = returnReason.trim();
+    if (reason.length < 3) {
+      setError('Return reason is required (at least 3 characters).');
+      return;
+    }
     setBusy(true);
     try {
-      const res = await salesAPI.createReturn(sale.sale_id, { items, refund_type: refundType });
+      const res = await salesAPI.createReturn(sale.sale_id, {
+        items,
+        refund_type: refundType,
+        return_reason: reason,
+      });
       onSuccess?.(res.data);
       onClose();
     } catch (err) {
@@ -132,6 +143,22 @@ export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
               </table>
             </div>
 
+            <div className="sal2-ret-reason">
+              <label className="sal2-ret-reason__lbl" htmlFor="sal2-return-reason">
+                Return reason <span className="sal2-ret-reason__req">*</span>
+              </label>
+              <textarea
+                id="sal2-return-reason"
+                className="sal2-ret-reason__input"
+                rows={3}
+                maxLength={500}
+                placeholder="e.g. Damaged item, wrong size, customer changed mind…"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="sal2-ret-refund">
               <span className="sal2-ret-refund__lbl">Refund type</span>
               <div className="sal2-ret-options">
@@ -186,7 +213,11 @@ export default function ReturnSaleModal({ sale, onClose, onSuccess }) {
             <button type="button" className="sal2-ret-btnCancel" onClick={onClose} disabled={busy}>
               Cancel
             </button>
-            <button type="submit" className="sal2-ret-btnSave" disabled={busy || totalReturn <= 0}>
+            <button
+              type="submit"
+              className="sal2-ret-btnSave"
+              disabled={busy || totalReturn <= 0 || returnReason.trim().length < 3}
+            >
               <FontAwesomeIcon icon={faRotateLeft} />
               {busy ? 'Saving…' : 'Save return'}
             </button>

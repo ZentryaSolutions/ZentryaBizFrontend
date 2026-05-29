@@ -52,6 +52,8 @@ export const salesWorkspaceStyles = `
 .sal2-inv-btn{font:inherit;font-weight:800;color:#0f172a;font-size:14px;display:block;background:none;border:none;padding:0;cursor:pointer;text-align:left}
 .sal2-inv-btn:hover{text-decoration:underline;color:#1e40af}
 .sal2-inv-sub{font-size:12px;color:#94a3b8;margin-top:4px;font-weight:500}
+.sal2-inv-sub--ref{color:#64748b}
+.sal2-inv-sub--reason{color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sal2-cust{display:flex;align-items:flex-start;gap:10px}
 .sal2-av{width:40px;height:40px;border-radius:999px;background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#3730a3;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sal2-cust-name{font-weight:700;color:#0f172a;display:block}
@@ -160,6 +162,11 @@ export const returnModalStyles = `
 .sal2-ret-td-qty{text-align:center}
 .sal2-ret-qty{width:88px;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;font-size:14px;font-weight:600;font-family:inherit;text-align:center;background:#fff;color:#111827;box-sizing:border-box}
 .sal2-ret-qty:focus{outline:none;border-color:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.12)}
+.sal2-ret-reason{margin-top:18px}
+.sal2-ret-reason__lbl{display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:8px}
+.sal2-ret-reason__req{color:#dc2626}
+.sal2-ret-reason__input{width:100%;min-height:76px;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;font-size:14px;font-family:inherit;color:#0f172a;resize:vertical;box-sizing:border-box}
+.sal2-ret-reason__input:focus{outline:none;border-color:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.12)}
 .sal2-ret-refund{margin-top:20px}
 .sal2-ret-refund__lbl{font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;display:block}
 .sal2-ret-options{display:flex;flex-direction:column;gap:8px}

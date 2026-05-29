@@ -63,6 +63,13 @@ function initialsFromName(name) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
+function parseReturnMeta(notes, originalInvoiceNumber) {
+  const s = String(notes || '');
+  const ref = originalInvoiceNumber || (s.match(/REF:([^\s|]+)/i) || [])[1] || '';
+  const reason = (s.match(/REASON:([^|]+)/i) || [])[1]?.trim() || '';
+  return { ref, reason };
+}
+
 function enrichSale(sale) {
   const total = Number(sale.total_amount) || 0;
   const paid = Number(sale.paid_amount) || 0;
@@ -77,6 +84,7 @@ function enrichSale(sale) {
   const ic = rawIc == null || rawIc === '' || Number.isNaN(nIc) ? null : nIc;
   const inv = String(sale.invoice_number || '');
   const isCreditNote = inv.toUpperCase().startsWith('CN-') || String(sale.sale_kind || '') === 'return';
+  const returnMeta = isCreditNote ? parseReturnMeta(sale.notes, sale.original_invoice_number) : { ref: '', reason: '' };
   return {
     ...sale,
     _due: due,
@@ -84,6 +92,8 @@ function enrichSale(sale) {
     _itemCount: ic,
     _itemsPreview: sale.items_preview || '',
     _isCreditNote: isCreditNote,
+    _returnRef: returnMeta.ref,
+    _returnReason: returnMeta.reason,
   };
 }
 
@@ -293,7 +303,10 @@ const Sales = ({ readOnly = false }) => {
   const handleReturnSuccess = async () => {
     await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).salesList());
     await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).inventoryBundle());
-    alert('Return saved. Stock and balances updated.');
+    await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).customersList());
+    setListTab('credit_notes');
+    setCurrentPage(1);
+    alert('Sales return saved. It appears under Sales returns. Stock and customer balances were updated.');
   };
 
   const handleWhatsApp = async (sale) => {
@@ -636,7 +649,7 @@ const Sales = ({ readOnly = false }) => {
       <div className="sal2-tabs" role="tablist" aria-label={t('sales.listFilter', { defaultValue: 'Invoice list filter' })}>
         {[
           { id: 'invoices', label: t('sales.tabInvoices', { defaultValue: 'Invoices' }) },
-          { id: 'credit_notes', label: t('sales.tabCreditNotes', { defaultValue: 'Credit notes' }) },
+          { id: 'credit_notes', label: t('sales.tabSalesReturns', { defaultValue: 'Sales returns' }) },
           { id: 'all', label: t('sales.tabAll', { defaultValue: 'All' }) },
         ].map((tab) => (
           <button
@@ -741,6 +754,14 @@ const Sales = ({ readOnly = false }) => {
                           {sale.invoice_number}
                         </button>
                         <div className="sal2-inv-sub">{formatInvoiceSubline(sale.date)}</div>
+                        {sale._isCreditNote && sale._returnRef ? (
+                          <div className="sal2-inv-sub sal2-inv-sub--ref">Ref: {sale._returnRef}</div>
+                        ) : null}
+                        {sale._isCreditNote && sale._returnReason ? (
+                          <div className="sal2-inv-sub sal2-inv-sub--reason" title={sale._returnReason}>
+                            Reason: {sale._returnReason}
+                          </div>
+                        ) : null}
                       </td>
                       <td>
                         <div className="sal2-cust">
@@ -797,9 +818,8 @@ const Sales = ({ readOnly = false }) => {
                             <button
                               type="button"
                               className="sal2-iconbtn"
-                              title="Return / Refund"
+                              title="Sales return"
                               onClick={() => handleStartReturn(sale.sale_id)}
-                              disabled={sale.is_finalized}
                             >
                               <FontAwesomeIcon icon={faRotateLeft} />
                             </button>

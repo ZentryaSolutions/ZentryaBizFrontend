@@ -582,7 +582,10 @@ const Reports = () => {
         })
       : ['—'];
     const rev = trend.length ? trend.map((r) => Number(r.revenue) || 0) : [profitData.totalSales || 0];
-    const costs = trend.length ? trend.map((r) => Number(r.costs) || 0) : [profitData.totalPurchases + profitData.totalExpenses || 0];
+    const fallbackCogs = Number(profitData.totalCogs) || 0;
+    const costs = trend.length
+      ? trend.map((r) => Number(r.costs) || 0)
+      : [fallbackCogs + (Number(profitData.totalExpenses) || 0)];
     const net = trend.length ? trend.map((r) => Number(r.net) || 0) : [profitData.netProfit || 0];
     chartProfitTrendInst.current = new ChartJS(tEl, {
       type: 'line',
@@ -590,7 +593,7 @@ const Reports = () => {
         labels,
         datasets: [
           { label: t('reports.totalSales'), data: rev, borderColor: '#2563eb', tension: 0.35, fill: false, borderWidth: 2 },
-          { label: 'Costs (purchases + expenses)', data: costs, borderColor: '#f97316', tension: 0.35, fill: false, borderWidth: 2 },
+          { label: 'Costs (COGS + expenses)', data: costs, borderColor: '#f97316', tension: 0.35, fill: false, borderWidth: 2 },
           { label: t('reports.netProfit'), data: net, borderColor: '#16a34a', tension: 0.35, fill: false, borderWidth: 2 },
         ],
       },
@@ -609,13 +612,13 @@ const Reports = () => {
     });
     const np = Math.max(Number(profitData.netProfit) || 0, 0);
     const ex = Math.max(Number(profitData.totalExpenses) || 0, 0);
-    const pr = Math.max(Number(profitData.totalPurchases) || 0, 0);
-    const sum = np + ex + pr || 1;
+    const cogs = Math.max(Number(profitData.totalCogs) || 0, 0);
+    const sum = np + ex + cogs || 1;
     chartProfitMarginInst.current = new ChartJS(dEl, {
       type: 'doughnut',
       data: {
-        labels: [t('reports.netProfit'), t('reports.totalExpenses'), t('reports.totalPurchases')],
-        datasets: [{ data: [np, ex, pr], backgroundColor: ['#16a34a', '#f97316', '#ef4444'], borderWidth: 0 }],
+        labels: [t('reports.netProfit'), t('reports.totalExpenses'), 'Cost of goods sold'],
+        datasets: [{ data: [np, ex, cogs], backgroundColor: ['#16a34a', '#f97316', '#ef4444'], borderWidth: 0 }],
       },
       options: {
         responsive: true,
@@ -1550,12 +1553,16 @@ const Reports = () => {
                 <th>{t('reports.productName')}</th>
                 <th>{t('reports.quantitySold')}</th>
                 <th>{t('reports.totalSaleAmount')}</th>
+                <th>Cost</th>
+                <th>Discount</th>
+                <th>Expense</th>
+                <th>Net profit</th>
               </tr>
             </thead>
             <tbody>
               {salesByProduct.products.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="empty-state">{t('reports.noSalesFound')}</td>
+                  <td colSpan="7" className="empty-state">{t('reports.noSalesFound')}</td>
                 </tr>
               ) : (
                 salesByProduct.products.map((product) => (
@@ -1563,6 +1570,12 @@ const Reports = () => {
                     <td>{product.product_name}</td>
                     <td>{product.quantity_sold}</td>
                     <td>{formatCurrency(product.total_sale_amount)}</td>
+                    <td>{formatCurrency(product.total_cost || 0)}</td>
+                    <td className="profit-negative">{formatCurrency(product.total_discount || 0)}</td>
+                    <td className="profit-negative">{formatCurrency(product.total_expense || 0)}</td>
+                    <td className={(product.net_profit || 0) >= 0 ? 'profit-positive' : 'profit-negative'}>
+                      {formatCurrency(product.net_profit ?? (product.total_sale_amount - (product.total_cost || 0) - (product.total_expense || 0)))}
+                    </td>
                   </tr>
                 ))
               )}
@@ -1602,13 +1615,19 @@ const Reports = () => {
           </div>
           <div className="rep-kpi-mini rep-accent-red">
             <div className="tk">Total costs</div>
-            <div className="tv profit-negative">{formatCurrency((profitData.totalPurchases || 0) + (profitData.totalExpenses || 0))}</div>
+            <div className="tv profit-negative">
+              {formatCurrency((Number(profitData.totalCogs) || 0) + (Number(profitData.totalExpenses) || 0))}
+            </div>
           </div>
         </div>
         <div className="report-totals">
           <div className="total-card highlight">
             <div className="total-label">{t('reports.totalSales')}</div>
             <div className="total-value">{formatCurrency(profitData.totalSales)}</div>
+          </div>
+          <div className="total-card">
+            <div className="total-label">Cost of goods sold</div>
+            <div className="total-value profit-negative">{formatCurrency(profitData.totalCogs || 0)}</div>
           </div>
           <div className="total-card">
             <div className="total-label">Gross profit</div>
@@ -1635,7 +1654,7 @@ const Reports = () => {
           </div>
           <div className="reports-v2-chart-card">
             <h4>Profit mix</h4>
-            <p className="rep-chart-sub">Net vs expenses vs purchases</p>
+            <p className="rep-chart-sub">Net vs expenses vs COGS</p>
             <div className="rep-chart-canvas rep-tall">
               <canvas ref={canvasProfitMarginRef} />
             </div>
@@ -1652,9 +1671,9 @@ const Reports = () => {
               color: 'linear-gradient(90deg,#22c55e,#4ade80)',
             },
             {
-              label: t('reports.totalPurchases'),
-              value: profitData.totalPurchases,
-              display: formatCurrency(profitData.totalPurchases),
+              label: 'Cost of goods sold',
+              value: profitData.totalCogs,
+              display: formatCurrency(profitData.totalCogs || 0),
               color: 'linear-gradient(90deg,#ef4444,#fb7185)',
             },
             {

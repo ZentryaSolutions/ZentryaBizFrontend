@@ -22,6 +22,7 @@ import Invoices from './components/Invoices';
 import Sales from './components/Sales';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
+import AuditHistory from './components/AuditHistory';
 import Users from './components/Users';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -254,6 +255,7 @@ function AppContent({ location }) {
             {/* Same as expenses: avoid remount clearing tab/period state on refreshTrigger */}
             <Route path="/:uid/:shopId/reports" element={<Reports readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/users" element={<Users key={refreshTrigger} />} />
+            <Route path="/:uid/:shopId/audit" element={<AuditHistory />} />
             <Route path="/:uid/:shopId/settings" element={<Settings key={refreshTrigger} readOnly={readOnlyMode} />} />
             <Route path="*" element={<Navigate to={`${scopedBase}/app`} replace />} />
           </Routes>

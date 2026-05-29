@@ -10,6 +10,7 @@ import {
   faDollarSign,
   faFileInvoice,
   faGear,
+  faClipboardList,
   faShop,
   faTableCells,
   faTruck,
@@ -160,6 +161,13 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
 
   const menuSettings = [
     { id: 'users', labelKey: 'menu.users', path: '/users', icon: faUser, adminOnly: true },
+    {
+      id: 'audit',
+      labelKey: 'menu.audit',
+      path: '/audit',
+      icon: faClipboardList,
+      adminOnly: true,
+    },
     { id: 'settings', labelKey: 'menu.settings', path: '/settings', icon: faGear },
   ];
 

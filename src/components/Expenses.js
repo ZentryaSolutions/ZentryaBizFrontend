@@ -17,7 +17,7 @@ import {
   faBuildingColumns,
   faFloppyDisk,
 } from '@fortawesome/free-solid-svg-icons';
-import { expensesAPI, reportsAPI } from '../services/api';
+import { expensesAPI, productsAPI, reportsAPI } from '../services/api';
 import {
   getConnectivityErrorMessage,
   isOfflineQueuedResponse,
@@ -619,6 +619,7 @@ const Expenses = ({ readOnly = false }) => {
                 <th>{t('expenses.amount').toUpperCase()}</th>
                 <th>{t('expenses.methodCol', { defaultValue: 'Method' }).toUpperCase()}</th>
                 <th>{t('expenses.expenseDate', { defaultValue: 'Date' }).toUpperCase()}</th>
+                <th>{t('expenses.productCol', { defaultValue: 'Product' }).toUpperCase()}</th>
                 <th>{t('expenses.notes').toUpperCase()}</th>
                 <th>{t('expenses.shareCol', { defaultValue: 'Share' }).toUpperCase()}</th>
                 <th>{t('common.actions').toUpperCase()}</th>
@@ -627,7 +628,7 @@ const Expenses = ({ readOnly = false }) => {
             <tbody>
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="zx-exp-empty">{t('expenses.noExpensesForDateRange')}</td>
+                  <td colSpan={9} className="zx-exp-empty">{t('expenses.noExpensesForDateRange')}</td>
                 </tr>
               ) : (
                 paginatedExpenses.map((expense, idx) => {
@@ -666,6 +667,13 @@ const Expenses = ({ readOnly = false }) => {
                         </span>
                       </td>
                       <td>{dateLabel}</td>
+                      <td style={{ maxWidth: 160 }}>
+                        {Array.isArray(expense.product_allocations) && expense.product_allocations.length > 0
+                          ? expense.product_allocations
+                              .map((a) => a.product_name || `Product #${a.product_id}`)
+                              .join(', ')
+                          : t('expenses.shopWide', { defaultValue: 'Shop-wide' })}
+                      </td>
                       <td style={{ maxWidth: 200 }}>
                         <span title={expense.notes}>{expense.notes || '—'}</span>
                       </td>
@@ -758,8 +766,13 @@ const Expenses = ({ readOnly = false }) => {
   );
 };
 
+function formatProductLabel(p) {
+  return p?.item_name_english || p?.name || `Product #${p?.product_id}`;
+}
+
 const ExpenseModal = ({ expense, date, onSave, onClose }) => {
   const { t } = useTranslation();
+  const initialAlloc = Array.isArray(expense?.product_allocations) ? expense.product_allocations : [];
   const [formData, setFormData] = useState({
     expense_category: expense?.expense_category || '',
     amount: expense?.amount != null && expense?.amount !== '' ? String(expense.amount) : '',
@@ -767,7 +780,29 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
     payment_method: expense?.payment_method || 'cash',
     notes: expense?.notes || '',
   });
+  const [linkToProduct, setLinkToProduct] = useState(initialAlloc.length > 0);
+  const [productId, setProductId] = useState(
+    initialAlloc.length === 1 ? String(initialAlloc[0].product_id) : ''
+  );
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProductsLoading(true);
+      try {
+        const res = await productsAPI.getAll();
+        if (!cancelled) setProducts(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setProductsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const categorySelectOptions = useMemo(() => {
     const cur = String(expense?.expense_category || '').trim();
@@ -788,12 +823,23 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
       alert(t('expenses.invalidAmount', { defaultValue: 'Enter a valid amount greater than zero.' }));
       return;
     }
+    if (linkToProduct) {
+      const pid = parseInt(productId, 10);
+      if (!pid) {
+        alert(t('expenses.selectProduct', { defaultValue: 'Select a product to link this expense.' }));
+        return;
+      }
+    }
     setSaving(true);
     try {
-      await onSave({
+      const payload = {
         ...formData,
         amount: String(amt),
-      });
+      };
+      if (linkToProduct) {
+        payload.product_id = parseInt(productId, 10);
+      }
+      await onSave(payload);
     } catch (err) {
       alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('expenses.failedToSave'));
     } finally {
@@ -881,6 +927,60 @@ const ExpenseModal = ({ expense, date, onSave, onClose }) => {
                     onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
                   />
                 </div>
+                <div className="zx-exp-field zx-exp-field-full">
+                  <label>{t('expenses.linkType', { defaultValue: 'Expense applies to' })}</label>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="exp-scope"
+                        checked={!linkToProduct}
+                        onChange={() => setLinkToProduct(false)}
+                      />
+                      {t('expenses.shopWide', { defaultValue: 'Whole shop' })}
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="exp-scope"
+                        checked={linkToProduct}
+                        onChange={() => setLinkToProduct(true)}
+                      />
+                      {t('expenses.linkedProduct', { defaultValue: 'Specific product' })}
+                    </label>
+                  </div>
+                </div>
+                {linkToProduct ? (
+                  <div className="zx-exp-field zx-exp-field-full">
+                    <label htmlFor="zx-exp-product">
+                      {t('expenses.productCol', { defaultValue: 'Product' })}
+                      <span className="req">*</span>
+                    </label>
+                    <select
+                      id="zx-exp-product"
+                      required
+                      value={productId}
+                      onChange={(e) => setProductId(e.target.value)}
+                      disabled={productsLoading}
+                    >
+                      <option value="">
+                        {productsLoading
+                          ? t('common.loading')
+                          : t('expenses.selectProductPlaceholder', { defaultValue: 'Select product...' })}
+                      </option>
+                      {products.map((p) => (
+                        <option key={p.product_id} value={String(p.product_id)}>
+                          {formatProductLabel(p)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="zx-exp-hint" style={{ margin: '6px 0 0', fontSize: 12, color: '#6b7280' }}>
+                      {t('expenses.productLinkHint', {
+                        defaultValue: 'Full amount is counted against this product in profit reports.',
+                      })}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="zx-exp-field zx-exp-field-full">
                   <label htmlFor="zx-exp-notes">{t('expenses.notesOptional', { defaultValue: 'Notes (optional)' })}</label>
                   <input
