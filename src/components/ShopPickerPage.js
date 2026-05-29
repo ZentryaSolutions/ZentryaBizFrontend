@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { isUnlimitedShops, isExpiredPlan, resolveShopLimitFromProfile } from '../utils/planFeatures';
+import {
+  isUnlimitedShops,
+  isExpiredPlan,
+  resolveShopLimitFromProfile,
+  getTrialProgress,
+  isWorkspaceAccessBlocked,
+} from '../utils/planFeatures';
 import { isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { marketingHomeQuery } from '../utils/workspacePaths';
 import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
@@ -38,6 +44,46 @@ const shopPickerMobileOverrides = `
   .zbms-panel--pricing .zbms-panel-grid {
     grid-template-columns: 1fr !important;
   }
+}
+.zbms-plan-chip-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.zbms-trial-days {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+.zbms-trial-days--warn {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+.zbms-trial-days--expired {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.zbms-shop-card--locked {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+.zbms-shop-card--locked .zbms-shop-card-top,
+.zbms-shop-card--locked .zbms-shop-name,
+.zbms-shop-card--locked .zbms-shop-meta,
+.zbms-shop-card--locked .zbms-shop-stats {
+  pointer-events: none;
 }
 `;
 
@@ -306,7 +352,8 @@ export default function ShopPickerPage() {
 
   const shopLimitNum = resolveShopLimitFromProfile(profile);
   const unlimitedShops = isUnlimitedShops(shopLimitNum);
-  const subscriptionExpired = isExpiredPlan(profile?.plan) || shopLimitNum <= 0;
+  const trialProgress = useMemo(() => getTrialProgress(profile), [profile]);
+  const subscriptionExpired = isWorkspaceAccessBlocked(profile);
 
   const canCreateMore = useMemo(() => {
     if (subscriptionExpired) return false;
@@ -446,8 +493,27 @@ export default function ShopPickerPage() {
     }
   };
 
+  const syncPlanStatus = async () => {
+    if (!user?.id) return;
+    try {
+      if (hasPosBackendSession()) {
+        await shopPickerAPI.planStatus();
+      }
+    } catch (err) {
+      console.warn('[ShopPicker] plan-status:', err?.response?.data || err.message);
+    }
+    try {
+      await refreshProfile?.(user.id);
+    } catch {
+      /* ignore */
+    }
+  };
+
   useEffect(() => {
-    if (user?.id) fetchShops();
+    if (user?.id) {
+      void syncPlanStatus();
+      fetchShops();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -513,7 +579,33 @@ export default function ShopPickerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showCreate, creating]);
 
-  const selectShop = (id) => {
+  const selectShop = async (id) => {
+    if (subscriptionExpired) {
+      setPageError(
+        trialProgress?.expired || isExpiredPlan(profile?.plan)
+          ? 'Your 14-day free trial has ended. Upgrade to open your shop — all existing data stays safe.'
+          : 'Your subscription has expired. Upgrade your plan to open this shop.'
+      );
+      setMainPanel('pricing');
+      return;
+    }
+
+    if (hasPosBackendSession()) {
+      try {
+        await shopPickerAPI.checkShopAccess(id);
+      } catch (err) {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          'Cannot open this shop right now. Upgrade your plan to continue.';
+        setPageError(msg);
+        await syncPlanStatus();
+        setMainPanel('pricing');
+        return;
+      }
+    }
+
+    setPageError('');
     setActiveShopId(id);
     nav('/app', { replace: true });
   };
@@ -998,16 +1090,36 @@ export default function ShopPickerPage() {
         <header className="zbms-topbar">
           <span className="zbms-tb-title">{topTitle}</span>
           <span className="zbms-sp" />
-          <button
-            type="button"
-            className={`zbms-plan-chip zbms-plan-chip--${planChipTone}`}
-            onClick={() => setMainPanel('pricing')}
-          >
-            <svg width={11} height={11} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            {planDisplayName === tierMeta.name ? `${tierMeta.name} Plan` : `${planDisplayName} Plan`}
-          </button>
+          <div className="zbms-plan-chip-wrap">
+            {planTier === 'trial' && trialProgress ? (
+              <span
+                className={`zbms-trial-days${
+                  trialProgress.expired
+                    ? ' zbms-trial-days--expired'
+                    : trialProgress.day >= trialProgress.total - 2
+                      ? ' zbms-trial-days--warn'
+                      : ''
+                }`}
+                title={
+                  trialProgress.expired
+                    ? 'Free trial ended — upgrade to open your shop'
+                    : `Day ${trialProgress.day} of ${trialProgress.total} free trial`
+                }
+              >
+                {trialProgress.expired ? 'Ended' : `${trialProgress.day}/${trialProgress.total}`}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className={`zbms-plan-chip zbms-plan-chip--${planChipTone}`}
+              onClick={() => setMainPanel('pricing')}
+            >
+              <svg width={11} height={11} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              {planDisplayName === tierMeta.name ? `${tierMeta.name} Plan` : `${planDisplayName} Plan`}
+            </button>
+          </div>
           <button type="button" className="zbms-notif-btn" aria-label="Notifications">
             <Svg width={14} height={14}>
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -1071,7 +1183,7 @@ export default function ShopPickerPage() {
                 </div>
               </section>
 
-              {canManageShops && atLimit ? (
+              {canManageShops && (atLimit || subscriptionExpired) ? (
                 <div className="zbms-upgrade-banner zbms-anim">
                   <div className="zbms-ub-icon">
                     <Svg width={18} height={18}>
@@ -1082,14 +1194,18 @@ export default function ShopPickerPage() {
                   </div>
                   <div className="zbms-ub-text">
                     <div className="zbms-ub-title">
-                      {subscriptionExpired
-                        ? 'Your subscription has expired'
-                        : `You've reached your shop limit (${shopsUsed}/${unlimitedShops ? '∞' : shopLimitNum})`}
+                      {trialProgress?.expired || isExpiredPlan(profile?.plan)
+                        ? 'Your 14-day free trial has ended'
+                        : subscriptionExpired
+                          ? 'Your subscription has expired'
+                          : `You've reached your shop limit (${shopsUsed}/${unlimitedShops ? '∞' : shopLimitNum})`}
                     </div>
                     <div className="zbms-ub-sub">
-                      {subscriptionExpired
-                        ? 'Renew Growth or Business to create shops and restore full access.'
-                        : 'Upgrade to Business for unlimited shops.'}
+                      {trialProgress?.expired || isExpiredPlan(profile?.plan)
+                        ? 'Upgrade to open your shop again. All sales, products, and customer data remain saved.'
+                        : subscriptionExpired
+                          ? 'Renew Growth or Business to create shops and restore full access.'
+                          : 'Upgrade to Business for unlimited shops.'}
                     </div>
                   </div>
                   <a className="zbms-ub-btn" href={upgradeLink}>
@@ -1149,6 +1265,7 @@ export default function ShopPickerPage() {
                     const adminish = s.memberRole === 'owner' || s.memberRole === 'admin';
                     const roleLabel = adminish ? 'Owner / Admin' : 'Cashier';
                     const activeHl = lastShopRef && String(s.id) === String(lastShopRef);
+                    const shopLocked = subscriptionExpired;
                     const iso = s.created_at;
                     const qs = shopQuickStats[String(s.id)];
                     const salesShown = qs?.todaySales == null ? '—' : formatShopMoney(qs.todaySales, s.currency);
@@ -1157,13 +1274,28 @@ export default function ShopPickerPage() {
                       <div
                         key={s.id}
                         role="button"
-                        tabIndex={0}
-                        className={`zbms-shop-card${activeHl ? ' zbms-shop-card--active' : ''}`}
-                        onClick={() => selectShop(s.id)}
+                        tabIndex={shopLocked ? -1 : 0}
+                        className={`zbms-shop-card${activeHl ? ' zbms-shop-card--active' : ''}${
+                          shopLocked ? ' zbms-shop-card--locked' : ''
+                        }`}
+                        onClick={() => {
+                          if (shopLocked) {
+                            setPageError(
+                              'Trial ended — upgrade your plan to open this shop. Your data is safe and waiting.'
+                            );
+                            setMainPanel('pricing');
+                            return;
+                          }
+                          void selectShop(s.id);
+                        }}
                         onKeyDown={(ev) => {
                           if (ev.key === 'Enter' || ev.key === ' ') {
                             ev.preventDefault();
-                            selectShop(s.id);
+                            if (shopLocked) {
+                              setMainPanel('pricing');
+                              return;
+                            }
+                            void selectShop(s.id);
                           }
                         }}
                       >

@@ -44,7 +44,7 @@ import StaffInvitePage from './pages/auth/StaffInvitePage';
 import ShopSelection from './components/ShopSelection';
 // License system removed — plans handled via Stripe + Supabase.
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { isExpiredPlan } from './utils/planFeatures';
+import { isExpiredPlan, isWorkspaceAccessBlocked } from './utils/planFeatures';
 import { isZbWebOnlyMode } from './lib/appMode';
 import { mobileGlobalStyles } from './styles/mobileGlobalStyles';
 import {
@@ -166,7 +166,7 @@ function AppContent({ location }) {
 
   // Expired trial/subscription may still have an old activeShopId in storage.
   // Keep the user in My Shops/Pricing instead of opening the workspace.
-  if (profile && isExpiredPlan(profile.plan) && !onOwnShopsPicker) {
+  if (profile && isWorkspaceAccessBlocked(profile) && !onOwnShopsPicker) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
