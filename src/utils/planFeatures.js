@@ -55,27 +55,64 @@ export function isTrialExpiredByDate(profile) {
   return Number.isFinite(end) && end <= Date.now();
 }
 
-/** Trial day counter for UI — e.g. day 5 of 14. */
+function utcDayIndex(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / DAY_MS);
+}
+
+/** Trial day counter — prefer API fields from GET /shop-picker/plan-status when present. */
 export function getTrialProgress(profile) {
   const plan = String(profile?.plan || '').toLowerCase();
   if (plan !== 'trial') return null;
 
+  if (profile?.trial_day != null && profile?.trial_total != null) {
+    const day = Math.min(
+      Number(profile.trial_total) || TRIAL_DAYS,
+      Math.max(1, Number(profile.trial_day) || 1)
+    );
+    const total = Number(profile.trial_total) || TRIAL_DAYS;
+    const expired =
+      profile.trial_expired === true ||
+      profile.trial_expired === 'true' ||
+      isTrialExpiredByDate(profile) ||
+      isExpiredPlan(profile?.plan);
+    const daysLeft =
+      profile.trial_days_left != null
+        ? Math.max(0, Number(profile.trial_days_left) || 0)
+        : Math.max(0, total - day);
+    return { day, total, expired, daysLeft };
+  }
+
   const total = TRIAL_DAYS;
   const endsAt = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
-  const startedAt = profile?.trial_started_at ? new Date(profile.trial_started_at) : null;
-  let day = 1;
+  let startedAt = profile?.trial_started_at ? new Date(profile.trial_started_at) : null;
 
+  if ((!startedAt || Number.isNaN(startedAt.getTime())) && endsAt && !Number.isNaN(endsAt.getTime())) {
+    startedAt = new Date(endsAt.getTime() - TRIAL_DAYS * DAY_MS);
+  }
+
+  let day = 1;
   if (startedAt && !Number.isNaN(startedAt.getTime())) {
-    day = Math.floor((Date.now() - startedAt.getTime()) / DAY_MS) + 1;
-  } else if (endsAt && !Number.isNaN(endsAt.getTime())) {
-    const daysLeft = Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / DAY_MS));
-    day = total - daysLeft + 1;
+    const startIdx = utcDayIndex(startedAt);
+    const todayIdx = utcDayIndex(new Date());
+    if (startIdx != null && todayIdx != null) {
+      day = todayIdx - startIdx + 1;
+    }
   }
 
   day = Math.min(total, Math.max(1, day));
   const expired = isTrialExpiredByDate(profile) || isExpiredPlan(profile?.plan);
+  let daysLeft = Math.max(0, total - day);
+  if (endsAt && !Number.isNaN(endsAt.getTime())) {
+    const endIdx = utcDayIndex(endsAt);
+    const todayIdx = utcDayIndex(new Date());
+    if (endIdx != null && todayIdx != null) {
+      daysLeft = Math.max(0, endIdx - todayIdx);
+    }
+  }
 
-  return { day, total, expired, daysLeft: Math.max(0, total - day) };
+  return { day, total, expired, daysLeft };
 }
 
 /** Block opening workspace / creating shops — data stays in DB. */

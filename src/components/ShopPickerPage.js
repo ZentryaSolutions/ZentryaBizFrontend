@@ -349,11 +349,18 @@ export default function ShopPickerPage() {
   const [checkoutOkMsg, setCheckoutOkMsg] = useState('');
   const [portalBusy, setPortalBusy] = useState(false);
   const [shopQuickStats, setShopQuickStats] = useState({});
+  /** Authoritative plan/trial fields from GET /shop-picker/plan-status (Postgres). */
+  const [planFromApi, setPlanFromApi] = useState(null);
 
-  const shopLimitNum = resolveShopLimitFromProfile(profile);
+  const effectiveProfile = useMemo(
+    () => (profile || planFromApi ? { ...profile, ...planFromApi } : null),
+    [profile, planFromApi]
+  );
+
+  const shopLimitNum = resolveShopLimitFromProfile(effectiveProfile);
   const unlimitedShops = isUnlimitedShops(shopLimitNum);
-  const trialProgress = useMemo(() => getTrialProgress(profile), [profile]);
-  const subscriptionExpired = isWorkspaceAccessBlocked(profile);
+  const trialProgress = useMemo(() => getTrialProgress(effectiveProfile), [effectiveProfile]);
+  const subscriptionExpired = isWorkspaceAccessBlocked(effectiveProfile);
 
   const canCreateMore = useMemo(() => {
     if (subscriptionExpired) return false;
@@ -370,10 +377,10 @@ export default function ShopPickerPage() {
   const heroBarColor =
     !unlimitedShops && shopsUsed >= shopLimitNum ? '#ef4444' : !unlimitedShops && heroBarPct >= 80 ? '#f59e0b' : '#22c55e';
 
-  const planTier = normalizePlanTier(profile?.plan);
+  const planTier = normalizePlanTier(effectiveProfile?.plan);
   const tierMeta = PLAN_TIERS.find((t) => t.id === planTier) || PLAN_TIERS[0];
   const planDisplayName =
-    String(profile?.plan || '')
+    String(effectiveProfile?.plan || '')
       .trim()
       .replace(/[_-]+/g, ' ')
       .replace(/\b\w/g, (c) => c.toUpperCase()) || tierMeta.name;
@@ -494,10 +501,25 @@ export default function ShopPickerPage() {
   };
 
   const syncPlanStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.id) return null;
+    let apiPlan = null;
     try {
       if (hasPosBackendSession()) {
-        await shopPickerAPI.planStatus();
+        const res = await shopPickerAPI.planStatus();
+        const d = res?.data;
+        if (d?.ok !== false) {
+          apiPlan = {
+            plan: d.plan,
+            shop_limit: d.shop_limit,
+            trial_started_at: d.trial_started_at,
+            trial_ends_at: d.trial_ends_at,
+            trial_day: d.trial_day,
+            trial_total: d.trial_total,
+            trial_days_left: d.trial_days_left,
+            trial_expired: d.trial_expired,
+          };
+          setPlanFromApi(apiPlan);
+        }
       }
     } catch (err) {
       console.warn('[ShopPicker] plan-status:', err?.response?.data || err.message);
@@ -507,6 +529,7 @@ export default function ShopPickerPage() {
     } catch {
       /* ignore */
     }
+    return apiPlan;
   };
 
   useEffect(() => {
@@ -582,7 +605,7 @@ export default function ShopPickerPage() {
   const selectShop = async (id) => {
     if (subscriptionExpired) {
       setPageError(
-        trialProgress?.expired || isExpiredPlan(profile?.plan)
+        trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
           ? 'Your 14-day free trial has ended. Upgrade to open your shop — all existing data stays safe.'
           : 'Your subscription has expired. Upgrade your plan to open this shop.'
       );
@@ -1194,14 +1217,14 @@ export default function ShopPickerPage() {
                   </div>
                   <div className="zbms-ub-text">
                     <div className="zbms-ub-title">
-                      {trialProgress?.expired || isExpiredPlan(profile?.plan)
+                      {trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
                         ? 'Your 14-day free trial has ended'
                         : subscriptionExpired
                           ? 'Your subscription has expired'
                           : `You've reached your shop limit (${shopsUsed}/${unlimitedShops ? '∞' : shopLimitNum})`}
                     </div>
                     <div className="zbms-ub-sub">
-                      {trialProgress?.expired || isExpiredPlan(profile?.plan)
+                      {trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
                         ? 'Upgrade to open your shop again. All sales, products, and customer data remain saved.'
                         : subscriptionExpired
                           ? 'Renew Growth or Business to create shops and restore full access.'
