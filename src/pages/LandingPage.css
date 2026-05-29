@@ -1,4 +1,4 @@
-/* Zentrya Biz — landing (pricing + feature cards preserved at bottom of file) */
+/* Zentrya Biz â€” landing (pricing + feature cards preserved at bottom of file) */
 .zbx {
   --zbx-bg: #e8ecf5;
   --zbx-surface: #ffffff;
@@ -42,7 +42,7 @@
   transform: translate(0, 0);
 }
 
-/* ——— Nav ——— */
+/* â€”â€”â€” Nav â€”â€”â€” */
 .zbx-nav {
   position: sticky;
   top: 0;
@@ -231,7 +231,7 @@ button.zbx-btn {
   color: #fff;
 }
 
-/* ——— Main ——— */
+/* â€”â€”â€” Main â€”â€”â€” */
 .zbx-main {
   max-width: 1220px;
   margin: 0 auto;
@@ -243,7 +243,7 @@ button.zbx-btn {
   scroll-margin-top: 88px;
 }
 
-/* ——— Full-bleed hero ——— */
+/* â€”â€”â€” Full-bleed hero â€”â€”â€” */
 .zbx-heroFull {
   position: relative;
   width: 100vw;
@@ -469,7 +469,7 @@ button.zbx-btn {
   opacity: 0.95;
 }
 
-/* ——— Sections (shared heads) ——— */
+/* â€”â€”â€” Sections (shared heads) â€”â€”â€” */
 .zbx-section {
   margin-top: clamp(56px, 8vw, 88px);
 }
@@ -510,7 +510,7 @@ button.zbx-btn {
   margin-top: 8px;
 }
 
-/* ——— FEATURE CARDS (unchanged) ——— */
+/* â€”â€”â€” FEATURE CARDS (unchanged) â€”â€”â€” */
 .zbx-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -587,7 +587,7 @@ button.zbx-btn {
   color: var(--zbx-muted);
 }
 
-/* ——— PRICING CARDS (unchanged) ——— */
+/* â€”â€”â€” PRICING CARDS (unchanged) â€”â€”â€” */
 .zbx-pricing {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

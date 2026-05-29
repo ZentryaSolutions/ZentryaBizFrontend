@@ -31,14 +31,10 @@ export default function MarketingHeader() {
           />
         </span>
         <div className="zbx-brandLockup">
-          <div className="zbx-brandTitle">
-            <span className="zbx-brandWord">Zentrya</span>
-            <span className="zbx-brandBadge">Biz</span>
-          </div>
+          <div className="zbx-brandTitle">Zentrya Biz</div>
           <p className="zbx-brandTagline">
-            <span className="zbx-brandTaglineMain">Run your business</span>
-            <span className="zbx-brandTaglineDot" aria-hidden="true" />
-            <span className="zbx-brandTaglineAccent">simply</span>
+            Run your business{' '}
+            <span className="zbx-brandTaglineAccent">SIMPLY</span>
           </p>
         </div>
       </Link>
