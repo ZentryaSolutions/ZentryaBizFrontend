@@ -55,10 +55,11 @@ export function isTrialExpiredByDate(profile) {
   return Number.isFinite(end) && end <= Date.now();
 }
 
-function utcDayIndex(value) {
+/** Local calendar day (browser TZ) — matches how users see "today". */
+function localCalendarDayIndex(value) {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return null;
-  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / DAY_MS);
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS);
 }
 
 /** Trial day counter — prefer API fields from GET /shop-picker/plan-status when present. */
@@ -94,8 +95,8 @@ export function getTrialProgress(profile) {
 
   let day = 1;
   if (startedAt && !Number.isNaN(startedAt.getTime())) {
-    const startIdx = utcDayIndex(startedAt);
-    const todayIdx = utcDayIndex(new Date());
+    const startIdx = localCalendarDayIndex(startedAt);
+    const todayIdx = localCalendarDayIndex(new Date());
     if (startIdx != null && todayIdx != null) {
       day = todayIdx - startIdx + 1;
     }
@@ -105,8 +106,8 @@ export function getTrialProgress(profile) {
   const expired = isTrialExpiredByDate(profile) || isExpiredPlan(profile?.plan);
   let daysLeft = Math.max(0, total - day);
   if (endsAt && !Number.isNaN(endsAt.getTime())) {
-    const endIdx = utcDayIndex(endsAt);
-    const todayIdx = utcDayIndex(new Date());
+    const endIdx = localCalendarDayIndex(endsAt);
+    const todayIdx = localCalendarDayIndex(new Date());
     if (endIdx != null && todayIdx != null) {
       daysLeft = Math.max(0, endIdx - todayIdx);
     }
