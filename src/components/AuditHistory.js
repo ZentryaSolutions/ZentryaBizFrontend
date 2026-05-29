@@ -20,6 +20,7 @@ const MODULE_LABELS = {
   users: 'Users & staff',
   audit: 'Audit history',
   audit_logs: 'Audit history',
+  auth: 'Sign in / out',
   sales: 'Sales',
   products: 'Products',
   customers: 'Customers',
@@ -29,6 +30,54 @@ const MODULE_LABELS = {
   settings: 'Settings',
   reports: 'Reports',
 };
+
+const FIELD_LABELS = {
+  item_name_english: 'Product name',
+  sku: 'SKU',
+  purchase_price: 'Purchase price',
+  retail_price: 'Retail price',
+  wholesale_price: 'Wholesale price',
+  special_price: 'Special price',
+  quantity_in_stock: 'Stock qty',
+  invoice_number: 'Invoice',
+  total_amount: 'Total',
+  discount: 'Discount',
+  name: 'Name',
+  phone: 'Phone',
+  expense_category: 'Category',
+  amount: 'Amount',
+};
+
+function parseAuditValues(raw) {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function fmtMoney(v) {
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return v == null || v === '' ? '—' : String(v);
+  return `PKR ${n.toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
+}
+
+function formatFieldValue(key, v) {
+  if (v == null || v === '') return '—';
+  if (String(key).includes('price') || key === 'amount' || key === 'total_amount') {
+    return fmtMoney(v);
+  }
+  return String(v);
+}
+
+function valuesDiffer(a, b) {
+  const na = Number(a);
+  const nb = Number(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return Math.abs(na - nb) > 0.0001;
+  return String(a ?? '') !== String(b ?? '');
+}
 
 const LEGACY_SENSITIVE_NOTES = {
   users: 'Opened Users & staff page',
@@ -43,6 +92,9 @@ function formatModuleName(tableName) {
 
 function formatAuditSummary(log) {
   const notes = (log.notes || '').trim();
+  if (log.action === 'login' || log.action === 'login_failed' || log.action === 'logout') {
+    return notes || ACTION_LABELS[log.action] || '—';
+  }
   if (notes && !/^Accessed sensitive resource:/i.test(notes)) {
     return notes;
   }
@@ -65,12 +117,69 @@ function formatAuditSummary(log) {
 
 function formatAuditAction(log) {
   const notes = (log.notes || '').trim();
+  if (log.action === 'login') return 'Signed in';
+  if (log.action === 'login_failed') return 'Sign-in failed';
+  if (log.action === 'logout') return 'Signed out';
   if (notes.startsWith('Opened ')) return 'Opened';
   if (notes.startsWith('Loaded ')) return 'Loaded';
   if (notes.startsWith('Exported ')) return 'Exported';
+  if (notes.startsWith('Added product')) return 'Created';
+  if (notes.startsWith('Deleted product')) return 'Deleted';
+  if (notes.startsWith('Imported ')) return 'Imported';
   const mapped = ACTION_LABELS[log.action];
   if (mapped) return mapped;
   return log.action || '—';
+}
+
+function AuditChangeTable({ log }) {
+  const oldV = parseAuditValues(log.old_values);
+  const newV = parseAuditValues(log.new_values);
+  if (!oldV && !newV) return null;
+
+  const keys = [
+    ...new Set([...Object.keys(oldV || {}), ...Object.keys(newV || {})]),
+  ].filter((k) => !['product_id', 'import_count'].includes(k));
+
+  const rows = keys
+    .map((key) => {
+      const o = oldV?.[key];
+      const n = newV?.[key];
+      const label = FIELD_LABELS[key] || key.replace(/_/g, ' ');
+      if (log.action === 'delete') {
+        if (o == null && o !== 0) return null;
+        return { key, label, before: formatFieldValue(key, o), after: '—' };
+      }
+      if (log.action === 'create') {
+        if (n == null && n !== 0) return null;
+        return { key, label, before: '—', after: formatFieldValue(key, n) };
+      }
+      if (!valuesDiffer(o, n)) return null;
+      return { key, label, before: formatFieldValue(key, o), after: formatFieldValue(key, n) };
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return null;
+
+  return (
+    <table className="zb-audit-changes" style={{ width: '100%', marginTop: 8, fontSize: 12 }}>
+      <thead>
+        <tr>
+          <th style={{ textAlign: 'left', padding: '4px 8px' }}>Field</th>
+          <th style={{ textAlign: 'left', padding: '4px 8px' }}>Before</th>
+          <th style={{ textAlign: 'left', padding: '4px 8px' }}>After</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.key}>
+            <td style={{ padding: '4px 8px', color: '#6b7280' }}>{r.label}</td>
+            <td style={{ padding: '4px 8px' }}>{r.before}</td>
+            <td style={{ padding: '4px 8px', fontWeight: 600 }}>{r.after}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 function formatWhen(ts) {
@@ -248,7 +357,10 @@ const AuditHistory = () => {
         .zb-audit-pill-create{background:#dcfce7;color:#166534}
         .zb-audit-pill-update{background:#dbeafe;color:#1e40af}
         .zb-audit-pill-delete{background:#fee2e2;color:#991b1b}
+        .zb-audit-pill-login{background:#e0e7ff;color:#3730a3}
         .zb-audit-pill-default{background:#f3f4f6;color:#374151}
+        .zb-audit-changes{border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+        .zb-audit-changes th{background:#f9fafb;font-size:11px;text-transform:uppercase;color:#6b7280}
         .zb-audit-muted{color:#9ca3af;font-size:12px}
         .zb-audit-json{margin:8px 0 0;padding:10px;background:#f9fafb;border-radius:8px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap}
         .zb-audit-detail-row td{background:#fefefe}
@@ -257,7 +369,7 @@ const AuditHistory = () => {
 
       <header className="zb-audit-hd">
         <h1>Audit History</h1>
-        <p>Track who changed what — sales, inventory, expenses, customers, and more.</p>
+        <p>Who changed what — product prices, stock, sales, sign-in/out, and deletions. Expand a row for before/after values.</p>
       </header>
 
       <div className="zb-audit-filters">
@@ -384,7 +496,11 @@ const AuditHistory = () => {
                           ? 'zb-audit-pill-update'
                           : log.action === 'delete'
                             ? 'zb-audit-pill-delete'
-                            : 'zb-audit-pill-default';
+                            : log.action === 'login' || log.action === 'logout'
+                              ? 'zb-audit-pill-login'
+                              : log.action === 'login_failed'
+                                ? 'zb-audit-pill-delete'
+                                : 'zb-audit-pill-default';
                     const open = expandedId === log.log_id;
                     return (
                       <React.Fragment key={log.log_id}>
@@ -415,16 +531,22 @@ const AuditHistory = () => {
                         {open ? (
                           <tr className="zb-audit-detail-row">
                             <td colSpan={7}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                <div>
-                                  <strong>Before</strong>
-                                  <JsonBlock data={log.old_values} />
+                              <AuditChangeTable log={log} />
+                              <details style={{ marginTop: 10 }}>
+                                <summary className="zb-audit-muted" style={{ cursor: 'pointer' }}>
+                                  Raw JSON
+                                </summary>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
+                                  <div>
+                                    <strong>Before</strong>
+                                    <JsonBlock data={log.old_values} />
+                                  </div>
+                                  <div>
+                                    <strong>After</strong>
+                                    <JsonBlock data={log.new_values} />
+                                  </div>
                                 </div>
-                                <div>
-                                  <strong>After</strong>
-                                  <JsonBlock data={log.new_values} />
-                                </div>
-                              </div>
+                              </details>
                               {log.ip_address ? (
                                 <p className="zb-audit-muted" style={{ marginTop: 8 }}>
                                   IP: {log.ip_address}
