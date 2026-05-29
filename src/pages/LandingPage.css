@@ -1,4 +1,4 @@
-/* Zentrya Biz â€” landing (pricing + feature cards preserved at bottom of file) */
+/* Zentrya Biz Ã¢â‚¬â€ landing (pricing + feature cards preserved at bottom of file) */
 .zbx {
   --zbx-bg: #e8ecf5;
   --zbx-surface: #ffffff;
@@ -42,7 +42,7 @@
   transform: translate(0, 0);
 }
 
-/* â€”â€”â€” Nav â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ Nav Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-nav {
   position: sticky;
   top: 0;
@@ -99,55 +99,26 @@
 }
 
 .zbx-brandTitle {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.zbx-brandWord {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
   color: #0f172a;
 }
-
-.zbx-brandBadge {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #4f46e5;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(79, 70, 229, 0.22);
-  background: rgba(99, 102, 241, 0.08);
-}
-
 .zbx-brandTagline {
   margin: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--zbx-muted);
 }
-
-.zbx-brandTaglineDot {
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: #94a3b8;
-}
-
 .zbx-brandTaglineAccent {
-  font-weight: 600;
-  font-style: italic;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--zbx-accent);
 }
-
 .zbx-links {
   display: flex;
   gap: 8px 22px;
@@ -231,7 +202,7 @@ button.zbx-btn {
   color: #fff;
 }
 
-/* â€”â€”â€” Main â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ Main Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-main {
   max-width: 1220px;
   margin: 0 auto;
@@ -243,7 +214,7 @@ button.zbx-btn {
   scroll-margin-top: 88px;
 }
 
-/* â€”â€”â€” Full-bleed hero â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ Full-bleed hero Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-heroFull {
   position: relative;
   width: 100vw;
@@ -469,7 +440,7 @@ button.zbx-btn {
   opacity: 0.95;
 }
 
-/* â€”â€”â€” Sections (shared heads) â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ Sections (shared heads) Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-section {
   margin-top: clamp(56px, 8vw, 88px);
 }
@@ -510,7 +481,7 @@ button.zbx-btn {
   margin-top: 8px;
 }
 
-/* â€”â€”â€” FEATURE CARDS (unchanged) â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ FEATURE CARDS (unchanged) Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -587,7 +558,7 @@ button.zbx-btn {
   color: var(--zbx-muted);
 }
 
-/* â€”â€”â€” PRICING CARDS (unchanged) â€”â€”â€” */
+/* Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ PRICING CARDS (unchanged) Ã¢â‚¬â€Ã¢â‚¬â€Ã¢â‚¬â€ */
 .zbx-pricing {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
