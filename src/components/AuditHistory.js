@@ -71,6 +71,24 @@ const AuditHistory = () => {
     end_date: '',
   });
   const [filterOptions, setFilterOptions] = useState({ actions: [], tables: [] });
+  const [filterHint, setFilterHint] = useState('');
+
+  const normalizeDateRange = (start, end) => {
+    const s = String(start || '').trim();
+    const e = String(end || '').trim();
+    if (s && e && s > e) {
+      return { start_date: e, end_date: s, swapped: true };
+    }
+    return { start_date: s, end_date: e, swapped: false };
+  };
+
+  const hasActiveFilters =
+    Boolean(filters.userId) ||
+    Boolean(filters.action) ||
+    Boolean(filters.tableName) ||
+    Boolean(filters.search.trim()) ||
+    Boolean(filters.start_date) ||
+    Boolean(filters.end_date);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -97,8 +115,14 @@ const AuditHistory = () => {
       if (filters.action) params.action = filters.action;
       if (filters.tableName) params.tableName = filters.tableName;
       if (filters.search.trim()) params.search = filters.search.trim();
-      if (filters.start_date) params.start_date = filters.start_date;
-      if (filters.end_date) params.end_date = filters.end_date;
+      const dates = normalizeDateRange(filters.start_date, filters.end_date);
+      if (dates.start_date) params.start_date = dates.start_date;
+      if (dates.end_date) params.end_date = dates.end_date;
+      if (dates.swapped) {
+        setFilterHint('Date range was reversed (From was after To). Showing corrected range.');
+      } else {
+        setFilterHint('');
+      }
 
       const res = await auditAPI.getLogs(params);
       const data = res.data || {};
@@ -252,6 +276,7 @@ const AuditHistory = () => {
             className="zb-audit-btn"
             onClick={() => {
               setFilters({ userId: '', action: '', tableName: '', search: '', start_date: '', end_date: '' });
+              setFilterHint('');
               setPage(1);
             }}
           >
@@ -259,6 +284,10 @@ const AuditHistory = () => {
           </button>
         </div>
       </div>
+
+      {filterHint ? (
+        <p style={{ marginBottom: 10, color: '#b45309', fontSize: 13 }}>{filterHint}</p>
+      ) : null}
 
       {error ? <div className="zb-audit-err">{error}</div> : null}
 
@@ -283,7 +312,9 @@ const AuditHistory = () => {
                 {logs.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="zb-audit-muted" style={{ textAlign: 'center', padding: 24 }}>
-                      No audit entries for this filter.
+                      {hasActiveFilters
+                        ? 'No entries match these filters. Click Clear, then try again.'
+                        : 'No audit entries yet. Save a sale, edit a product, or add an expense — then refresh this page.'}
                     </td>
                   </tr>
                 ) : (
