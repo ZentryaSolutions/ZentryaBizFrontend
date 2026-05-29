@@ -322,7 +322,7 @@ export const shopPickerAPI = {
 
 // Users API (Admin only)
 export const usersAPI = {
-  getAll: () => api.get('/users'),
+  getAll: (params) => api.get('/users', { params }),
   create: (data) => api.post('/users', data),
   sendInvitation: (data) => api.post('/users/invitations', data),
   update: (id, data) => api.put(`/users/${id}`, data),

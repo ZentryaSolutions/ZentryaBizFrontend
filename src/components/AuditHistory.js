@@ -8,12 +8,70 @@ const ACTION_LABELS = {
   create: 'Created',
   update: 'Updated',
   delete: 'Deleted',
+  view: 'Viewed',
   login: 'Login',
   logout: 'Logout',
   login_failed: 'Login failed',
   finalize: 'Finalized',
-  view_sensitive: 'Sensitive view',
+  view_sensitive: 'Viewed',
 };
+
+const MODULE_LABELS = {
+  users: 'Users & staff',
+  audit: 'Audit history',
+  audit_logs: 'Audit history',
+  sales: 'Sales',
+  products: 'Products',
+  customers: 'Customers',
+  suppliers: 'Suppliers',
+  purchases: 'Purchases',
+  daily_expenses: 'Expenses',
+  settings: 'Settings',
+  reports: 'Reports',
+};
+
+const LEGACY_SENSITIVE_NOTES = {
+  users: 'Opened Users & staff page',
+  audit_logs: 'Opened Audit history',
+  reports: 'Opened Reports',
+};
+
+function formatModuleName(tableName) {
+  if (!tableName) return '—';
+  return MODULE_LABELS[tableName] || tableName.replace(/_/g, ' ');
+}
+
+function formatAuditSummary(log) {
+  const notes = (log.notes || '').trim();
+  if (notes && !/^Accessed sensitive resource:/i.test(notes)) {
+    return notes;
+  }
+  const m = notes.match(/^Accessed sensitive resource:\s*(.+)$/i);
+  if (m) {
+    const key = m[1].trim();
+    return LEGACY_SENSITIVE_NOTES[key] || `Opened ${formatModuleName(key)}`;
+  }
+  const action = log.action;
+  const mod = formatModuleName(log.table_name);
+  const rid = log.record_id != null ? `#${log.record_id}` : '';
+  if (action === 'create') return `Created ${mod} ${rid}`.trim();
+  if (action === 'update') return `Updated ${mod} ${rid}`.trim();
+  if (action === 'delete') return `Deleted ${mod} ${rid}`.trim();
+  if (action === 'view' || action === 'view_sensitive') return `Opened ${mod}`;
+  if (action === 'login') return notes || 'User logged in';
+  if (action === 'logout') return notes || 'User logged out';
+  return notes || '—';
+}
+
+function formatAuditAction(log) {
+  const notes = (log.notes || '').trim();
+  if (notes.startsWith('Opened ')) return 'Opened';
+  if (notes.startsWith('Loaded ')) return 'Loaded';
+  if (notes.startsWith('Exported ')) return 'Exported';
+  const mapped = ACTION_LABELS[log.action];
+  if (mapped) return mapped;
+  return log.action || '—';
+}
 
 function formatWhen(ts) {
   if (!ts) return '—';
@@ -92,7 +150,7 @@ const AuditHistory = () => {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await usersAPI.getAll();
+      const res = await usersAPI.getAll({ context: 'audit_filter' });
       setUsers(Array.isArray(res.data) ? res.data : res.data?.users || []);
     } catch {
       setUsers([]);
@@ -335,13 +393,13 @@ const AuditHistory = () => {
                           <td>{log.user_name || log.username || 'System'}</td>
                           <td>
                             <span className={`zb-audit-pill ${actionCls}`}>
-                              {ACTION_LABELS[log.action] || log.action}
+                              {formatAuditAction(log)}
                             </span>
                           </td>
-                          <td>{log.table_name || '—'}</td>
+                          <td>{formatModuleName(log.table_name)}</td>
                           <td>{log.record_id != null ? `#${log.record_id}` : '—'}</td>
-                          <td style={{ maxWidth: 280 }}>
-                            <span title={log.notes}>{log.notes || '—'}</span>
+                          <td style={{ maxWidth: 320 }}>
+                            <span title={formatAuditSummary(log)}>{formatAuditSummary(log)}</span>
                           </td>
                           <td>
                             <button
