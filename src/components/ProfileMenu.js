@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -20,7 +21,7 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [ownerName, setOwnerName] = useState('');
-  const dropdownRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,12 +51,12 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
     };
   }, [user]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+      const portal = document.getElementById('zb-profile-menu-portal');
+      if (portal && portal.contains(event.target)) return;
+      if (containerRef.current && containerRef.current.contains(event.target)) return;
+      setIsOpen(false);
     };
 
     if (isOpen) {
@@ -64,6 +65,15 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
     };
   }, [isOpen]);
 
@@ -81,17 +91,67 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
     navigate(withCurrentScope(location.pathname, '/settings'));
   };
 
+  const menuPanel = (
+    <>
+      <div className="profile-info">
+        <div className="profile-avatar-large">
+          {getInitials(user?.full_name || user?.name || user?.username || 'U')}
+        </div>
+        <div className="profile-details">
+          <h4 className="profile-name">{user?.full_name || user?.name || user?.username || 'User'}</h4>
+          {user?.email ? (
+            <p className="profile-email" title={user.email}>
+              {user.email}
+            </p>
+          ) : null}
+          {ownerName ? <p className="profile-role">{ownerName}</p> : null}
+        </div>
+      </div>
+
+      <div className="profile-menu-divider" />
+
+      <div className="profile-menu-items">
+        <button type="button" className="profile-menu-item" onClick={handleProfileSettings}>
+          <FontAwesomeIcon icon={faGear} className="menu-item-icon" aria-hidden />
+          <span>{t('header.profileSettings')}</span>
+        </button>
+      </div>
+    </>
+  );
+
+  const portalMenu =
+    isOpen &&
+    createPortal(
+      <div
+        id="zb-profile-menu-portal"
+        className="profile-menu-overlay"
+        role="presentation"
+        onClick={() => setIsOpen(false)}
+      >
+        <div
+          className="profile-dropdown profile-dropdown--sheet"
+          role="menu"
+          aria-label={t('header.profileMenu')}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {menuPanel}
+        </div>
+      </div>,
+      document.body
+    );
+
   return (
-    <div className="profile-menu-container" ref={dropdownRef}>
+    <div className="profile-menu-container" ref={containerRef}>
       <div
         className={`profile-avatar-hover-wrap${isOpen ? ' profile-avatar-hover-wrap--menu-open' : ''}`}
       >
         <button
           type="button"
           className={`profile-avatar-btn profile-avatar-btn--icon${workspaceNav ? ' profile-avatar-btn--workspace' : ''}`}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setIsOpen((open) => !open)}
           aria-label={t('header.profileMenu')}
           aria-expanded={isOpen}
+          aria-haspopup="menu"
           data-navigation="true"
         >
           {workspaceNav ? (
@@ -110,42 +170,9 @@ const ProfileMenu = ({ user, profileLabel, workspaceNav = false }) => {
         </div>
       </div>
 
-      {isOpen && (
-        <div className="profile-dropdown">
-          <div className="profile-info">
-            <div className="profile-avatar-large">
-              {getInitials(user?.full_name || user?.name || user?.username || 'U')}
-            </div>
-            <div className="profile-details">
-              <h4 className="profile-name">
-                {user?.full_name || user?.name || user?.username || 'User'}
-              </h4>
-              {user?.email ? (
-                <p className="profile-email" title={user.email}>
-                  {user.email}
-                </p>
-              ) : null}
-              {ownerName ? <p className="profile-role">{ownerName}</p> : null}
-            </div>
-          </div>
-
-          <div className="profile-menu-divider"></div>
-
-          <div className="profile-menu-items">
-            <button 
-              className="profile-menu-item"
-              onClick={handleProfileSettings}
-            >
-              <FontAwesomeIcon icon={faGear} className="menu-item-icon" aria-hidden />
-              <span>{t('header.profileSettings')}</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {portalMenu}
     </div>
   );
 };
 
 export default ProfileMenu;
-
-
