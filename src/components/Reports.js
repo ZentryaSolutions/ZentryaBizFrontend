@@ -1268,7 +1268,7 @@ const Reports = () => {
           </div>
           <div className="rep-chart-card">
             <h3 className="rep-chart-h">{t('reports.expenses')}</h3>
-            <p className="rep-chart-sub">{t('reports.categoryBreakdown')}</p>
+            <p className="rep-chart-sub">{t('reports.categoryBreakdown', { defaultValue: 'Category breakdown' })}</p>
             <div className="rep-chart-canvas rep-tall">
               <canvas ref={canvasExpRef} />
             </div>
@@ -2590,7 +2590,7 @@ const Reports = () => {
         </div>
         {cats.length > 0 ? (
           <div className="table-container" style={{ marginTop: 14 }}>
-            <h3 style={{ padding: '12px 14px 0', margin: 0 }}>{t('reports.categoryBreakdown')}</h3>
+            <h3 style={{ padding: '12px 14px 0', margin: 0 }}>{t('reports.categoryBreakdown', { defaultValue: 'Category breakdown' })}</h3>
             <table className="reports-table">
               <thead>
                 <tr>

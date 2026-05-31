@@ -461,6 +461,7 @@
     "customers": "Customers",
     "suppliers": "Suppliers",
     "expenses": "Expenses",
+    "categoryBreakdown": "Category breakdown",
     "lowStock": "Low Stock",
     "summary": "Summary",
     "byProduct": "By Product",
