@@ -63,9 +63,9 @@ const ZB_SHELL_AND_DASH_CSS = `
 .zb-workspace-shell .zb-tb-myshops{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit;line-height:1;white-space:nowrap;text-decoration:none}
 .zb-workspace-shell .zb-tb-myshops:hover{background:#f9fafb;border-color:#d1d5db;color:#374151}
 .zb-workspace-shell .zb-tb-myshops svg{font-size:11px;color:#9ca3af}
-.zb-workspace-shell .zb-tb-dashboard{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;line-height:1;white-space:nowrap;text-decoration:none}
-.zb-workspace-shell .zb-tb-dashboard:hover{background:#f9fafb;border-color:#d1d5db;color:#111827}
-.zb-workspace-shell .zb-tb-dashboard svg{font-size:11px;color:#9ca3af}
+.zb-workspace-shell .zb-tb-back{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;line-height:1;white-space:nowrap}
+.zb-workspace-shell .zb-tb-back:hover{background:#f9fafb;border-color:#d1d5db;color:#111827}
+.zb-workspace-shell .zb-tb-back svg{font-size:11px;color:#9ca3af}
 .zb-workspace-shell .zb-tb-divider{width:1px;height:22px;background:#e5e7eb;flex-shrink:0}
 .zb-workspace-shell .zb-tb-title{font-size:17px;font-weight:700;color:#111827;letter-spacing:-.02em;line-height:1.2;margin:0}
 .zb-workspace-shell .zb-tb-fill{flex:1;min-width:8px}

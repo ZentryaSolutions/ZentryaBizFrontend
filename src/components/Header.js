@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,6 +61,7 @@ const Header = ({ onMenuClick }) => {
   const { t } = useTranslation();
   const { user, activeShopId } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [storeName, setStoreName] = useState('');
 
   const fetchStoreName = useCallback(async () => {
@@ -136,8 +137,12 @@ const Header = ({ onMenuClick }) => {
   const pageTitle = workspaceTitle(location.pathname);
   const shopsPickerTo = shopsPath(getProfileUserId(user));
   const inWorkspace = Boolean(extractAppScope(location.pathname)?.base);
-  const showDashboardBack = inWorkspace && !isDashboardPath(location.pathname);
+  const onDashboard = inWorkspace && isDashboardPath(location.pathname);
   const dashboardTo = withCurrentScope(location.pathname, '/app');
+
+  const handleWorkspaceBack = () => {
+    navigate(dashboardTo);
+  };
 
   return (
     <header className="app-header zb-topbar">
@@ -153,28 +158,27 @@ const Header = ({ onMenuClick }) => {
             <FontAwesomeIcon icon={faBars} className="header-menu-toggle-icon" aria-hidden />
           </button>
         ) : null}
-        <Link
-          to={shopsPickerTo}
-          className="zb-tb-myshops"
-          data-navigation="true"
-          title={t('app.myShops', { defaultValue: 'My Shops' })}
-        >
-          <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
-          {t('app.myShops', { defaultValue: 'My Shops' })}
-        </Link>
-        {showDashboardBack ? (
-          <>
-            <span className="zb-tb-divider" aria-hidden />
-            <Link
-              to={dashboardTo}
-              className="zb-tb-dashboard"
-              data-navigation="true"
-              title={t('menu.dashboard', { defaultValue: 'Dashboard' })}
-            >
-              <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
-              {t('menu.dashboard', { defaultValue: 'Dashboard' })}
-            </Link>
-          </>
+        {onDashboard ? (
+          <Link
+            to={shopsPickerTo}
+            className="zb-tb-myshops"
+            data-navigation="true"
+            title={t('app.myShops', { defaultValue: 'My Shops' })}
+          >
+            <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
+            {t('app.myShops', { defaultValue: 'My Shops' })}
+          </Link>
+        ) : inWorkspace ? (
+          <button
+            type="button"
+            className="zb-tb-back"
+            data-navigation="true"
+            onClick={handleWorkspaceBack}
+            title={t('common.back', { defaultValue: 'Back' })}
+          >
+            <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
+            {t('common.back', { defaultValue: 'Back' })}
+          </button>
         ) : null}
         <span className="zb-tb-divider" aria-hidden />
         <span className="zb-tb-title">{pageTitle}</span>

@@ -26,7 +26,7 @@ export const mobileGlobalStyles = `
     display: none !important;
   }
   .zb-tb-myshops,
-  .zb-tb-dashboard {
+  .zb-tb-back {
     font-size: 12px;
     padding: 6px 8px;
   }
