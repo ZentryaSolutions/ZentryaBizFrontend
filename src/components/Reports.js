@@ -2204,7 +2204,7 @@ const Reports = () => {
             <thead>
               <tr>
                 <th>#</th>
-                <th>{t('reports.supplierName')}</th>
+                <th>{t('reports.supplierName', { defaultValue: 'Supplier Name' })}</th>
                 <th>Purchased</th>
                 <th>Paid</th>
                 <th>Payable</th>

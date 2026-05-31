@@ -518,6 +518,7 @@
     "totalCustomersWithDue": "Total Customers with Due",
     "totalRemainingDue": "Total Remaining Due",
     "customerName": "Customer Name",
+    "supplierName": "Supplier Name",
     "mobileNumber": "Mobile Number",
     "remainingDue": "Remaining Due",
     "action": "Action",
