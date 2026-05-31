@@ -14,6 +14,8 @@ export function zbKeys(shopId) {
     shopBranding: () => ['zb', sid, 'shopBranding'],
     salesList: () => ['zb', sid, 'sales'],
     returnsList: () => ['zb', sid, 'returns'],
+    supportTicketsList: () => ['zb', sid, 'supportTickets'],
+    supportTicketDetail: (ticketId) => ['zb', sid, 'supportTicket', String(ticketId)],
     returnDetail: (returnId) => ['zb', sid, 'returnDetail', String(returnId)],
     purchasesList: () => ['zb', sid, 'purchases'],
     /** Single cached payload for CustomerDetailView (customer + sales + payments history) */

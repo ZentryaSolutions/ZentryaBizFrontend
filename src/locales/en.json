@@ -18,9 +18,10 @@
     "rateList": "Rate List",
     "reports": "Reports",
     "settings": "Settings",
+    "supportTickets": "Support Tickets",
     "categories": "Product Categories",
     "users": "Users",
-    "inventory": "Inventory",
+    "inventory": "Products",
     "audit": "Audit History",
     "returns": "Returns"
   },
@@ -131,7 +132,7 @@
     "selectCustomerForCredit": "Select a customer from the list to record partial payment or credit on account. Walk-in / cash customer bills must be fully paid."
   },
   "inventory": {
-    "title": "Inventory",
+    "title": "Products",
     "subtitle": "Manage your shop's products and stock",
     "addProduct": "Add Product",
     "searchProducts": "Search products...",
@@ -537,6 +538,37 @@
     "noLowStockItems": "No low stock items found.",
     "startDateCannotBeAfter": "Start date cannot be after end date",
     "selectBothDates": "Please select both start and end dates"
+  },
+  "supportTickets": {
+    "subAdmin": "All tickets from your shop (you and cashiers). Status updates when Zentrya resolves them.",
+    "subStaff": "Report an issue and track your ticket status.",
+    "newTicket": "New ticket",
+    "empty": "No support tickets yet.",
+    "colNumber": "Ticket #",
+    "colHeading": "Problem",
+    "colRaisedBy": "Raised by",
+    "colDate": "Date",
+    "colStatus": "Status",
+    "colPhotos": "Photos",
+    "statusResolved": "Resolved",
+    "statusOpen": "Not resolved",
+    "createTitle": "Report a problem",
+    "problemHeading": "Problem heading",
+    "problemDescription": "Problem description",
+    "headingPh": "Short title of the issue",
+    "descPh": "What happened? Steps to reproduce, error messages…",
+    "screenshots": "Screenshots",
+    "screenshotsHint": "Optional — up to 3 images, max 1.5 MB each.",
+    "addPhoto": "Add",
+    "submit": "Submit ticket",
+    "submitted": "Ticket submitted.",
+    "submitFailed": "Could not submit ticket.",
+    "loadFailed": "Failed to load tickets.",
+    "headingRequired": "Enter a problem heading (min 3 characters).",
+    "descRequired": "Describe the problem (min 10 characters).",
+    "imagesType": "Only image files allowed.",
+    "imagesSize": "Each image must be under 1.5 MB.",
+    "imagesRead": "Could not read image."
   },
   "settings": {
     "title": "Settings",
@@ -1049,5 +1081,5 @@
     "lineDiscounts": "Line discounts",
     "originalSale": "Original sale",
     "originalTotal": "Invoice total"
-  }
+                 }
 }

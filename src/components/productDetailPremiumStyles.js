@@ -31,6 +31,10 @@ export const productDetailPremiumCss = `
 .pdv3-hero-stat strong{display:block;font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums}
 .pdv3-hero-stat .pdv3-sub{display:block;margin-top:.2rem;font-size:.8125rem;font-weight:450;color:var(--pdv3-hero-sub)}
 .pdv3-hero-stat .pdv3-trade{font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.15rem}
+.pdv3-hero-stat--stack{display:flex;flex-direction:column;gap:1rem}
+.pdv3-hero-stat-extra{padding-top:1rem;border-top:1px solid rgba(255,255,255,.12)}
+.pdv3-hero-stat-extra label{display:block;font-size:.65rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--pdv3-hero-sub);margin-bottom:.35rem}
+.pdv3-hero-stat-extra strong{display:block;font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums}
 .pdv3-hero-actions{position:relative;z-index:1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.6rem;margin-top:1.25rem}
 .pdv3-btn-light{display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;border-radius:999px;font-size:.875rem;font-weight:500;cursor:pointer;border:1px solid transparent;transition:background .15s,color .15s,border-color .15s}
 .pdv3-btn-light--solid{background:#fff;color:var(--pdv3-hero)}.pdv3-btn-light--solid:hover{background:#f3f4f6}
@@ -77,6 +81,8 @@ export const productDetailPremiumCss = `
 .pdv3-activity-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-top:.35rem;flex-shrink:0}
 .pdv3-activity-item strong{display:block;font-size:.875rem;font-weight:600}
 .pdv3-activity-item span{font-size:.8125rem;color:var(--pdv3-muted);font-weight:450}
+.pdv3-code-btn{display:inline;padding:0;border:none;background:none;cursor:pointer;font:inherit}
+.pdv3-code-btn:hover .pdv3-code{text-decoration:underline;color:#1e40af}
 .pdv3-tabs-card{overflow:hidden}
 .pdv3-tabs-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem 1rem;padding:.85rem 1.25rem 0;border-bottom:1px solid var(--pdv3-border);background:linear-gradient(180deg,#fafafa 0%,#fff 100%)}
 .pdv3-tabs{display:flex;flex-wrap:wrap;gap:.15rem .25rem}

@@ -343,6 +343,13 @@ export const auditAPI = {
   getLogs: (params) => api.get('/audit', { params }),
 };
 
+/** In-app support tickets (shop staff) */
+export const supportTicketsAPI = {
+  getAll: () => api.get('/support-tickets'),
+  getById: (id) => api.get(`/support-tickets/${id}`),
+  create: (body) => api.post('/support-tickets', body),
+};
+
 // Notifications API
 export const notificationsAPI = {
   getAll: (params) => api.get('/notifications', { params }),

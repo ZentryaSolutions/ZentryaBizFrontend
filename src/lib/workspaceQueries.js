@@ -133,13 +133,14 @@ export async function fetchCustomerDetailPack(customerId) {
 export async function fetchProductDetailPack(productId) {
   const [prodRes, actRes] = await Promise.all([
     productsAPI.getById(productId),
-    productsAPI.getActivity(productId).catch(() => ({ data: { purchases: [], sales: [] } })),
+    productsAPI.getActivity(productId).catch(() => ({ data: { purchases: [], sales: [], returns: [] } })),
   ]);
   return {
     product: prodRes.data,
     activity: {
       purchases: actRes.data?.purchases || [],
       sales: actRes.data?.sales || [],
+      returns: actRes.data?.returns || [],
     },
   };
 }

@@ -163,8 +163,18 @@ const Inventory = ({ readOnly = false }) => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((product) => {
-        const nameEnglish = (product.item_name_english || product.name || '').toLowerCase();
-        return nameEnglish.includes(query);
+        const fields = [
+          product.item_name_english,
+          product.name,
+          product.item_name_urdu,
+          product.sku,
+          product.category_name,
+          product.category,
+          product.sub_category_name,
+        ]
+          .filter((v) => v != null && String(v).trim() !== '')
+          .map((v) => String(v).toLowerCase());
+        return fields.some((field) => field.includes(query));
       });
     }
 
@@ -513,7 +523,13 @@ const Inventory = ({ readOnly = false }) => {
                     <tr key={product.product_id} className={low ? 'inv2-row--low' : ''}>
                       <td>
                         <div className="inv2-cell-name">
-                          <span>{displayName}</span>
+                          <button
+                            type="button"
+                            className="inv2-product-name-btn"
+                            onClick={() => handleViewDetails(product)}
+                          >
+                            {displayName}
+                          </button>
                           {isFrequent ? (
                             <span className="inv2-chip inv2-chip--fast">
                               <FontAwesomeIcon icon={faBolt} />

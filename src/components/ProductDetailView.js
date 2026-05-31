@@ -16,6 +16,7 @@ import {
   faLaptop,
   faPenToSquare,
   faPlus,
+  faRotateLeft,
   faSliders,
   faTag,
 } from '@fortawesome/free-solid-svg-icons';
@@ -54,7 +55,7 @@ const ProductDetailView = ({ readOnly = false }) => {
 
   const product = pack?.product ?? null;
   const activity = useMemo(
-    () => pack?.activity ?? { purchases: [], sales: [] },
+    () => pack?.activity ?? { purchases: [], sales: [], returns: [] },
     [pack]
   );
   const error =
@@ -204,9 +205,15 @@ const ProductDetailView = ({ readOnly = false }) => {
     });
   };
 
+  const handleViewReturn = (returnId) => {
+    if (!returnId) return;
+    navigate(withCurrentScope(location.pathname, `/returns/${returnId}`));
+  };
+
   const purchaseCount = (activity.purchases || []).length;
   const saleCount = (activity.sales || []).length;
-  const weightedCostLabel =
+  const returnCount = (activity.returns || []).length;
+  const averageCostLabel =
     avgCost != null && Number(avgCost) > 0
       ? formatCurrency(avgCost)
       : purchaseCount === 0
@@ -300,9 +307,15 @@ const ProductDetailView = ({ readOnly = false }) => {
           </div>
 
           <div className="pdv3-hero-stats">
-            <div className="pdv3-hero-stat">
-              <label>{t('inventory.sellingPrice')}</label>
-              <strong>{formatCurrency(retail)}</strong>
+            <div className="pdv3-hero-stat pdv3-hero-stat--stack">
+              <div>
+                <label>{t('inventory.sellingPrice')}</label>
+                <strong>{formatCurrency(retail)}</strong>
+              </div>
+              <div className="pdv3-hero-stat-extra">
+                <label>{t('inventory.averageCost', { defaultValue: 'Average Cost' })}</label>
+                <strong>{averageCostLabel}</strong>
+              </div>
             </div>
             <div className="pdv3-hero-stat">
               <label>Wholesale price</label>
@@ -387,10 +400,6 @@ const ProductDetailView = ({ readOnly = false }) => {
                     <dt>Low stock alert</dt>
                     <dd>Below {LOW_STOCK_THRESHOLD} {unitLabel !== emptyLabel ? unitLabel : 'pcs'}</dd>
                   </div>
-                  <div className="pdv3-spec-cell pdv3-spec-cell--full">
-                    <dt>Weighted avg cost</dt>
-                    <dd>{weightedCostLabel}</dd>
-                  </div>
                 </dl>
                 <div className="pdv3-desc">
                   <dt>Description</dt>
@@ -419,6 +428,16 @@ const ProductDetailView = ({ readOnly = false }) => {
                     onClick={() => setActiveTab('sales')}
                   >
                     <FontAwesomeIcon icon={faTag} /> {t('menu.sales')} ({saleCount})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'returns'}
+                    className={`pdv3-tab ${activeTab === 'returns' ? 'pdv3-tab--active' : ''}`}
+                    onClick={() => setActiveTab('returns')}
+                  >
+                    <FontAwesomeIcon icon={faRotateLeft} />{' '}
+                    {t('menu.returns', { defaultValue: 'Returns' })} ({returnCount})
                   </button>
                   <button
                     type="button"
@@ -559,6 +578,89 @@ const ProductDetailView = ({ readOnly = false }) => {
                 </>
               )}
 
+              {activeTab === 'returns' && (
+                <>
+                  <div className="pdv3-table-wrap">
+                    <table className="pdv3-table">
+                      <thead>
+                        <tr>
+                          <th>{t('common.date')}</th>
+                          <th>{t('billing.customer')}</th>
+                          <th className="pdv3-table-num">{t('returns.colQty', { defaultValue: 'Qty' })}</th>
+                          <th>{t('common.price')}</th>
+                          <th className="pdv3-table-num">{t('returns.colLineTotal', { defaultValue: 'Line total' })}</th>
+                          <th>{t('returns.colReturnNo', { defaultValue: 'Return #' })}</th>
+                          <th>{t('returns.refInvoice', { defaultValue: 'Original' })}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activity.returns.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ padding: 0, border: 'none' }}>
+                              <div className="pdv3-empty">
+                                <FontAwesomeIcon icon={faRotateLeft} />
+                                <p>
+                                  {t('inventory.noReturnLines', {
+                                    defaultValue: 'No returns for this product yet',
+                                  })}
+                                </p>
+                                <small>
+                                  {t('inventory.noReturnLinesHint', {
+                                    defaultValue: 'Items returned from sales will appear here',
+                                  })}
+                                </small>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          activity.returns.map((row) => {
+                            const lineTotal =
+                              row.line_total != null
+                                ? Number(row.line_total)
+                                : Number(row.quantity || 0) * Number(row.selling_price || 0);
+                            return (
+                              <tr key={`${row.return_id}-${row.return_item_id}`}>
+                                <td>{formatDate(row.date)}</td>
+                                <td>{row.customer_name || '—'}</td>
+                                <td className="pdv3-table-num pdv3-num-in">
+                                  +{formatQty(row.quantity)}
+                                </td>
+                                <td>{formatCurrency(row.selling_price)}</td>
+                                <td className="pdv3-table-num">{formatCurrency(lineTotal)}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="pdv3-code-btn"
+                                    onClick={() => handleViewReturn(row.return_id)}
+                                  >
+                                    <code className="pdv3-code">{row.invoice_ref || row.return_number || '—'}</code>
+                                  </button>
+                                </td>
+                                <td>
+                                  {row.original_invoice_number ? (
+                                    <code className="pdv3-code">{row.original_invoice_number}</code>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="pdv3-table-footer">
+                    <span>
+                      {returnCount}{' '}
+                      {returnCount === 1
+                        ? t('inventory.returnLine', { defaultValue: 'return line' })
+                        : t('inventory.returnLines', { defaultValue: 'return lines' })}
+                    </span>
+                  </div>
+                </>
+              )}
+
               {activeTab === 'adjustments' && (
                 <>
                   <div className="pdv3-empty" style={{ padding: '2rem 1.5rem 1rem' }}>
@@ -641,14 +743,6 @@ const ProductDetailView = ({ readOnly = false }) => {
                 <div className={`pdv3-price-row ${!hasSpecial ? 'pdv3-price-row--muted' : ''}`}>
                   <span>Special / Promo</span>
                   <span>{hasSpecial ? formatCurrency(product.special_price) : 'Not set'}</span>
-                </div>
-                <div
-                  className={`pdv3-price-row ${
-                    avgCost == null || Number(avgCost) <= 0 ? 'pdv3-price-row--muted' : ''
-                  }`}
-                >
-                  <span>Weighted avg cost</span>
-                  <span>{weightedCostLabel}</span>
                 </div>
               </div>
             </section>

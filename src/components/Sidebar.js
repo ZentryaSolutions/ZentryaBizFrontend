@@ -10,12 +10,12 @@ import {
   faDollarSign,
   faFileInvoice,
   faGear,
+  faHeadset,
   faClipboardList,
   faShop,
   faRotateLeft,
   faTableCells,
   faTruck,
-  faUser,
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { withCurrentScope } from '../utils/appRouteScope';
@@ -162,7 +162,6 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
   ];
 
   const menuSettings = [
-    { id: 'users', labelKey: 'menu.users', path: '/users', icon: faUser, adminOnly: true },
     {
       id: 'audit',
       labelKey: 'menu.audit',
@@ -170,6 +169,7 @@ const Sidebar = ({ mobileOpen, onMobileClose }) => {
       icon: faClipboardList,
       adminOnly: true,
     },
+    { id: 'support-tickets', labelKey: 'menu.supportTickets', path: '/support-tickets', icon: faHeadset },
     { id: 'settings', labelKey: 'menu.settings', path: '/settings', icon: faGear },
   ];
 

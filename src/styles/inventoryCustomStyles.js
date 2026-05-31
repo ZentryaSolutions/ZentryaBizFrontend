@@ -39,7 +39,9 @@ export const inventoryCustomStyles = `
 .inv3 .inv2-table thead th{background:#fbfaf6!important;border-bottom:1px solid #f0ede4!important;font-size:12px!important;font-weight:700!important;color:#a4a39f!important;padding:10px 12px!important;letter-spacing:.03em}
 .inv3 .inv2-table td{padding:9px 12px!important;border-bottom:1px solid #f5f1e8!important;font-size:12px!important;color:#3f4450;font-weight:500}
 .inv3 .inv2-table tbody tr:hover td{background:#f8f6ef!important}
-.inv3 .inv2-cell-name{font-size:13px;font-weight:700;color:#111827}
+.inv3 .inv2-cell-name{font-size:13px;font-weight:700;color:#111827;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.inv2-product-name-btn{font:inherit;font-size:inherit;font-weight:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;text-align:left}
+.inv2-product-name-btn:hover{text-decoration:underline;color:#1e40af}
 .inv3 .inv2-chip--fast{background:#edeaff;color:#5957db}
 .inv3-stockWrap{display:flex;align-items:center;gap:8px}
 .inv3-stockBar{width:56px;height:5px;border-radius:999px;background:#ece8de;overflow:hidden}

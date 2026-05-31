@@ -221,11 +221,11 @@ const Dashboard = () => {
 
   if (!dashboardData && loadFailed) {
     const webOnly = isZbWebOnlyMode();
-    return (
-      <div className="content-container">
+      return (
+        <div className="content-container">
         <div className="zb-dash">
-          <h1 className="page-title">{t('dashboard.title')}</h1>
-          <p className="page-subtitle">
+            <h1 className="page-title">{t('dashboard.title')}</h1>
+            <p className="page-subtitle">
             {webOnly
               ? t('dashboard.hintMissingApiSession', {
                   defaultValue:
@@ -255,9 +255,9 @@ const Dashboard = () => {
             </p>
           ) : null}
         </div>
-      </div>
-    );
-  }
+        </div>
+      );
+    }
 
   if (!dashboardData) {
     return (
@@ -450,7 +450,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div
+        <div 
           className="zb-kpi"
           role="button"
           tabIndex={0}

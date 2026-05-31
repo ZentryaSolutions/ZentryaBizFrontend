@@ -33,7 +33,7 @@ function workspaceTitle(pathname) {
   if (/\/app(?:\/|$)/.test(p)) return 'Dashboard';
   if (p.includes('/billing')) return 'Billing';
   if (p.includes('/inventory/product/')) return 'Product';
-  if (p.includes('/inventory')) return 'Inventory';
+  if (p.includes('/inventory')) return 'Products';
   if (p.includes('/customers')) return 'Customers';
   if (p.includes('/suppliers')) return 'Suppliers';
   if (p.includes('/purchases')) return 'Purchases';
@@ -44,6 +44,7 @@ function workspaceTitle(pathname) {
   if (p.includes('/reports')) return 'Reports';
   if (p.includes('/categories')) return 'Categories';
   if (p.includes('/users')) return 'Users';
+  if (p.includes('/support-tickets')) return 'Support Tickets';
   if (p.includes('/settings')) return 'Settings';
   return 'Workspace';
 }
