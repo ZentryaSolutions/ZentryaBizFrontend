@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { settingsAPI, usersAPI, authAPI, categoriesAPI, unitsAPI } from '../services/api';
+import { settingsAPI, usersAPI, authAPI, categoriesAPI, unitsAPI, auditAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
   canUsePremiumFeatures,
@@ -808,7 +808,7 @@ const Settings = ({ readOnly = false }) => {
 
   const openAuditLogs = async () => {
     try {
-      const response = await usersAPI.getAuditLogs({ limit: 50 });
+      const response = await auditAPI.getLogs({ limit: 50 });
       setAuditLogs(response.data.logs || []);
       setShowAuditLogs(true);
     } catch (err) {

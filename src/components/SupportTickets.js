@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +75,12 @@ const SupportTickets = ({ readOnly = false }) => {
     },
     enabled: posApiQueriesEnabled(activeShopId) && detailId != null,
   });
+
+  useEffect(() => {
+    setDetailId(null);
+    setCreateOpen(false);
+    setSubmitOk('');
+  }, [activeShopId]);
 
   const createMutation = useMutation({
     mutationFn: (body) => supportTicketsAPI.create(body),

@@ -288,7 +288,7 @@ function JsonBlock({ data }) {
 
 const AuditHistory = () => {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, activeShopId } = useAuth();
   const admin = isAdmin();
 
   const [logs, setLogs] = useState([]);
@@ -381,11 +381,18 @@ const AuditHistory = () => {
     } finally {
       setLoading(false);
     }
-  }, [admin, page, pageSize, filters]);
+  }, [admin, page, pageSize, filters, activeShopId]);
+
+  useEffect(() => {
+    setLogs([]);
+    setTotal(0);
+    setPage(1);
+    setExpandedId(null);
+  }, [activeShopId]);
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+  }, [loadUsers, activeShopId]);
 
   useEffect(() => {
     loadLogs();

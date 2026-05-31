@@ -14,6 +14,7 @@ export function zbKeys(shopId) {
     shopBranding: () => ['zb', sid, 'shopBranding'],
     salesList: () => ['zb', sid, 'sales'],
     returnsList: () => ['zb', sid, 'returns'],
+    auditList: (paramsKey = '') => ['zb', sid, 'audit', paramsKey],
     supportTicketsList: () => ['zb', sid, 'supportTickets'],
     supportTicketDetail: (ticketId) => ['zb', sid, 'supportTicket', String(ticketId)],
     returnDetail: (returnId) => ['zb', sid, 'returnDetail', String(returnId)],
