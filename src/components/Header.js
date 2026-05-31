@@ -9,6 +9,7 @@ import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import Notifications from './Notifications';
 import ProfileMenu from './ProfileMenu';
 import { shopsPath } from '../utils/workspacePaths';
+import { extractAppScope, withCurrentScope } from '../utils/appRouteScope';
 import { ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Header.css';
 
@@ -47,6 +48,13 @@ function workspaceTitle(pathname) {
   if (p.includes('/support-tickets')) return 'Support Tickets';
   if (p.includes('/settings')) return 'Settings';
   return 'Workspace';
+}
+
+function isDashboardPath(pathname) {
+  const scope = extractAppScope(pathname);
+  if (!scope?.base) return false;
+  const normalized = String(pathname || '').replace(/\/$/, '');
+  return normalized === `${scope.base}/app` || /\/app$/.test(normalized);
 }
 
 const Header = ({ onMenuClick }) => {
@@ -127,6 +135,9 @@ const Header = ({ onMenuClick }) => {
   const displayUserName = user?.full_name || user?.name || user?.username || 'User';
   const pageTitle = workspaceTitle(location.pathname);
   const shopsPickerTo = shopsPath(getProfileUserId(user));
+  const inWorkspace = Boolean(extractAppScope(location.pathname)?.base);
+  const showDashboardBack = inWorkspace && !isDashboardPath(location.pathname);
+  const dashboardTo = withCurrentScope(location.pathname, '/app');
 
   return (
     <header className="app-header zb-topbar">
@@ -151,6 +162,20 @@ const Header = ({ onMenuClick }) => {
           <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
           {t('app.myShops', { defaultValue: 'My Shops' })}
         </Link>
+        {showDashboardBack ? (
+          <>
+            <span className="zb-tb-divider" aria-hidden />
+            <Link
+              to={dashboardTo}
+              className="zb-tb-dashboard"
+              data-navigation="true"
+              title={t('menu.dashboard', { defaultValue: 'Dashboard' })}
+            >
+              <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
+              {t('menu.dashboard', { defaultValue: 'Dashboard' })}
+            </Link>
+          </>
+        ) : null}
         <span className="zb-tb-divider" aria-hidden />
         <span className="zb-tb-title">{pageTitle}</span>
       </div>

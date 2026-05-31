@@ -22,11 +22,11 @@ export const mobileGlobalStyles = `
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .zb-tb-divider,
   .zb-tb-shop-label {
     display: none !important;
   }
-  .zb-tb-myshops {
+  .zb-tb-myshops,
+  .zb-tb-dashboard {
     font-size: 12px;
     padding: 6px 8px;
   }
