@@ -14,12 +14,12 @@ export function planRank(plan) {
   return 1;
 }
 
-export function canUseProFeatures(plan) {
-  return planRank(plan) >= 2;
+export function canUseProFeatures() {
+  return true;
 }
 
-export function canUsePremiumFeatures(plan) {
-  return planRank(plan) >= 3;
+export function canUsePremiumFeatures() {
+  return true;
 }
 
 export function isExpiredPlan(plan) {

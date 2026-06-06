@@ -70,11 +70,18 @@ function parseReturnMeta(notes, originalInvoiceNumber) {
   return { ref, reason };
 }
 
+function paymentMethodLabel(mode) {
+  const m = String(mode || 'cash').toLowerCase();
+  if (m === 'transfer' || m === 'bank') return 'Bank Transfer';
+  if (m === 'card') return 'Card';
+  return 'Cash';
+}
+
 function enrichSale(sale) {
   const total = Number(sale.total_amount) || 0;
   const paid = Number(sale.paid_amount) || 0;
   const due = Math.max(0, total - paid);
-  const pt = String(sale.payment_type || sale.payment_mode || 'cash').toLowerCase();
+  const pt = String(sale.payment_type || 'cash').toLowerCase();
   let statusKey = 'paid';
   if (due <= EPS) statusKey = 'paid';
   else if (pt === 'credit') statusKey = 'credit';
@@ -223,7 +230,7 @@ const Sales = ({ readOnly = false }) => {
     return enriched.filter((sale) => {
       if (listTab === 'invoices' && sale._isCreditNote) return false;
       if (listTab === 'credit_notes' && !sale._isCreditNote) return false;
-      if (methodFilter !== 'all' && String(sale.payment_mode || sale.payment_type || '').toLowerCase() !== methodFilter) {
+      if (methodFilter !== 'all' && String(sale.payment_mode || 'cash').toLowerCase() !== methodFilter) {
         return false;
       }
       if (statusFilter !== 'all' && sale._statusKey !== statusFilter) return false;
@@ -343,7 +350,7 @@ const Sales = ({ readOnly = false }) => {
       const sale = response.data;
       setEditingSale(sale);
       setEditFormData({
-        payment_type: sale.payment_mode || sale.payment_type || 'cash',
+        payment_type: sale.payment_type || 'cash',
         paid_amount: sale.paid_amount || 0,
         discount: sale.discount || 0,
         tax: sale.tax || 0,
@@ -569,8 +576,8 @@ const Sales = ({ readOnly = false }) => {
 
   const paymentMethodIcon = (mode) => {
     const m = String(mode || 'cash').toLowerCase();
-    if (m === 'credit') return faCreditCard;
-    if (m === 'split') return faMoneyBillWave;
+    if (m === 'card' || m === 'credit') return faCreditCard;
+    if (m === 'transfer' || m === 'bank') return faMoneyBillWave;
     return faWallet;
   };
 
@@ -712,8 +719,8 @@ const Sales = ({ readOnly = false }) => {
           <select className="sal2-select" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} aria-label={t('sales.method')}>
             <option value="all">{t('sales.allMethods')}</option>
             <option value="cash">{t('sales.cash')}</option>
-            <option value="credit">{t('sales.credit')}</option>
-            <option value="split">{t('sales.split')}</option>
+            <option value="card">{t('billing.card', { defaultValue: 'Card' })}</option>
+            <option value="transfer">{t('billing.bankTransfer')}</option>
           </select>
           <input type="date" className="sal2-date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} aria-label={t('sales.date')} />
           <button type="button" className="sal2-export" onClick={handleExportCsv}>
@@ -752,7 +759,7 @@ const Sales = ({ readOnly = false }) => {
                 </tr>
               ) : (
                 paginatedSales.map((sale) => {
-                  const pm = sale.payment_mode || sale.payment_type || 'cash';
+                  const pm = sale.payment_mode || 'cash';
                   return (
                     <tr key={sale.sale_id}>
                       <td>
@@ -796,7 +803,7 @@ const Sales = ({ readOnly = false }) => {
                       <td>
                         <span className="sal2-method">
                           <FontAwesomeIcon icon={paymentMethodIcon(pm)} />
-                          {pm}
+                          {paymentMethodLabel(pm)}
                         </span>
                       </td>
                       <td>
@@ -886,7 +893,7 @@ const Sales = ({ readOnly = false }) => {
                       <strong>{t('sales.customer')}:</strong> {selectedSale.customer_name || t('sales.cashCustomer')}
                     </div>
                     <div>
-                      <strong>{t('sales.paymentMode')}:</strong> {selectedSale.payment_mode || 'cash'}
+                      <strong>{t('sales.paymentMode')}:</strong> {paymentMethodLabel(selectedSale.payment_mode)}
                     </div>
                   </div>
 

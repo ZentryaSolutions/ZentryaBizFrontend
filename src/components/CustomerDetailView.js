@@ -472,7 +472,14 @@ const CustomerPaymentModal = ({ customerId, customerName, payment, onSave, onClo
 
   return createPortal(
     <div className="modal-overlay cdv2-modal-overlay" onClick={onClose}>
-      <div className="modal cdv2-modal cdv2-modal--centered" onClick={(e) => e.stopPropagation()}>
+      <style>{`
+        .cdv2-pay-modal .modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid #eef1f6}
+        .cdv2-pay-modal .btn-primary{background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer}
+        .cdv2-pay-modal .btn-primary:hover{background:#4338ca}
+        .cdv2-pay-modal .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+        .cdv2-pay-modal .btn-secondary{background:#fff;color:#374151;border:1px solid #d0d5dd;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer}
+      `}</style>
+      <div className="modal cdv2-modal cdv2-modal--centered cdv2-pay-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{payment ? t('customers.editPayment') : t('customers.receivePayment')}</h2>
           <button className="modal-close" onClick={onClose}>x</button>
@@ -531,8 +538,8 @@ const CustomerPaymentModal = ({ customerId, customerName, payment, onSave, onClo
             </div>
           </div>
           <div className="modal-actions">
-            <button type="button" className="cdv2-btn cdv2-btn--ghost" onClick={onClose}>{t('common.cancel')}</button>
-            <button type="submit" className="cdv2-btn cdv2-btn--primary" disabled={saving}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? t('common.loading') : payment ? t('customers.updatePayment') : t('customers.savePayment')}
             </button>
           </div>

@@ -184,7 +184,7 @@ const Purchases = ({ readOnly = false }) => {
 
   if (viewingPurchase && !editingPurchase) {
     return (
-      <PurchaseDetailView
+      <PurchaseDetailView 
         purchase={viewingPurchase}
         onClose={() => {
           setViewingPurchase(null);
@@ -226,11 +226,11 @@ const Purchases = ({ readOnly = false }) => {
         <div>
           <h1 className="pur2-title">{t('purchases.title')}</h1>
           <p className="pur2-sub">{t('purchases.subtitle')}</p>
-        </div>
+      </div>
         {!readOnly ? (
           <button type="button" className="pur2-new" onClick={() => setModalOpen(true)}>
-            + {t('purchases.newPurchase')}
-          </button>
+              + {t('purchases.newPurchase')}
+            </button>
         ) : null}
       </header>
 
@@ -257,20 +257,20 @@ const Purchases = ({ readOnly = false }) => {
             <span className="pur2-kpi-ico" aria-hidden>
               <FontAwesomeIcon icon={faDollarSign} />
             </span>
-          </div>
+                    </div>
           <div className="pur2-kpi-val">{formatCurrency(metrics.totalPurchased)}</div>
           <div className="pur2-kpi-sub">{t('purchases.acrossAllOrders')}</div>
-        </div>
+                        </div>
         <div className="pur2-kpi pur2-kpi--red">
           <div className="pur2-kpi-h">
             <span className="pur2-kpi-lbl">{t('purchases.outstandingPayable')}</span>
             <span className="pur2-kpi-ico" aria-hidden>
               <FontAwesomeIcon icon={faClock} />
             </span>
-          </div>
+                  </div>
           <div className="pur2-kpi-val">{formatCurrency(metrics.outstanding)}</div>
           <div className="pur2-kpi-sub">{t('purchases.creditNotPaid')}</div>
-        </div>
+            </div>
         <div className="pur2-kpi pur2-kpi--green">
           <div className="pur2-kpi-h">
             <span className="pur2-kpi-lbl">{t('purchases.totalPaidLabel')}</span>
@@ -315,30 +315,30 @@ const Purchases = ({ readOnly = false }) => {
 
         <div className="pur2-table-wrap">
           <table className="pur2-table">
-            <thead>
-              <tr>
+          <thead>
+            <tr>
                 <th>{t('purchases.orderId')}</th>
-                <th>{t('purchases.supplier')}</th>
-                <th>{t('purchases.purchaseDate')}</th>
-                <th>{t('purchases.items')}</th>
-                <th>{t('purchases.totalAmount')}</th>
+              <th>{t('purchases.supplier')}</th>
+              <th>{t('purchases.purchaseDate')}</th>
+              <th>{t('purchases.items')}</th>
+              <th>{t('purchases.totalAmount')}</th>
                 <th>{t('purchases.paid')}</th>
                 <th>{t('purchases.balance')}</th>
-                <th>{t('purchases.paymentType')}</th>
+              <th>{t('purchases.paymentType')}</th>
                 <th>{t('purchases.status')}</th>
                 <th>{t('purchases.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedPurchases.length === 0 ? (
-                <tr>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedPurchases.length === 0 ? (
+              <tr>
                   <td colSpan={10} className="pur2-empty">
                     {t('purchases.noPurchases')}
-                  </td>
-                </tr>
-              ) : (
+                </td>
+              </tr>
+            ) : (
                 paginatedPurchases.map((purchase) => (
-                  <tr key={purchase.purchase_id}>
+                <tr key={purchase.purchase_id}>
                     <td>
                       <button type="button" className="pur2-link" onClick={() => handleView(purchase.purchase_id)}>
                         #{formatOrderRef(purchase.purchase_id)}
@@ -372,12 +372,12 @@ const Purchases = ({ readOnly = false }) => {
                               className="pur2-iconbtn"
                               title={t('common.edit')}
                               onClick={async () => {
-                                try {
-                                  const response = await purchasesAPI.getById(purchase.purchase_id);
-                                  setEditingPurchase(response.data);
-                                } catch (err) {
-                                  alert(t('purchases.failedToLoadForEdit'));
-                                }
+                          try {
+                            const response = await purchasesAPI.getById(purchase.purchase_id);
+                            setEditingPurchase(response.data);
+                          } catch (err) {
+                            alert(t('purchases.failedToLoadForEdit'));
+                          }
                               }}
                             >
                               <FontAwesomeIcon icon={faPenToSquare} />
@@ -388,12 +388,12 @@ const Purchases = ({ readOnly = false }) => {
                           </>
                         ) : null}
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
         </div>
 
         <div className="pur2-foot">
@@ -439,12 +439,12 @@ const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) =
   const formatCurrency = (amount) => `PKR ${Number(amount || 0).toFixed(2)}`;
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-PK', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
       minute: '2-digit',
-    });
+  });
 
   return (
     <div className="content-container">
@@ -550,10 +550,10 @@ const PurchaseDetailView = ({ purchase, onClose, onDelete, onEdit, readOnly }) =
             type="button"
             className="btn btn-danger"
             onClick={() => {
-              if (window.confirm('Are you sure you want to delete this purchase? This will reverse stock updates.')) {
-                onDelete(purchase.purchase_id);
-                onClose();
-              }
+            if (window.confirm('Are you sure you want to delete this purchase? This will reverse stock updates.')) {
+              onDelete(purchase.purchase_id);
+              onClose();
+            }
             }}
           >
             Delete Purchase

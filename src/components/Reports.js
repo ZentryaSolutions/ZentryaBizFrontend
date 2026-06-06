@@ -29,7 +29,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { reportsAPI, customersAPI, productsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { canUseProFeatures } from '../utils/planFeatures';
 import { zbKeys } from '../lib/queryKeys';
 import {
   defaultMonthlyReportParams,
@@ -162,8 +161,7 @@ const Reports = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { profile, activeShopId } = useAuth();
-  const proOk = canUseProFeatures(profile?.plan);
+  const { activeShopId } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [filterType, setFilterType] = useState('monthly');
   const [products, setProducts] = useState([]);
@@ -265,14 +263,6 @@ const Reports = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (proOk) return;
-    if (salesSubTab === 'by-product') setSalesSubTab('summary');
-    if (customerSubTab === 'history') setCustomerSubTab('due-list');
-    if (supplierSubTab === 'history') setSupplierSubTab('payables');
-    if (expenseSubTab === 'list') setExpenseSubTab('summary');
-  }, [proOk, activeTab, salesSubTab, customerSubTab, supplierSubTab, expenseSubTab]);
-
-  useEffect(() => {
     updateDateRange();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- preset change only; custom dates set range explicitly
   }, [filterType]);
@@ -289,7 +279,7 @@ const Reports = () => {
       if (salesSubTab === 'summary') {
         fetchSalesSummary();
         fetchSalesInvoices();
-      } else if (salesSubTab === 'by-product' && proOk) {
+      } else if (salesSubTab === 'by-product') {
         fetchSalesByProduct();
       }
     } else if (activeTab === 'profit') {
@@ -320,7 +310,7 @@ const Reports = () => {
       if (expenseSubTab === 'summary') {
         fetchExpensesSummary();
         fetchSalesSummary();
-        if (proOk) fetchExpensesList();
+        fetchExpensesList();
       } else if (expenseSubTab === 'list') {
         fetchExpensesList();
       }
@@ -328,7 +318,7 @@ const Reports = () => {
       fetchLowStock();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tab-driven fetches; stable-enough handlers for this screen
-  }, [activeTab, salesSubTab, customerSubTab, supplierSubTab, expenseSubTab, filterType, startDate, endDate, selectedProduct, selectedCustomer, selectedSupplierForHistory, proOk]);
+  }, [activeTab, salesSubTab, customerSubTab, supplierSubTab, expenseSubTab, filterType, startDate, endDate, selectedProduct, selectedCustomer, selectedSupplierForHistory]);
 
   const chartFont = "'DM Sans', system-ui, sans-serif";
 
@@ -1366,17 +1356,10 @@ const Reports = () => {
           <button
             type="button"
             className={`tab ${salesSubTab === 'by-product' ? 'active' : ''}`}
-            disabled={!proOk}
-            onClick={() => proOk && setSalesSubTab('by-product')}
-            style={{
-              borderBottom: 'none',
-              borderRadius: '6px 6px 0 0',
-              ...(!proOk ? { opacity: 0.55, cursor: 'not-allowed' } : {}),
-            }}
-            title={!proOk ? 'Pro or Premium: Sales by product' : undefined}
+            onClick={() => setSalesSubTab('by-product')}
+            style={{ borderBottom: 'none', borderRadius: '6px 6px 0 0' }}
           >
             {t('reports.salesByProduct')}
-            {!proOk ? ' (Pro)' : ''}
           </button>
         </div>
 
@@ -1726,17 +1709,10 @@ const Reports = () => {
           <button
             type="button"
             className={`tab ${customerSubTab === 'history' ? 'active' : ''}`}
-            disabled={!proOk}
-            onClick={() => proOk && setCustomerSubTab('history')}
-            style={{
-              borderBottom: 'none',
-              borderRadius: '6px 6px 0 0',
-              ...(!proOk ? { opacity: 0.55, cursor: 'not-allowed' } : {}),
-            }}
-            title={!proOk ? 'Pro or Premium: Customer statement / history' : undefined}
+            onClick={() => setCustomerSubTab('history')}
+            style={{ borderBottom: 'none', borderRadius: '6px 6px 0 0' }}
           >
             {t('reports.history')}
-            {!proOk ? ' (Pro)' : ''}
           </button>
         </div>
 
@@ -2107,17 +2083,10 @@ const Reports = () => {
           <button
             type="button"
             className={`tab ${supplierSubTab === 'history' ? 'active' : ''}`}
-            disabled={!proOk}
-            onClick={() => proOk && setSupplierSubTab('history')}
-            style={{
-              borderBottom: 'none',
-              borderRadius: '6px 6px 0 0',
-              ...(!proOk ? { opacity: 0.55, cursor: 'not-allowed' } : {}),
-            }}
-            title={!proOk ? 'Pro or Premium: Supplier history' : undefined}
+            onClick={() => setSupplierSubTab('history')}
+            style={{ borderBottom: 'none', borderRadius: '6px 6px 0 0' }}
           >
             {t('reports.history')}
-            {!proOk ? ' (Pro)' : ''}
           </button>
         </div>
 
@@ -2510,17 +2479,10 @@ const Reports = () => {
           <button
             type="button"
             className={`tab ${expenseSubTab === 'list' ? 'active' : ''}`}
-            disabled={!proOk}
-            onClick={() => proOk && setExpenseSubTab('list')}
-            style={{
-              borderBottom: 'none',
-              borderRadius: '6px 6px 0 0',
-              ...(!proOk ? { opacity: 0.55, cursor: 'not-allowed' } : {}),
-            }}
-            title={!proOk ? 'Pro or Premium: Detailed expense list' : undefined}
+            onClick={() => setExpenseSubTab('list')}
+            style={{ borderBottom: 'none', borderRadius: '6px 6px 0 0' }}
           >
             {t('reports.list')}
-            {!proOk ? ' (Pro)' : ''}
           </button>
         </div>
 
@@ -2654,8 +2616,6 @@ const Reports = () => {
               </table>
             </div>
           </>
-        ) : !proOk ? (
-          <p className="rep-sec-sub" style={{ marginTop: 16 }}>Upgrade to Pro to see the full expense list here.</p>
         ) : null}
       </div>
     );
