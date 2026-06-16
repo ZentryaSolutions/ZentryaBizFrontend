@@ -141,6 +141,11 @@ const Header = ({ onMenuClick }) => {
   const dashboardTo = withCurrentScope(location.pathname, '/app');
 
   const handleWorkspaceBack = () => {
+    const historyIdx = window.history.state?.idx;
+    if (typeof historyIdx === 'number' && historyIdx > 0) {
+      navigate(-1);
+      return;
+    }
     navigate(dashboardTo);
   };
 

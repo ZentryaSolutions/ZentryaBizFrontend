@@ -22,11 +22,24 @@ export function canUsePremiumFeatures() {
   return true;
 }
 
+/** User-facing plan name (DB may store premium/pro — UI always shows Business/Growth). */
+export function getPlanDisplayName(plan) {
+  const p = String(plan || 'trial').trim().toLowerCase();
+  if (p === 'premium' || p === 'enterprise' || p === 'business') return 'Business';
+  if (p === 'pro' || p === 'growth') return 'Growth';
+  if (p === 'starter') return 'Starter';
+  if (p === 'expired') return 'Expired';
+  if (p === 'trial') return 'Trial';
+  return String(plan || 'Trial')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function isExpiredPlan(plan) {
   return planRank(plan) === 0;
 }
 
-/** Treat very large limits as unlimited (Premium / Business). */
+/** Treat very large limits as unlimited (Business tier). */
 export function isUnlimitedShops(shopLimit) {
   const n = Number(shopLimit);
   return Number.isFinite(n) && n >= 9999;

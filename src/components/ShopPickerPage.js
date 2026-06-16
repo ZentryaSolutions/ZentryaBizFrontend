@@ -8,6 +8,7 @@ import {
   resolveShopLimitFromProfile,
   getTrialProgress,
   isWorkspaceAccessBlocked,
+  getPlanDisplayName,
 } from '../utils/planFeatures';
 import { isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { marketingHomeQuery } from '../utils/workspacePaths';
@@ -379,11 +380,7 @@ export default function ShopPickerPage() {
 
   const planTier = normalizePlanTier(effectiveProfile?.plan);
   const tierMeta = PLAN_TIERS.find((t) => t.id === planTier) || PLAN_TIERS[0];
-  const planDisplayName =
-    String(effectiveProfile?.plan || '')
-      .trim()
-      .replace(/[_-]+/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase()) || tierMeta.name;
+  const planDisplayName = getPlanDisplayName(effectiveProfile?.plan) || tierMeta.name;
 
   const atLimit = canCreateMore === false;
 
@@ -568,7 +565,7 @@ export default function ShopPickerPage() {
         const p = await refreshProfile?.(uid);
         const plan = String(p?.plan || profile?.plan || '').toLowerCase();
         if (plan && plan !== 'trial' && plan !== 'expired') {
-          setCheckoutOkMsg(`Your ${plan === 'premium' ? 'Business' : plan === 'pro' ? 'Growth' : plan} plan is now active.`);
+          setCheckoutOkMsg(`Your ${getPlanDisplayName(plan)} plan is now active.`);
           clearInterval(poll);
         }
       }, 2500);

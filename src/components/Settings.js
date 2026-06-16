@@ -8,6 +8,7 @@ import {
   isExpiredPlan,
   isUnlimitedShops,
   resolveShopLimitFromProfile,
+  getPlanDisplayName,
 } from '../utils/planFeatures';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 import PageLoadingCenter from './PageLoadingCenter';
@@ -2070,7 +2071,7 @@ const Settings = ({ readOnly = false }) => {
             <div className="scard">
               <div className="scard-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div className="scard-title">{String(profile?.plan || 'Trial').replace(/[_-]+/g, ' ') || 'Trial'} Plan</div>
+                  <div className="scard-title">{getPlanDisplayName(profile?.plan)} Plan</div>
                   <div className="scard-sub">Subscription details</div>
                 </div>
                 <span

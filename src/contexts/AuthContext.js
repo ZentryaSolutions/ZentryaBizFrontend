@@ -30,6 +30,32 @@ const SS_PENDING_AUTH_METHOD = 'zb_pending_auth_method';
 const LS_EXPIRES = 'zb_auth_expires_at';
 const FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
 
+function isInvalidCredentialsHint(hint) {
+  const h = String(hint || '').toLowerCase();
+  return (
+    h.includes('http 401') ||
+    h.includes('invalid credentials') ||
+    h.includes('not found or incorrect') ||
+    h.includes('username/password') ||
+    h.includes('email or password')
+  );
+}
+
+/** User-facing login errors — no API / zb-simple-session jargon. */
+function formatLoginError(hint) {
+  if (isInvalidCredentialsHint(hint)) {
+    return 'Email or Password incorrect';
+  }
+  const h = String(hint || '').toLowerCase();
+  if (h.includes('too many') || h.includes('please wait')) {
+    return String(hint || 'Too many login attempts. Please wait and try again.');
+  }
+  if (h.includes('err_network') || h.includes('network error') || h.includes('unreachable')) {
+    return 'Cannot reach server. Check your connection and try again.';
+  }
+  return 'Email or Password incorrect';
+}
+
 /** If user already chose persistent login, copy shop id from session → local once. */
 function migrateLegacyLocalStorage() {
   if (typeof window === 'undefined') return;
@@ -231,11 +257,19 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
           stripe_current_period_end: data.stripe_current_period_end,
         };
       }
-      hint = data?.message || data?.error || 'zb-simple-session returned no sessionId';
+      hint = isInvalidCredentialsHint(data?.message || data?.error)
+        ? 'Email or Password incorrect'
+        : data?.message || data?.error || 'zb-simple-session returned no sessionId';
     } catch (e) {
       const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
       const code = e.response?.status;
-      hint = code ? `zb-simple-session HTTP ${code}: ${msg}` : msg;
+      if (code === 401 || isInvalidCredentialsHint(msg)) {
+        hint = 'Email or Password incorrect';
+      } else if (code === 429) {
+        hint = 'Too many requests. Please wait a bit and try again.';
+      } else {
+        hint = code ? `zb-simple-session HTTP ${code}: ${msg}` : msg;
+      }
 
       // Rate limited: back off locally so we don't keep hammering.
       if (code === 429) {
@@ -669,10 +703,7 @@ export const AuthProvider = ({ children }) => {
       }
       return {
         success: false,
-        error:
-          'POS API session failed — dashboard needs the backend. ' +
-          (apiSess.hint ||
-            'Check Network → zb-simple-session, Vercel REACT_APP_BACKEND_URL (…/api), and clear any LAN server URL stored in the browser.'),
+        error: formatLoginError(apiSess.hint),
       };
     }
 
