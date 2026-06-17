@@ -6,6 +6,9 @@ import { notificationsAPI } from '../services/api';
 import { hasPosBackendSession, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import './Notifications.css';
 
+const isNotificationUnread = (notification) =>
+  notification?.read !== true && notification?.read !== 't';
+
 const Notifications = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +31,10 @@ const Notifications = () => {
         notificationsAPI.getUnreadCount()
       ]);
 
-      let list = notificationsResponse.data || [];
+      const list = (notificationsResponse.data || []).map((notification) => ({
+        ...notification,
+        read: !isNotificationUnread(notification),
+      }));
 
       setNotifications(list);
       setUnreadCount((countResponse.data?.count || 0));
@@ -70,6 +76,27 @@ const Notifications = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  // Opening the panel counts as viewing — mark unread items as read so they are not shown again.
+  useEffect(() => {
+    if (!isOpen || loading || unreadCount <= 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await notificationsAPI.markAllAsRead();
+        if (cancelled) return;
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setUnreadCount(0);
+      } catch (err) {
+        console.error('Error marking notifications as read on view:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, loading, unreadCount]);
 
   const handleNotificationClick = async (notificationId) => {
     try {
@@ -143,7 +170,7 @@ const Notifications = () => {
                 className="mark-all-read-btn"
                 onClick={markAllAsRead}
               >
-                {t('header.markAllAsRead')}
+                {t('header.markAllRead')}
               </button>
             )}
           </div>
@@ -161,7 +188,7 @@ const Notifications = () => {
               notifications.map(notification => (
                 <div
                   key={notification.notification_id}
-                  className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type || 'info'}`}
+                  className={`notification-item ${isNotificationUnread(notification) ? 'unread' : ''} ${notification.type || 'info'}`}
                   onClick={() => handleNotificationClick(notification.notification_id)}
                   role="button"
                   tabIndex={0}
@@ -177,7 +204,7 @@ const Notifications = () => {
                     <p className="notification-message">{notification.message}</p>
                     <span className="notification-time">{formatTime(notification.created_at)}</span>
                   </div>
-                  {!notification.read && <div className="unread-indicator"></div>}
+                  {isNotificationUnread(notification) && <div className="unread-indicator"></div>}
                 </div>
               ))
             )}

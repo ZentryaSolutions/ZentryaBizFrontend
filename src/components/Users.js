@@ -70,16 +70,9 @@ const Users = () => {
     }
   };
 
-  const handleAdd = async (userData) => {
-    try {
-      await usersAPI.sendInvitation(userData);
-      setShowAddModal(false);
-      alert('Invitation sent successfully');
-    } catch (err) {
-      const d = err.response?.data;
-      const msg = [d?.message, d?.detail].filter(Boolean).join('\n');
-      alert(msg || t('users.createFailed'));
-    }
+  const handleAddSuccess = async () => {
+    setShowAddModal(false);
+    await fetchUsers();
   };
 
   const formatDate = (dateString) => {
@@ -280,7 +273,7 @@ const Users = () => {
 
       {/* Add Modal */}
       {showAddModal && (
-        <InviteStaffModal onClose={() => setShowAddModal(false)} onSave={handleAdd} />
+        <InviteStaffModal onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
       )}
 
       {/* Delete Confirmation */}

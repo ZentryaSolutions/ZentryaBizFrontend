@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { usersAPI } from '../services/api';
 
 const inviteModalStyles = `
 .zb-invite-overlay{
@@ -105,23 +106,69 @@ const inviteModalStyles = `
   font-family:inherit;
   border:none;
 }
+.zb-invite-modal .btn:disabled{opacity:.65;cursor:not-allowed}
 .zb-invite-modal .btn-primary{background:#4f46e5;color:#fff;box-shadow:0 4px 14px rgba(79,70,229,.25)}
-.zb-invite-modal .btn-primary:hover{background:#4338ca}
+.zb-invite-modal .btn-primary:hover:not(:disabled){background:#4338ca}
 .zb-invite-modal .btn-secondary{background:#fff;color:#475569;border:1px solid #e5e7eb}
 .zb-invite-modal .btn-secondary:hover{background:#f8fafc;border-color:#d1d5db;color:#0f172a}
+.zb-invite-result{
+  text-align:center;
+  padding:8px 4px 4px;
+}
+.zb-invite-result__icon{
+  width:56px;
+  height:56px;
+  margin:0 auto 14px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  font-weight:800;
+}
+.zb-invite-result__icon--success{background:#dcfce7;color:#16a34a}
+.zb-invite-result__icon--error{background:#fee2e2;color:#dc2626}
+.zb-invite-result h3{
+  margin:0 0 8px;
+  font-family:'Bricolage Grotesque','DM Sans',sans-serif;
+  font-size:1.2rem;
+  font-weight:800;
+  color:#0f172a;
+}
+.zb-invite-result p{
+  margin:0;
+  font-size:14px;
+  line-height:1.55;
+  color:#475569;
+}
+.zb-invite-result .email-highlight{
+  display:inline-block;
+  margin-top:8px;
+  padding:6px 12px;
+  border-radius:8px;
+  background:#eef2ff;
+  color:#3730a3;
+  font-weight:700;
+  word-break:break-all;
+}
+.zb-invite-result .modal-actions{justify-content:center;border-top:none;padding-top:20px;margin-top:20px}
 `;
 
 /**
- * Invite staff by email (same payload as Users page → POST /api/users/invitations).
- * Rendered via portal so overlay covers sidebar + header with full-screen blur.
+ * Invite staff by email → POST /api/users/invitations.
+ * Shows success/error inside the modal (toast is hidden behind this overlay).
  */
-export default function InviteStaffModal({ onClose, onSave }) {
+export default function InviteStaffModal({ onClose, onSuccess }) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
     name: '',
     role: 'cashier',
   });
+  const [phase, setPhase] = useState('form'); // form | sending | success | error
+  const [sentEmail, setSentEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -131,31 +178,91 @@ export default function InviteStaffModal({ onClose, onSave }) {
     };
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleClose = () => {
+    if (submitting) return;
+    onClose();
+  };
+
+  const handleSuccessDone = () => {
+    onSuccess?.();
+    onClose();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const em = String(formData.email || '').trim().toLowerCase();
     if (!em) {
-      alert(t('users.fillRequiredFields'));
+      setErrorMessage(t('users.fillRequiredFields', { defaultValue: 'Please fill required fields.' }));
+      setPhase('error');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
-      alert(t('users.invalidEmail'));
+      setErrorMessage(t('users.invalidEmail', { defaultValue: 'Enter a valid email address.' }));
+      setPhase('error');
       return;
     }
-    onSave({
-      email: em,
-      username: em,
-      name: (formData.name || '').trim(),
-      role: formData.role,
-    });
+
+    setSubmitting(true);
+    setPhase('sending');
+    setErrorMessage('');
+
+    try {
+      const response = await usersAPI.sendInvitation({
+        email: em,
+        username: em,
+        name: (formData.name || '').trim(),
+        role: formData.role,
+      });
+      const data = response.data || {};
+
+      if (data.emailed) {
+        setSentEmail(data.email || em);
+        setPhase('success');
+        return;
+      }
+
+      if (data.inviteUrl) {
+        try {
+          await navigator.clipboard.writeText(data.inviteUrl);
+        } catch {
+          /* clipboard optional */
+        }
+      }
+
+      setErrorMessage(
+        data.message ||
+          t('users.inviteEmailNotConfigured', {
+            defaultValue:
+              'Invitation was saved but email could not be sent. Add MS Graph or SMTP in backend/env.email.local and restart the server.',
+          })
+      );
+      setPhase('error');
+    } catch (err) {
+      const d = err.response?.data;
+      const msg =
+        [d?.message, d?.detail].filter(Boolean).join('\n') ||
+        err.message ||
+        t('users.inviteFailed', { defaultValue: 'Failed to send invitation.' });
+      setErrorMessage(msg);
+      setPhase('error');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const title =
+    phase === 'success'
+      ? t('users.invitationSentTitle', { defaultValue: 'Invitation sent' })
+      : phase === 'error'
+        ? t('users.invitationFailedTitle', { defaultValue: 'Could not send invitation' })
+        : t('users.addUser');
 
   return createPortal(
     <>
       <style>{inviteModalStyles}</style>
       <div
         className="zb-invite-overlay"
-        onClick={onClose}
+        onClick={handleClose}
         role="presentation"
         aria-hidden={false}
       >
@@ -167,61 +274,109 @@ export default function InviteStaffModal({ onClose, onSave }) {
           aria-labelledby="zb-invite-title"
         >
           <div className="modal-header">
-            <h2 id="zb-invite-title">{t('users.addUser')}</h2>
-            <button type="button" className="modal-close" onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })}>
+            <h2 id="zb-invite-title">{title}</h2>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={handleClose}
+              disabled={submitting}
+              aria-label={t('common.close', { defaultValue: 'Close' })}
+            >
               ×
             </button>
           </div>
+
           <div className="modal-content">
-            <form onSubmit={handleSubmit}>
-              <div className="zb-form-grid">
-                <div className="form-group zb-form-grid__full">
-                  <label htmlFor="invite-email">{t('users.email')} *</label>
-                  <input
-                    id="invite-email"
-                    type="email"
-                    autoComplete="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <p style={{ marginTop: 6, fontSize: 13, color: '#667085', lineHeight: 1.4 }}>
-                    {t('users.staffLoginHint')}
-                  </p>
+            {phase === 'success' ? (
+              <div className="zb-invite-result">
+                <div className="zb-invite-result__icon zb-invite-result__icon--success" aria-hidden>
+                  ✓
                 </div>
-                <div className="form-group">
-                  <label htmlFor="invite-name">{t('users.name')}</label>
-                  <input
-                    id="invite-name"
-                    type="text"
-                    className="form-input"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="invite-role">{t('users.role')}</label>
-                  <select
-                    id="invite-role"
-                    className="form-input"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  >
-                    <option value="cashier">{t('auth.cashier')}</option>
-                    <option value="administrator">{t('auth.admin')}</option>
-                  </select>
+                <h3>{t('users.invitationSentTitle', { defaultValue: 'Invitation sent' })}</h3>
+                <p>
+                  {t('users.invitationSentTo', {
+                    defaultValue: 'An invitation email was sent to:',
+                  })}
+                </p>
+                <span className="email-highlight">{sentEmail}</span>
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-primary" onClick={handleSuccessDone}>
+                    {t('common.ok', { defaultValue: 'OK' })}
+                  </button>
                 </div>
               </div>
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {t('users.sendInvitation', { defaultValue: 'Send Invitation' })}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={onClose}>
-                  {t('common.cancel')}
-                </button>
+            ) : phase === 'error' ? (
+              <div className="zb-invite-result">
+                <div className="zb-invite-result__icon zb-invite-result__icon--error" aria-hidden>
+                  !
+                </div>
+                <h3>{t('users.invitationFailedTitle', { defaultValue: 'Could not send invitation' })}</h3>
+                <p>{errorMessage}</p>
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-primary" onClick={() => setPhase('form')}>
+                    {t('common.tryAgain', { defaultValue: 'Try again' })}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={handleClose}>
+                    {t('common.cancel')}
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <div className="zb-form-grid">
+                  <div className="form-group zb-form-grid__full">
+                    <label htmlFor="invite-email">{t('users.email')} *</label>
+                    <input
+                      id="invite-email"
+                      type="email"
+                      autoComplete="email"
+                      className="form-input"
+                      value={formData.email}
+                      disabled={submitting}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                    />
+                    <p style={{ marginTop: 6, fontSize: 13, color: '#667085', lineHeight: 1.4 }}>
+                      {t('users.staffLoginHint')}
+                    </p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="invite-name">{t('users.name')}</label>
+                    <input
+                      id="invite-name"
+                      type="text"
+                      className="form-input"
+                      value={formData.name}
+                      disabled={submitting}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="invite-role">{t('users.role')}</label>
+                    <select
+                      id="invite-role"
+                      className="form-input"
+                      value={formData.role}
+                      disabled={submitting}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    >
+                      <option value="cashier">{t('auth.cashier')}</option>
+                      <option value="administrator">{t('auth.admin')}</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button type="submit" className="btn btn-primary" disabled={submitting}>
+                    {submitting
+                      ? t('users.sendingInvitation', { defaultValue: 'Sending…' })
+                      : t('users.sendInvitation', { defaultValue: 'Send Invitation' })}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={handleClose} disabled={submitting}>
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>

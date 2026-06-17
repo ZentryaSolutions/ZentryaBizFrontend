@@ -751,17 +751,8 @@ const Settings = ({ readOnly = false }) => {
     }
   };
 
-  const handleInviteStaffSubmit = async (payload) => {
-    try {
-      await usersAPI.sendInvitation(payload);
-      showToast('success', 'Invitation sent successfully.');
-      setShowInviteStaffModal(false);
-      await openUsers();
-    } catch (err) {
-      const d = err.response?.data;
-      const msg = [d?.message, d?.detail].filter(Boolean).join('\n') || err.message || 'Invitation failed';
-      showToast('error', msg);
-    }
+  const handleInviteStaffSubmit = async () => {
+    await openUsers();
   };
 
   const handleMemberRoleChange = async (member, nextRole) => {
@@ -2148,7 +2139,7 @@ const Settings = ({ readOnly = false }) => {
           {showInviteStaffModal ? (
             <InviteStaffModal
               onClose={() => setShowInviteStaffModal(false)}
-              onSave={handleInviteStaffSubmit}
+              onSuccess={handleInviteStaffSubmit}
             />
           ) : null}
 
