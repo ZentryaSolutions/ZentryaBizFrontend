@@ -322,6 +322,7 @@ export const billingAPI = {
 export const shopPickerAPI = {
   listShops: () => api.get('/shop-picker/my-shops'),
   planStatus: () => api.get('/shop-picker/plan-status'),
+  currentShopPlan: () => api.get('/shop-picker/current-shop-plan'),
   checkShopAccess: (shopId) => api.get(`/shop-picker/shop-access/${encodeURIComponent(shopId)}`),
   shopPlanAccess: (shopIds) => api.post('/shop-picker/shop-plan-access', { shopIds }),
   quickStats: (shopIds) => api.post('/shop-picker/quick-stats', { shopIds }),

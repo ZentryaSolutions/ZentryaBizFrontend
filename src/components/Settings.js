@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { settingsAPI, usersAPI, authAPI, categoriesAPI, unitsAPI, auditAPI } from '../services/api';
+import { settingsAPI, usersAPI, authAPI, categoriesAPI, unitsAPI, auditAPI, shopPickerAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { hasPosBackendSession } from '../lib/appMode';
 import {
   canUsePremiumFeatures,
   isExpiredPlan,
@@ -49,6 +50,8 @@ const Settings = ({ readOnly = false }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [shopPlanInfo, setShopPlanInfo] = useState(null);
+  const [shopPlanLoading, setShopPlanLoading] = useState(false);
 
   // New Settings navigation (matches reference images/template)
   const [activeSection, setActiveSection] = useState('shop-profile');
@@ -143,6 +146,48 @@ const Settings = ({ readOnly = false }) => {
       setUnitsLoading(false);
     }
   }, [activeShopId, showToast]);
+
+  useEffect(() => {
+    if (!activeShopId || !hasPosBackendSession()) {
+      setShopPlanInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setShopPlanLoading(true);
+    shopPickerAPI
+      .currentShopPlan()
+      .then((res) => {
+        if (!cancelled && res?.data?.ok !== false) setShopPlanInfo(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setShopPlanInfo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setShopPlanLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeShopId]);
+
+  const planForDisplay = useMemo(() => {
+    if (shopPlanInfo?.plan) {
+      return {
+        plan: shopPlanInfo.plan,
+        shop_limit: shopPlanInfo.shop_limit,
+        trial_ends_at: shopPlanInfo.trial_ends_at,
+        trial_expired: shopPlanInfo.trial_expired,
+      };
+    }
+    return profile;
+  }, [shopPlanInfo, profile]);
+
+  const planIsActive = useMemo(() => {
+    if (shopPlanInfo?.plan_access?.ok === false) return false;
+    if (isExpiredPlan(planForDisplay?.plan)) return false;
+    if (Number(resolveShopLimitFromProfile(planForDisplay)) <= 0) return false;
+    return true;
+  }, [shopPlanInfo, planForDisplay]);
 
   useEffect(() => {
     return () => {
@@ -2061,39 +2106,67 @@ const Settings = ({ readOnly = false }) => {
           <div className={`section ${activeSection === 'plan' ? 'on' : ''}`}>
             <div className="section-hd">
               <div className="section-title">Current Plan</div>
-              <div className="section-sub">Your active subscription and usage details</div>
+              <div className="section-sub">
+                {isShopAdmin
+                  ? 'Your active subscription and usage details'
+                  : 'This shop\'s subscription — managed by the shop owner'}
+              </div>
             </div>
             <div className="scard">
               <div className="scard-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div className="scard-title">{getPlanDisplayName(profile?.plan)} Plan</div>
-                  <div className="scard-sub">Subscription details</div>
+                  <div className="scard-title">
+                    {shopPlanLoading ? 'Loading plan…' : `${getPlanDisplayName(planForDisplay?.plan)} Plan`}
+                  </div>
+                  <div className="scard-sub">
+                    {shopPlanInfo?.shop_name
+                      ? `For ${shopPlanInfo.shop_name}`
+                      : 'Subscription details'}
+                    {!isShopAdmin && shopPlanInfo?.owner_name
+                      ? ` · Owner: ${shopPlanInfo.owner_name}`
+                      : ''}
+                  </div>
                 </div>
                 <span
-                  className={`badge ${isExpiredPlan(profile?.plan) ? 'bg-red' : 'bg-green'}`}
+                  className={`badge ${planIsActive ? 'bg-green' : 'bg-red'}`}
                   style={{ fontSize: 12.5, padding: '5px 14px' }}
                 >
-                  {isExpiredPlan(profile?.plan) ? 'Expired' : 'Active'}
+                  {planIsActive ? 'Active' : 'Expired'}
                 </span>
               </div>
               <div style={{ padding: '18px 24px', color: '#6b6760', fontSize: 13 }}>
                 {(() => {
-                  const lim = resolveShopLimitFromProfile(profile);
+                  if (shopPlanLoading) return 'Fetching plan from server…';
+                  if (!isShopAdmin && shopPlanInfo?.plan_access?.ok === false) {
+                    return (
+                      shopPlanInfo.plan_access.message ||
+                      'This shop\'s subscription has expired. Please contact your shop administrator to renew the plan.'
+                    );
+                  }
+                  const lim = resolveShopLimitFromProfile(planForDisplay);
                   const unlimited = isUnlimitedShops(lim);
-                  if (isExpiredPlan(profile?.plan) || lim <= 0) {
-                    return 'Your subscription has expired. Renew from My Shops → Pricing to restore access and create shops.';
+                  if (!planIsActive) {
+                    return isShopAdmin
+                      ? 'Your subscription has expired. Renew from My Shops → Pricing to restore access and create shops.'
+                      : 'This shop\'s subscription has expired. Contact your shop administrator to renew.';
                   }
                   if (unlimited) {
-                    return 'Business plan: unlimited shops. Manage locations from My Shops.';
+                    return 'Business plan: unlimited shops on this account.';
                   }
-                  return `Your plan includes ${lim} shop${lim === 1 ? '' : 's'}. Add or switch shops from My Shops.`;
+                  return isShopAdmin
+                    ? `Your plan includes ${lim} shop${lim === 1 ? '' : 's'}. Add or switch shops from My Shops.`
+                    : `This shop is on the ${getPlanDisplayName(planForDisplay?.plan)} plan.`;
                 })()}
               </div>
               <div className="scard-ft" style={{ justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12.5, color: '#9c9890' }}>Need more shops?</span>
-                <button type="button" className="btn-indigo" onClick={() => { window.location.href = '/shops'; }}>
-                  Manage plan
-                </button>
+                <span style={{ fontSize: 12.5, color: '#9c9890' }}>
+                  {isShopAdmin ? 'Need more shops?' : 'Billing is managed by the shop owner.'}
+                </span>
+                {isShopAdmin ? (
+                  <button type="button" className="btn-indigo" onClick={() => { window.location.href = '/shops'; }}>
+                    Manage plan
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
