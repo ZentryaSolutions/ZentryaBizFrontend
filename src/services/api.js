@@ -323,6 +323,7 @@ export const shopPickerAPI = {
   listShops: () => api.get('/shop-picker/my-shops'),
   planStatus: () => api.get('/shop-picker/plan-status'),
   checkShopAccess: (shopId) => api.get(`/shop-picker/shop-access/${encodeURIComponent(shopId)}`),
+  shopPlanAccess: (shopIds) => api.post('/shop-picker/shop-plan-access', { shopIds }),
   quickStats: (shopIds) => api.post('/shop-picker/quick-stats', { shopIds }),
   createShop: (body) => api.post('/shop-picker/create-shop', body),
 };

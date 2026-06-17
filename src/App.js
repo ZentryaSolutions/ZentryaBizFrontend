@@ -166,9 +166,11 @@ function AppContent({ location }) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 
-  // Expired trial/subscription may still have an old activeShopId in storage.
-  // Keep the user in My Shops/Pricing instead of opening the workspace.
-  if (profile && isWorkspaceAccessBlocked(profile) && !onOwnShopsPicker) {
+  // Expired trial/subscription on the account owner's own plan — staff can still open shops
+  // where the shop owner's subscription is active (checked per shop).
+  const accountRole = String(profile?.role || '').toLowerCase();
+  const isAccountShopOwner = ['owner', 'admin', 'administrator'].includes(accountRole);
+  if (profile && isWorkspaceAccessBlocked(profile) && !onOwnShopsPicker && isAccountShopOwner) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
 

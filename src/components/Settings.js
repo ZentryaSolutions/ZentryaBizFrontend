@@ -797,6 +797,10 @@ const Settings = ({ readOnly = false }) => {
   };
 
   const apiSessionUserId = readApiUserFromStorage()?.user_id;
+  const teamMembers = (users || []).filter(
+    (u) => u.is_active !== false && u.user_id !== apiSessionUserId
+  );
+  const activeUserCount = 1 + teamMembers.length;
 
   const openAuditLogs = async () => {
     try {
@@ -1530,7 +1534,7 @@ const Settings = ({ readOnly = false }) => {
               <div className="scard-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div className="scard-title">Team Members</div>
-                  <div className="scard-sub">{users?.length || 0} active users</div>
+                  <div className="scard-sub">{activeUserCount} active user{activeUserCount === 1 ? '' : 's'}</div>
                 </div>
                 <button
                   type="button"
@@ -1556,8 +1560,8 @@ const Settings = ({ readOnly = false }) => {
                 </div>
               </div>
 
-              {(users || []).map((u) => {
-                const activeList = (users || []).filter((x) => x.is_active !== false);
+              {teamMembers.map((u) => {
+                const activeList = teamMembers;
                 const adminCount = activeList.filter((x) => x.role === 'administrator').length;
                 const soleAdminRow = u.role === 'administrator' && adminCount === 1;
                 const isSelf = u.user_id === apiSessionUserId;

@@ -16,6 +16,11 @@ import { authAPI, billingAPI, shopPickerAPI } from '../services/api';
 import { hasPosBackendSession } from '../lib/appMode';
 import './shopPickerV2.css';
 
+function isShopMemberOwnerRole(memberRole) {
+  const r = String(memberRole || '').toLowerCase();
+  return r === 'owner' || r === 'admin' || r === 'administrator';
+}
+
 const shopPickerMobileOverrides = `
 @media (max-width: 900px) {
   .zbms-shell {
@@ -416,8 +421,27 @@ export default function ShopPickerPage() {
       city: s.city,
       currency: s.currency,
       created_at: s.created_at,
+      owner_id: s.owner_id,
       memberRole: s.role || s.memberRole || 'owner',
+      planAccess: s.planAccess || { ok: true },
     }));
+
+  const syncShopPlanAccess = async (shopList) => {
+    if (!hasPosBackendSession() || !shopList?.length) return shopList;
+    try {
+      const { data } = await shopPickerAPI.shopPlanAccess({
+        shopIds: shopList.map((s) => s.id),
+      });
+      const access = data?.access || {};
+      return shopList.map((s) => ({
+        ...s,
+        planAccess: access[String(s.id)] || s.planAccess || { ok: true },
+      }));
+    } catch (err) {
+      console.warn('[ShopPicker] shop-plan-access:', err?.response?.data || err.message);
+      return shopList;
+    }
+  };
 
   const mergeShopLists = (...lists) => {
     const byId = new Map();
@@ -489,6 +513,7 @@ export default function ShopPickerPage() {
         return;
       }
 
+      mapped = await syncShopPlanAccess(mapped);
       applyShopList(mapped);
     } catch (e) {
       setPageError(e.response?.data?.error || e.message || 'Failed to load shops');
@@ -599,14 +624,41 @@ export default function ShopPickerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showCreate, creating]);
 
+  const displayName = user?.full_name || user?.name || user?.username || 'User';
+  const accountRole = String(profile?.role || '').toLowerCase();
+  const effectiveRole = accountRole || resolvedRole;
+  const canManageShops =
+    effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'administrator';
+
+  const isShopLocked = (shop) => {
+    if (!shop) return true;
+    if (isShopMemberOwnerRole(shop.memberRole) && canManageShops) {
+      return subscriptionExpired;
+    }
+    return shop.planAccess?.ok === false;
+  };
+
   const selectShop = async (id) => {
-    if (subscriptionExpired) {
-      setPageError(
-        trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
-          ? 'Your 14-day free trial has ended. Upgrade to open your shop — all existing data stays safe.'
-          : 'Your subscription has expired. Upgrade your plan to open this shop.'
-      );
-      setMainPanel('pricing');
+    const shop = shops.find((s) => String(s.id) === String(id));
+
+    if (isShopLocked(shop)) {
+      if (shop?.planAccess?.contactAdmin) {
+        setPageError(
+          shop.planAccess.message ||
+            'This shop\'s subscription has expired. Please contact your shop administrator to renew the plan.'
+        );
+        return;
+      }
+      if (isShopMemberOwnerRole(shop?.memberRole) && subscriptionExpired) {
+        setPageError(
+          trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
+            ? 'Your 14-day free trial has ended. Upgrade to open your shop — all existing data stays safe.'
+            : 'Your subscription has expired. Upgrade your plan to open this shop.'
+        );
+        setMainPanel('pricing');
+        return;
+      }
+      setPageError(shop?.planAccess?.message || 'Cannot open this shop right now.');
       return;
     }
 
@@ -614,13 +666,16 @@ export default function ShopPickerPage() {
       try {
         await shopPickerAPI.checkShopAccess(id);
       } catch (err) {
+        const d = err.response?.data || {};
         const msg =
-          err.response?.data?.message ||
-          err.response?.data?.error ||
+          d.message ||
+          d.error ||
           'Cannot open this shop right now. Upgrade your plan to continue.';
         setPageError(msg);
-        await syncPlanStatus();
-        setMainPanel('pricing');
+        if (!d.contactAdmin) {
+          await syncPlanStatus();
+          setMainPanel('pricing');
+        }
         return;
       }
     }
@@ -636,12 +691,6 @@ export default function ShopPickerPage() {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return String(parts[0]).slice(0, 2).toUpperCase();
   };
-
-  const displayName = user?.full_name || user?.name || user?.username || 'User';
-  const accountRole = String(profile?.role || '').toLowerCase();
-  const effectiveRole = accountRole || resolvedRole;
-  const canManageShops =
-    effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'administrator';
 
   const handleLogout = async () => {
     if (window.confirm('Logout?')) await logout?.();
@@ -1111,7 +1160,7 @@ export default function ShopPickerPage() {
           <span className="zbms-tb-title">{topTitle}</span>
           <span className="zbms-sp" />
           <div className="zbms-plan-chip-wrap">
-            {planTier === 'trial' && trialProgress ? (
+            {canManageShops && planTier === 'trial' && trialProgress ? (
               <span
                 className={`zbms-trial-days${
                   trialProgress.expired
@@ -1129,16 +1178,22 @@ export default function ShopPickerPage() {
                 {trialProgress.expired ? 'Ended' : `${trialProgress.day}/${trialProgress.total}`}
               </span>
             ) : null}
-            <button
-              type="button"
-              className={`zbms-plan-chip zbms-plan-chip--${planChipTone}`}
-              onClick={() => setMainPanel('pricing')}
-            >
-              <svg width={11} height={11} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              {planDisplayName === tierMeta.name ? `${tierMeta.name} Plan` : `${planDisplayName} Plan`}
-            </button>
+            {canManageShops ? (
+              <button
+                type="button"
+                className={`zbms-plan-chip zbms-plan-chip--${planChipTone}`}
+                onClick={() => setMainPanel('pricing')}
+              >
+                <svg width={11} height={11} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                {planDisplayName === tierMeta.name ? `${tierMeta.name} Plan` : `${planDisplayName} Plan`}
+              </button>
+            ) : (
+              <span className="zbms-plan-chip zbms-plan-chip--staff" title="Staff account — shop access depends on each shop owner&apos;s plan">
+                Staff account
+              </span>
+            )}
           </div>
         </header>
 
@@ -1177,21 +1232,33 @@ export default function ShopPickerPage() {
                     </p>
                   </div>
                   <div className="zbms-hero-right">
-                    <div className="zbms-hero-usage-lbl">Shops used</div>
-                    <div className="zbms-hero-usage-num">
-                      {shopsUsed}{' '}
-                      <span className="zbms-hero-num-dim">/ {unlimitedShops ? '∞' : shopLimitNum}</span>
-                    </div>
-                    <div className="zbms-hero-usage-sub">
-                      {planDisplayName} plan ·{' '}
-                      {unlimitedShops ? 'Unlimited shops on your tier' : `${shopLimitNum} shop allowance`}
-                    </div>
-                    <div className="zbms-hero-bar-bg">
-                      <div
-                        className="zbms-hero-bar"
-                        style={{ width: `${heroBarPct}%`, background: heroBarColor }}
-                      />
-                    </div>
+                    {canManageShops ? (
+                      <>
+                        <div className="zbms-hero-usage-lbl">Shops used</div>
+                        <div className="zbms-hero-usage-num">
+                          {shopsUsed}{' '}
+                          <span className="zbms-hero-num-dim">/ {unlimitedShops ? '∞' : shopLimitNum}</span>
+                        </div>
+                        <div className="zbms-hero-usage-sub">
+                          {planDisplayName} plan ·{' '}
+                          {unlimitedShops ? 'Unlimited shops on your tier' : `${shopLimitNum} shop allowance`}
+                        </div>
+                        <div className="zbms-hero-bar-bg">
+                          <div
+                            className="zbms-hero-bar"
+                            style={{ width: `${heroBarPct}%`, background: heroBarColor }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="zbms-hero-usage-lbl">Assigned shops</div>
+                        <div className="zbms-hero-usage-num">{shopsUsed}</div>
+                        <div className="zbms-hero-usage-sub">
+                          Open a shop when your administrator&apos;s plan is active.
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </section>
@@ -1233,9 +1300,11 @@ export default function ShopPickerPage() {
                 <div>
                   <h2>Active Shops</h2>
                   <p className="zbms-section-hd-desc">
-                    {unlimitedShops
-                      ? `${shopsUsed} shops on your ${planDisplayName} plan`
-                      : `${shopsUsed} of ${shopLimitNum} shop${shopLimitNum !== 1 ? 's' : ''} used on ${planDisplayName} plan`}
+                    {canManageShops
+                      ? unlimitedShops
+                        ? `${shopsUsed} shops on your ${planDisplayName} plan`
+                        : `${shopsUsed} of ${shopLimitNum} shop${shopLimitNum !== 1 ? 's' : ''} used on ${planDisplayName} plan`
+                      : `${shopsUsed} shop${shopsUsed !== 1 ? 's' : ''} assigned to your account`}
                   </p>
                 </div>
                 {canManageShops ? (
@@ -1275,10 +1344,10 @@ export default function ShopPickerPage() {
 
                 {!isEmpty &&
                   shops.map((s) => {
-                    const adminish = s.memberRole === 'owner' || s.memberRole === 'admin';
+                    const adminish = isShopMemberOwnerRole(s.memberRole);
                     const roleLabel = adminish ? 'Owner / Admin' : 'Cashier';
                     const activeHl = lastShopRef && String(s.id) === String(lastShopRef);
-                    const shopLocked = subscriptionExpired;
+                    const shopLocked = isShopLocked(s);
                     const iso = s.created_at;
                     const qs = shopQuickStats[String(s.id)];
                     const salesShown = qs?.todaySales == null ? '—' : formatShopMoney(qs.todaySales, s.currency);
@@ -1293,8 +1362,17 @@ export default function ShopPickerPage() {
                         }`}
                         onClick={() => {
                           if (shopLocked) {
+                            if (s.planAccess?.contactAdmin) {
+                              setPageError(
+                                s.planAccess.message ||
+                                  'This shop\'s subscription has expired. Please contact your shop administrator to renew the plan.'
+                              );
+                              return;
+                            }
                             setPageError(
-                              'Trial ended — upgrade your plan to open this shop. Your data is safe and waiting.'
+                              trialProgress?.expired || isExpiredPlan(effectiveProfile?.plan)
+                                ? 'Trial ended — upgrade your plan to open this shop. Your data is safe and waiting.'
+                                : 'Upgrade your plan to open this shop.'
                             );
                             setMainPanel('pricing');
                             return;
@@ -1305,6 +1383,13 @@ export default function ShopPickerPage() {
                           if (ev.key === 'Enter' || ev.key === ' ') {
                             ev.preventDefault();
                             if (shopLocked) {
+                              if (s.planAccess?.contactAdmin) {
+                                setPageError(
+                                  s.planAccess.message ||
+                                    'This shop\'s subscription has expired. Please contact your shop administrator to renew the plan.'
+                                );
+                                return;
+                              }
                               setMainPanel('pricing');
                               return;
                             }
