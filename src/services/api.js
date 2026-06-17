@@ -348,6 +348,9 @@ export const supportTicketsAPI = {
   getAll: () => api.get('/support-tickets'),
   getById: (id) => api.get(`/support-tickets/${id}`),
   create: (body) => api.post('/support-tickets', body),
+  getMessages: (id) => api.get(`/support-tickets/${id}/messages`),
+  sendMessage: (id, body) => api.post(`/support-tickets/${id}/messages`, body),
+  updateStatus: (id, status) => api.post(`/support-tickets/${id}/status`, { status }),
 };
 
 // Notifications API

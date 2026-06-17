@@ -10,6 +10,7 @@ import AppWorkspaceBootstrap from './components/AppWorkspaceBootstrap';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import SupportTickets from './components/SupportTickets';
+import SupportTicketChat from './components/SupportTicketChat';
 import ProductDetailView from './components/ProductDetailView';
 import Billing from './components/Billing';
 import Suppliers from './components/Suppliers';
@@ -261,6 +262,10 @@ function AppContent({ location }) {
             <Route path="/:uid/:shopId/reports" element={<Reports readOnly={readOnlyMode} />} />
             <Route path="/:uid/:shopId/users" element={<Users key={refreshTrigger} />} />
             <Route path="/:uid/:shopId/audit" element={<AuditHistory />} />
+            <Route
+              path="/:uid/:shopId/support-tickets/:ticketId/chat"
+              element={<SupportTicketChat key={refreshTrigger} readOnly={readOnlyMode} />}
+            />
             <Route
               path="/:uid/:shopId/support-tickets"
               element={<SupportTickets key={refreshTrigger} readOnly={readOnlyMode} />}

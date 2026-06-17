@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faHeadset, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { supportTicketsAPI } from '../services/api';
 import { zbKeys } from '../lib/queryKeys';
 import { supportTicketsStyles } from '../styles/supportTicketsStyles';
+import { withCurrentScope } from '../utils/appRouteScope';
+import SupportTicketScreenshots from './SupportTicketScreenshots';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import { getConnectivityErrorMessage, isLikelyConnectivityError } from '../lib/offlineUserMessages';
@@ -41,6 +44,8 @@ function readFileAsDataUrl(file) {
 
 const SupportTickets = ({ readOnly = false }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { activeShopId, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const keys = zbKeys(activeShopId);
@@ -114,6 +119,11 @@ const SupportTickets = ({ readOnly = false }) => {
       t('supportTickets.loadFailed', { defaultValue: 'Failed to load tickets.' })
     );
   }, [isError, listErr, t]);
+
+  const openChat = (row, e) => {
+    e.stopPropagation();
+    navigate(withCurrentScope(location.pathname, `/support-tickets/${row.ticket_id}/chat`));
+  };
 
   const adminView = isAdmin();
 
@@ -247,6 +257,7 @@ const SupportTickets = ({ readOnly = false }) => {
                 <th>{t('supportTickets.colDate', { defaultValue: 'Date' })}</th>
                 <th>{t('supportTickets.colStatus', { defaultValue: 'Status' })}</th>
                 <th>{t('supportTickets.colPhotos', { defaultValue: 'Photos' })}</th>
+                <th>{t('supportTickets.colChat', { defaultValue: 'Chat' })}</th>
               </tr>
             </thead>
             <tbody>
@@ -275,6 +286,17 @@ const SupportTickets = ({ readOnly = false }) => {
                       </span>
                     </td>
                     <td>{row.image_count || 0}</td>
+                    <td className="stk-chat-cell">
+                      <button
+                        type="button"
+                        className="stk-chat-btn"
+                        onClick={(e) => openChat(row, e)}
+                      >
+                        <FontAwesomeIcon icon={faComments} />
+                        {t('supportTickets.openChat', { defaultValue: 'Chat' })}
+                        {(row.message_count || 0) > 0 ? ` (${row.message_count})` : ''}
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -434,18 +456,23 @@ const SupportTickets = ({ readOnly = false }) => {
                         <strong style={{ fontSize: 13, color: '#6b7280' }}>
                           {t('supportTickets.screenshots', { defaultValue: 'Screenshots' })}
                         </strong>
-                        <div className="stk-detail-imgs">
-                          {detail.images.map((img) => (
-                            <a key={img.image_id} href={img.data_url} target="_blank" rel="noopener noreferrer">
-                              <img src={img.data_url} alt={img.file_name || 'screenshot'} />
-                            </a>
-                          ))}
-                        </div>
+                        <SupportTicketScreenshots images={detail.images} thumbClassName="stk-chat-thumbs" />
                       </div>
                     ) : null}
                     <div className="stk-modal-actions">
                       <button type="button" className="stk-btn-ghost" onClick={() => setDetailId(null)}>
                         {t('common.close', { defaultValue: 'Close' })}
+                      </button>
+                      <button
+                        type="button"
+                        className="stk-btn-primary"
+                        onClick={() => {
+                          setDetailId(null);
+                          navigate(withCurrentScope(location.pathname, `/support-tickets/${detail.ticket_id}/chat`));
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faComments} />{' '}
+                        {t('supportTickets.openChat', { defaultValue: 'Open chat' })}
                       </button>
                     </div>
                   </>

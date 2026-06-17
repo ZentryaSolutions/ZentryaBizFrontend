@@ -45,6 +45,7 @@ function workspaceTitle(pathname) {
   if (p.includes('/reports')) return 'Reports';
   if (p.includes('/categories')) return 'Categories';
   if (p.includes('/users')) return 'Users';
+  if (p.includes('/support-tickets/') && p.includes('/chat')) return 'Ticket chat';
   if (p.includes('/support-tickets')) return 'Support Tickets';
   if (p.includes('/settings')) return 'Settings';
   return 'Workspace';
