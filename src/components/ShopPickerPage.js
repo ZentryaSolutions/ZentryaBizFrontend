@@ -667,12 +667,19 @@ export default function ShopPickerPage() {
         await shopPickerAPI.checkShopAccess(id);
       } catch (err) {
         const d = err.response?.data || {};
-        const msg =
-          d.message ||
-          d.error ||
-          'Cannot open this shop right now. Upgrade your plan to continue.';
+        const status = err.response?.status;
+        const raw = String(d.message || d.error || '');
+        const isServerPlanError =
+          status >= 500 || /profiles_shop_limit_check/i.test(raw);
+        const msg = isServerPlanError
+          ? shop?.planAccess?.contactAdmin || !isShopMemberOwnerRole(shop?.memberRole)
+            ? 'This shop\'s subscription has expired. Please contact your shop administrator to renew the plan.'
+            : 'This shop\'s subscription has expired. Upgrade the shop owner\'s plan to open it.'
+          : d.message ||
+            d.error ||
+            'Cannot open this shop right now. Upgrade your plan to continue.';
         setPageError(msg);
-        if (!d.contactAdmin) {
+        if (!d.contactAdmin && !isServerPlanError && isShopMemberOwnerRole(shop?.memberRole)) {
           await syncPlanStatus();
           setMainPanel('pricing');
         }
