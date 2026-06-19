@@ -21,6 +21,10 @@ import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offline
 import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
 import WhatsAppSendModal from './WhatsAppSendModal';
 import { supabase, isSupabaseBrowserConfigured } from '../lib/supabaseClient';
+import {
+  allocateNextInvoice,
+  assignDraftInvoiceNumbers,
+} from '../lib/invoiceDraftNumbers';
 
 const billingMobileOverrides = `
 @media (max-width: 768px) {
@@ -164,14 +168,20 @@ const Billing = ({ readOnly = false }) => {
     if (!posApiQueriesEnabled(activeShopId) || !billId) return;
     try {
       const { data } = await salesAPI.nextInvoiceNumber();
-      const num = String(data?.invoice_number || '').trim();
-      if (!num) return;
+      const serverNum = String(data?.invoice_number || '').trim();
+      if (!serverNum) return;
       setBills((prev) =>
-        prev.map((b) =>
-          b.id === billId
-            ? { ...b, pendingInvoiceNumber: num, label: billLabelFromInvoice(num), invoiceNumber: '' }
-            : b
-        )
+        prev.map((b) => {
+          if (b.id !== billId) return b;
+          if (b.invoiceNumber || (b.invoiceItems || []).length > 0) return b;
+          const num = allocateNextInvoice(serverNum, prev, billId);
+          return {
+            ...b,
+            pendingInvoiceNumber: num,
+            label: billLabelFromInvoice(num),
+            invoiceNumber: '',
+          };
+        })
       );
     } catch (e) {
       console.warn('[Billing] next invoice number:', e?.message || e);
@@ -185,19 +195,15 @@ const Billing = ({ readOnly = false }) => {
       if (!posApiQueriesEnabled(activeShopId)) return;
       try {
         const { data } = await salesAPI.nextInvoiceNumber();
-        const num = String(data?.invoice_number || '').trim();
-        if (!num) return;
-        setBills((prev) =>
-          prev.map((b) => {
-            if (b.invoiceNumber || (b.invoiceItems || []).length > 0) return b;
-            return {
-              ...b,
-              pendingInvoiceNumber: num,
-              label: billLabelFromInvoice(num),
-              invoiceNumber: '',
-            };
-          })
-        );
+        const serverNum = String(data?.invoice_number || '').trim();
+        if (!serverNum) return;
+        setBills((prev) => {
+          const next = assignDraftInvoiceNumbers(prev, serverNum);
+          return next.map((b) => ({
+            ...b,
+            label: billLabelFromInvoice(b.pendingInvoiceNumber || b.invoiceNumber),
+          }));
+        });
       } catch (e) {
         console.warn('[Billing] next invoice number:', e?.message || e);
       }
@@ -1111,6 +1117,7 @@ const Billing = ({ readOnly = false }) => {
                     if (!next.length) {
                       const fresh = createDraftBill();
                       setActiveBillId(fresh.id);
+                      void refreshBillInvoiceDraft(fresh.id);
                       return [fresh];
                     }
                     if (activeBillId === b.id) {
