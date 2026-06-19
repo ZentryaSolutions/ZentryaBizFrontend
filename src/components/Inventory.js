@@ -26,6 +26,7 @@ import { inventoryCustomStyles } from '../styles/inventoryCustomStyles';
 import ProductModal from './ProductModal';
 import ProductImportModal from './ProductImportModal';
 import Pagination from './Pagination';
+import ModalOverlay from './ModalOverlay';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import { getConnectivityErrorMessage, isLikelyConnectivityError } from '../lib/offlineUserMessages';
@@ -621,7 +622,7 @@ const Inventory = ({ readOnly = false }) => {
       </section>
 
       {deleteConfirm ? (
-        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+        <ModalOverlay onClose={() => setDeleteConfirm(null)}>
           <div className="modal delete-modal inv2-delete-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{t('common.confirmDelete')}</h3>
             <p>
@@ -636,7 +637,7 @@ const Inventory = ({ readOnly = false }) => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
 
       {importOpen ? (

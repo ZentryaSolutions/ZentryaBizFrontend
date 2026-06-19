@@ -343,16 +343,6 @@
   color: var(--sup2-muted);
 }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
 .delete-modal {
   max-width: 400px;
   width: min(92vw, 400px);

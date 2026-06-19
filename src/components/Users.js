@@ -4,6 +4,7 @@ import { usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from './Pagination';
 import InviteStaffModal from './InviteStaffModal';
+import ModalOverlay from './ModalOverlay';
 import './Users.css';
 
 const Users = () => {
@@ -278,7 +279,7 @@ const Users = () => {
 
       {/* Delete Confirmation */}
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+        <ModalOverlay onClose={() => setDeleteConfirm(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('users.confirmDelete')}</h2>
@@ -296,7 +297,7 @@ const Users = () => {
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

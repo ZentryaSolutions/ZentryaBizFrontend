@@ -19,6 +19,7 @@ import PageLoadingCenter from './PageLoadingCenter';
 import CustomerModal from './CustomerModal';
 import CustomerDetailView from './CustomerDetailView';
 import Pagination from './Pagination';
+import ModalOverlay from './ModalOverlay';
 import './Customers.css';
 import { posApiQueriesEnabled } from '../lib/appMode';
 import { buildConnectivityErrorBanner } from '../lib/offlineUserMessages';
@@ -400,7 +401,7 @@ const Customers = ({ readOnly = false }) => {
       </section>
 
       {deleteConfirm ? (
-        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+        <ModalOverlay onClose={() => setDeleteConfirm(null)}>
           <div className="modal delete-modal sup2-delete-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{t('common.confirmDelete')}</h3>
             <p>{t('customers.deleteConfirm')} {t('common.cannotBeUndone')}</p>
@@ -413,7 +414,7 @@ const Customers = ({ readOnly = false }) => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
 
       {modalOpen ? (
