@@ -1348,16 +1348,15 @@ const Billing = ({ readOnly = false }) => {
                         <td>
                           <input
                             type="number"
-                            step="0.01"
-                            min="0.01"
+                            step="1"
+                            min="1"
                             max={rowAvail}
                             className="billing-qty-input"
                             value={item.quantity}
                             onChange={(e) => handleQuantityChange(index, e.target.value)}
                             onBlur={(e) => {
-                              // Ensure minimum quantity on blur
                               const qty = parseFloat(e.target.value);
-                              if (!qty || qty < 0.01) {
+                              if (!qty || qty < 1) {
                                 handleQuantityChange(index, 1);
                               }
                             }}
