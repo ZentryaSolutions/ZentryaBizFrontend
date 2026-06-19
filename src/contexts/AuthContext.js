@@ -190,6 +190,17 @@ function clearPendingOtp() {
   sessionStorage.removeItem(SS_PENDING_AUTH_METHOD);
 }
 
+function hasPosApiSession() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem('sessionId') || sessionStorage.getItem('sessionId'));
+}
+
+function shouldPromptSignupRole(profileRow) {
+  if (!hasPosApiSession()) return false;
+  const kind = profileRow?.signup_kind;
+  return kind == null || String(kind).trim() === '';
+}
+
 /**
  * After zb_login, create Node session (POST /api/auth/zb-simple-session → sessionId → x-session-id).
  * @returns {{ ok: true }} | {{ ok: true, pendingOtp: true, emailHint?: string, otpKind?: string }} | {{ ok: false, hint: string }}
@@ -573,12 +584,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
     if (error) throw error;
     setProfile(data || null);
-    const kind = data?.signup_kind;
-    if (kind == null || String(kind).trim() === '') {
-      setSignupRolePrompt(true);
-    } else {
-      setSignupRolePrompt(false);
-    }
+    setSignupRolePrompt(shouldPromptSignupRole(data));
     return data;
   };
 
@@ -655,6 +661,7 @@ export const AuthProvider = ({ children }) => {
           } else {
             applyLocalUser(uid);
             setProfile(data);
+            setSignupRolePrompt(shouldPromptSignupRole(data));
           }
         }
       } catch {
@@ -691,12 +698,13 @@ export const AuthProvider = ({ children }) => {
         apiSess.otpKind || 'mfa',
         rememberLong
       );
-      void refreshProfile(apiSess.user_id).catch(() => setProfile(null));
+      setSignupRolePrompt(false);
       return {
         success: true,
         pendingOtp: true,
         emailHint: apiSess.emailHint || '',
         otpKind: apiSess.otpKind || 'mfa',
+        email: apiSess.email || em,
       };
     }
     if (!apiSess.ok) {
@@ -785,16 +793,13 @@ export const AuthProvider = ({ children }) => {
         rememberLong
       );
       sessionStorage.setItem(SS_PENDING_AUTH_METHOD, 'google');
-      try {
-        await refreshProfile(apiSess.user_id);
-      } catch {
-        setProfile(null);
-      }
+      setSignupRolePrompt(false);
       return {
         success: true,
         pendingOtp: true,
         emailHint: apiSess.emailHint || '',
         otpKind: apiSess.otpKind || 'mfa',
+        email: apiSess.email || '',
         isNewAccount: Boolean(apiSess.isNewAccount),
         needsSignupRole: Boolean(apiSess.needsSignupRole),
       };

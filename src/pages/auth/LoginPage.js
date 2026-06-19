@@ -96,12 +96,18 @@ export default function LoginPage() {
         setNodeOtpKind(r.otpKind === 'new_device' ? 'new_device' : 'mfa');
         setNodeOtpStep(true);
         setLoginOtp('');
+        const pendingEmail =
+          r.email ||
+          sessionStorage.getItem(PENDING_OTP_EMAIL_KEY) ||
+          email.trim().toLowerCase();
+        if (pendingEmail) setEmail(String(pendingEmail).trim().toLowerCase());
         setNodeOtpHint(
           r.otpKind === 'new_device'
             ? 'New browser — enter the security code we emailed you.'
-            : 'Enter the code we sent to your email.'
+            : r.emailHint
+              ? `Code sent to ${r.emailHint}`
+              : 'Enter the code we sent to your email.'
         );
-        if (r.emailHint) setEmail((prev) => prev || email);
         return;
       }
       if (r.subscriptionExpired && r.userId) {

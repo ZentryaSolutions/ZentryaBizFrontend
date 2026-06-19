@@ -10,7 +10,11 @@ export default function AuthSignupRoleGate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!signupRolePrompt) return null;
+  const hasApiSession =
+    typeof window !== 'undefined' &&
+    Boolean(localStorage.getItem('sessionId') || sessionStorage.getItem('sessionId'));
+
+  if (!signupRolePrompt || !hasApiSession) return null;
 
   return (
     <SignupRoleModal
