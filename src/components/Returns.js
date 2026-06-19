@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { fetchReturnsList } from '../lib/workspaceQueries';
 import { withCurrentScope } from '../utils/appRouteScope';
+import { formatItemCountLabel } from '../utils/itemCountLabel';
 import { returnsWorkspaceStyles } from '../styles/returnsWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import Pagination from './Pagination';
@@ -385,9 +386,7 @@ const Returns = ({ readOnly = false }) => {
                       </td>
                       <td>
                         <span className="sal2-items-badge">
-                          {row.item_count != null
-                            ? t('sales.itemsCount', { count: row.item_count, defaultValue: '{{count}} items' })
-                            : '—'}
+                          {formatItemCountLabel(row.item_count, t) ?? '—'}
                         </span>
                         {row.items_preview ? (
                           <div className="sal2-items-preview" title={row.items_preview}>

@@ -8,6 +8,7 @@ import { returnsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
 import { withCurrentScope } from '../utils/appRouteScope';
+import { formatItemCountLabel, sumItemQuantities } from '../utils/itemCountLabel';
 import { returnsWorkspaceStyles } from '../styles/returnsWorkspaceStyles';
 import PageLoadingCenter from './PageLoadingCenter';
 import { posApiQueriesEnabled } from '../lib/appMode';
@@ -81,6 +82,7 @@ export default function ReturnDetailView({ readOnly = false }) {
 
   const refundKey = String(detail.refund_type || 'cash').toLowerCase();
   const items = Array.isArray(detail.items) ? detail.items : [];
+  const itemCount = sumItemQuantities(items) || items.length;
   const lineDiscount = Number(detail.discount) || 0;
 
   return (
@@ -163,7 +165,7 @@ export default function ReturnDetailView({ readOnly = false }) {
         <div className="sal2-shell-hd">
           <h2 className="sal2-shell-tit">{t('returns.itemsReturned', { defaultValue: 'Items returned' })}</h2>
           <span className="sal2-shell-meta">
-            {t('sales.itemsCount', { count: items.length, defaultValue: '{{count}} items' })}
+            {formatItemCountLabel(itemCount, t)}
           </span>
         </div>
         <div className="sal2-table-wrap">
