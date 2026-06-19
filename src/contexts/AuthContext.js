@@ -43,10 +43,16 @@ function isInvalidCredentialsHint(hint) {
 
 /** User-facing login errors — no API / zb-simple-session jargon. */
 function formatLoginError(hint) {
+  const raw = String(hint || '');
+  const h = raw.toLowerCase();
+  if (h.includes('google sign-in') || h.includes('continue with google')) {
+    return raw.includes('Gmail') || raw.includes('Google')
+      ? raw
+      : 'This account uses Google sign-in. Click Continue with Google — your Gmail password is not used here.';
+  }
   if (isInvalidCredentialsHint(hint)) {
     return 'Email or Password incorrect';
   }
-  const h = String(hint || '').toLowerCase();
   if (h.includes('too many') || h.includes('please wait')) {
     return String(hint || 'Too many login attempts. Please wait and try again.');
   }
@@ -274,7 +280,9 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
     } catch (e) {
       const msg = e.response?.data?.message || e.response?.data?.error || e.message || String(e);
       const code = e.response?.status;
-      if (code === 401 || isInvalidCredentialsHint(msg)) {
+      if (e.response?.data?.authMethod === 'google' || String(msg).toLowerCase().includes('google sign-in')) {
+        hint = msg;
+      } else if (code === 401 || isInvalidCredentialsHint(msg)) {
         hint = 'Email or Password incorrect';
       } else if (code === 429) {
         hint = 'Too many requests. Please wait a bit and try again.';

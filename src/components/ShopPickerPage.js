@@ -489,12 +489,18 @@ export default function ShopPickerPage() {
     setLoading(true);
     try {
       let mapped = [];
+      let fetchedOk = false;
 
       if (hasPosBackendSession()) {
         try {
           const { data } = await shopPickerAPI.listShops();
           mapped = mapApiShopRows(Array.isArray(data?.shops) ? data.shops : []);
+          fetchedOk = true;
         } catch (apiErr) {
+          if (apiErr?.response?.status === 401) {
+            setPageError('Sign in again to load your shops.');
+            return;
+          }
           console.warn('[ShopPicker] listShops:', apiErr?.response?.data || apiErr.message);
         }
       }
@@ -503,13 +509,14 @@ export default function ShopPickerPage() {
         try {
           const supaRows = await fetchShopsFromSupabase();
           mapped = mergeShopLists(mapped, supaRows);
+          fetchedOk = true;
         } catch (supaErr) {
-          if (!mapped.length) throw supaErr;
+          if (!fetchedOk) throw supaErr;
           console.warn('[ShopPicker] supabase shops:', supaErr.message);
         }
       }
 
-      if (!mapped.length) {
+      if (!fetchedOk) {
         setPageError('Sign in again to load your shops.');
         return;
       }
