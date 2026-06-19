@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { otpAPI } from '../../services/api';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { IconEnvelope, IconUser } from './authIcons';
+import { shopsPath } from '../../utils/workspacePaths';
 import './AuthPages.css';
 
 const PENDING_KEY = 'zb_pending_signup';
@@ -28,7 +29,7 @@ export default function SignupPage() {
     setError('');
     setGoogleLoading(true);
     try {
-      const r = await signInWithGoogle(credential, true, accountType);
+      const r = await signInWithGoogle(credential, true);
       if (!r.success) {
         setError(r.error || 'Google sign-up failed');
         return;
@@ -37,7 +38,8 @@ export default function SignupPage() {
         nav(`/login?next=${encodeURIComponent('/shops')}`, { replace: true });
         return;
       }
-      nav('/shops', { replace: true });
+      if (r.needsSignupRole) return;
+      nav(r.userId ? shopsPath(r.userId) : '/shops', { replace: true });
     } finally {
       setGoogleLoading(false);
     }

@@ -328,7 +328,7 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
 /**
  * Google Sign-In → POST /auth/google (does not use zb_login or password).
  */
-async function tryEstablishGoogleSession(credential, rememberLong = true, accountType = 'shop_owner') {
+async function tryEstablishGoogleSession(credential, rememberLong = true) {
   let deviceId;
   try {
     deviceId = getDeviceId();
@@ -351,7 +351,7 @@ async function tryEstablishGoogleSession(credential, rememberLong = true, accoun
   };
 
   try {
-    const { data } = await axios.post(`${base}/auth/google`, { credential, accountType }, cfg);
+    const { data } = await axios.post(`${base}/auth/google`, { credential }, cfg);
     if (data?.success && data?.requiresOtp) {
       return {
         ok: true,
@@ -366,6 +366,7 @@ async function tryEstablishGoogleSession(credential, rememberLong = true, accoun
         trial_ends_at: data.trial_ends_at,
         stripe_current_period_end: data.stripe_current_period_end,
         isNewAccount: Boolean(data.isNewAccount),
+        needsSignupRole: Boolean(data.needsSignupRole),
       };
     }
     if (data?.sessionId) {
@@ -380,6 +381,7 @@ async function tryEstablishGoogleSession(credential, rememberLong = true, accoun
         trial_ends_at: data.trial_ends_at,
         stripe_current_period_end: data.stripe_current_period_end,
         isNewAccount: Boolean(data.isNewAccount),
+        needsSignupRole: Boolean(data.needsSignupRole),
       };
     }
     const hint = data?.message || data?.error || 'Google sign-in returned no session';
@@ -475,6 +477,8 @@ async function completeGoogleLoginWithOtp(email, otp, otpKind = 'mfa', rememberL
         username: data.username,
         full_name: data.full_name,
         email: data.email,
+        needsSignupRole: Boolean(data.needsSignupRole),
+        isNewAccount: Boolean(data.isNewAccount),
       };
     }
     return {
@@ -503,6 +507,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [signupRolePrompt, setSignupRolePrompt] = useState(false);
 
   const [activeShopId, setActiveShopIdState] = useState(() =>
     typeof window !== 'undefined'
@@ -568,6 +573,12 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
     if (error) throw error;
     setProfile(data || null);
+    const kind = data?.signup_kind;
+    if (kind == null || String(kind).trim() === '') {
+      setSignupRolePrompt(true);
+    } else {
+      setSignupRolePrompt(false);
+    }
     return data;
   };
 
@@ -759,11 +770,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   /** Sign in with Google (GIS credential). Email/password login unchanged. */
-  const signInWithGoogle = async (credential, rememberLong = false, accountType = 'shop_owner') => {
+  const signInWithGoogle = async (credential, rememberLong = false) => {
     if (!credential) {
       return { success: false, error: 'Google sign-in was cancelled' };
     }
-    const apiSess = await tryEstablishGoogleSession(credential, rememberLong, accountType);
+    const apiSess = await tryEstablishGoogleSession(credential, rememberLong);
     if (apiSess.ok && apiSess.pendingOtp) {
       persistPendingOtp(
         apiSess.user_id,
@@ -785,6 +796,7 @@ export const AuthProvider = ({ children }) => {
         emailHint: apiSess.emailHint || '',
         otpKind: apiSess.otpKind || 'mfa',
         isNewAccount: Boolean(apiSess.isNewAccount),
+        needsSignupRole: Boolean(apiSess.needsSignupRole),
       };
     }
     if (!apiSess.ok) {
@@ -801,10 +813,14 @@ export const AuthProvider = ({ children }) => {
     } catch {
       setProfile(null);
     }
+    if (apiSess.needsSignupRole) {
+      setSignupRolePrompt(true);
+    }
     return {
       success: true,
       isNewAccount: Boolean(apiSess.isNewAccount),
       userId: apiSess.user_id,
+      needsSignupRole: Boolean(apiSess.needsSignupRole),
       subscriptionExpired: isExpiredPlanValue(apiSess.plan),
       plan: apiSess.plan,
       trialEndsAt: apiSess.trial_ends_at,
@@ -837,7 +853,20 @@ export const AuthProvider = ({ children }) => {
     } catch {
       setProfile(null);
     }
-    return { success: true };
+    if (r.needsSignupRole) {
+      setSignupRolePrompt(true);
+    }
+    return { success: true, needsSignupRole: Boolean(r.needsSignupRole), userId: r.user_id };
+  };
+
+  const completeSignupRole = async (accountType) => {
+    const res = await authAPI.completeSignupRole({
+      accountType: accountType === 'cashier' ? 'cashier' : 'shop_owner',
+    });
+    const uid = user?.id || localStorage.getItem(SS_UID) || sessionStorage.getItem(SS_UID);
+    if (uid) await refreshProfile(uid);
+    setSignupRolePrompt(false);
+    return res.data;
   };
 
   const signUpWithEmail = async ({ password, fullName, email, otp, accountType }) => {
@@ -987,8 +1016,10 @@ export const AuthProvider = ({ children }) => {
       signUpWithEmail,
       logout,
       isAdmin,
+      signupRolePrompt,
+      completeSignupRole,
     }),
-    [user, profile, loading, activeShopId, logout]
+    [user, profile, loading, activeShopId, logout, signupRolePrompt]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

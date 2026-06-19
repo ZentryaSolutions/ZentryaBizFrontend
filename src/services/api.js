@@ -286,6 +286,7 @@ export const authAPI = {
   changePassword: (data) => api.post('/auth/change-password', data),
   /** Email OTP signup (backend + Microsoft Graph or SMTP) */
   zbSignupWithOtp: (data) => api.post('/auth/zb-signup-with-otp', data),
+  completeSignupRole: (data) => api.post('/auth/complete-signup-role', data),
   /** Forgot password: OTP + new password (zb_simple_users + users) */
   zbResetPasswordAfterOtp: (data) => api.post('/auth/zb-reset-password-after-otp', data),
   /** Logged-in Zentrya user: current + new password (zb_simple_users + users) — requires API `DATABASE_URL` */

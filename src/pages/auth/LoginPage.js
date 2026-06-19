@@ -108,8 +108,9 @@ export default function LoginPage() {
         nav(shopsPath(r.userId), { replace: true });
         return;
       }
+      if (r.needsSignupRole) return;
       if (r.isNewAccount) {
-        nav('/shops', { replace: true });
+        nav(r.userId ? shopsPath(r.userId) : '/shops', { replace: true });
       } else {
         nav(next, { replace: true });
       }
@@ -223,6 +224,7 @@ export default function LoginPage() {
       }
       setNodeOtpStep(false);
       setLoginOtp('');
+      if (r.needsSignupRole) return;
       nav(next, { replace: true });
     } finally {
       setLoading(false);

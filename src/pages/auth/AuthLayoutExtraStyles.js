@@ -34,7 +34,15 @@ export const authLayoutExtraStyles = `
 .zb-auth__googleFallbackIcon{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px}
 .zb-auth__googleFallbackIcon svg{display:block;width:18px;height:18px}
 
-.zb-auth__signupAs{
+.modal-overlay--signup-role{
+  z-index: 40000 !important;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
   display:flex;
   align-items:center;
   flex-wrap:wrap;

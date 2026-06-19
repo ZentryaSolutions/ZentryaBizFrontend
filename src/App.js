@@ -48,6 +48,7 @@ import ShopSelection from './components/ShopSelection';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { isWorkspaceAccessBlocked, isShopOwnerAccountRole } from './utils/planFeatures';
 import WorkspaceSubscriptionBanner from './components/WorkspaceSubscriptionBanner';
+import AuthSignupRoleGate from './components/AuthSignupRoleGate';
 import { isZbWebOnlyMode } from './lib/appMode';
 import { mobileGlobalStyles } from './styles/mobileGlobalStyles';
 import {
@@ -58,6 +59,15 @@ import {
 import { appBasePath, extractAppScope, isLegacyAppPath } from './utils/appRouteScope';
 // Inner component that uses location (must be inside Router)
 function AppContentWithRouter() {
+  return (
+    <>
+      <AuthSignupRoleGate />
+      <AppContentWithRouterInner />
+    </>
+  );
+}
+
+function AppContentWithRouterInner() {
   const location = useLocation();
   return <AppContent location={location} />;
 }
