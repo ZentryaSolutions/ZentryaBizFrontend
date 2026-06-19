@@ -423,13 +423,45 @@ const Billing = ({ readOnly = false }) => {
   };
 
   // Update item price
+  const getCatalogPrice = (product, priceType) => {
+    if (!product) return 0;
+    if (priceType === 'wholesale') {
+      return parseFloat(product.wholesale_price) || parseFloat(product.retail_price) || parseFloat(product.selling_price) || 0;
+    }
+    if (priceType === 'special') {
+      return parseFloat(product.special_price) || parseFloat(product.retail_price) || parseFloat(product.selling_price) || 0;
+    }
+    return parseFloat(product.retail_price) || parseFloat(product.selling_price) || 0;
+  };
+
   const handlePriceChange = (index, value) => {
     const updatedItems = [...invoiceItems];
-    const price = parseFloat(value) || 0;
-    if (price > 0) {
-      updatedItems[index].selling_price = price;
+    if (value === '' || value === null || value === undefined) {
+      updatedItems[index].selling_price = '';
+      updateActiveBill({ invoiceItems: updatedItems });
+      return;
+    }
+    if (/^\d*\.?\d*$/.test(String(value))) {
+      updatedItems[index].selling_price = value;
       updateActiveBill({ invoiceItems: updatedItems });
     }
+  };
+
+  const handlePriceBlur = (index) => {
+    const item = invoiceItems[index];
+    const product = products.find((p) => p.product_id === item.product_id);
+    const raw = String(item.selling_price ?? '').trim();
+    const price = parseFloat(raw);
+    if (!raw || !Number.isFinite(price) || price <= 0) {
+      const priceType = itemPriceTypes[item.product_id] || 'retail';
+      const updatedItems = [...invoiceItems];
+      updatedItems[index].selling_price = getCatalogPrice(product, priceType);
+      updateActiveBill({ invoiceItems: updatedItems });
+      return;
+    }
+    const updatedItems = [...invoiceItems];
+    updatedItems[index].selling_price = price;
+    updateActiveBill({ invoiceItems: updatedItems });
   };
 
   // Switch price type for an item
@@ -440,11 +472,11 @@ const Billing = ({ readOnly = false }) => {
 
     let newPrice = item.selling_price;
     if (priceType === 'retail') {
-      newPrice = product.retail_price || product.selling_price || 0;
+      newPrice = getCatalogPrice(product, 'retail');
     } else if (priceType === 'wholesale') {
-      newPrice = product.wholesale_price || product.retail_price || product.selling_price || 0;
+      newPrice = getCatalogPrice(product, 'wholesale');
     } else if (priceType === 'special') {
-      newPrice = product.special_price || product.retail_price || product.selling_price || 0;
+      newPrice = getCatalogPrice(product, 'special');
     }
 
     const updatedItems = [...invoiceItems];
@@ -593,6 +625,14 @@ const Billing = ({ readOnly = false }) => {
     try {
       setSaving(true);
       setError(null);
+      for (const item of invoiceItems) {
+        const price = parseFloat(item.selling_price);
+        if (!Number.isFinite(price) || price <= 0) {
+          showToast('error', t('billing.invalidPrice', { defaultValue: 'Enter a valid price for every product.' }));
+          setSaving(false);
+          return;
+        }
+      }
       showToast('info', shouldPrint ? 'Saving & printing…' : 'Saving invoice…', 1600);
 
       const saleData = {
@@ -607,8 +647,9 @@ const Billing = ({ readOnly = false }) => {
         items: invoiceItems.map((item) => ({
           product_id: item.product_id,
           quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
-          selling_price: item.selling_price,
+          selling_price: parseFloat(item.selling_price) || 0,
           line_discount: Math.max(0, parseFloat(item.line_discount) || 0),
+          price_type: itemPriceTypes[item.product_id] || 'retail',
         })),
       };
 
@@ -1379,8 +1420,9 @@ const Billing = ({ readOnly = false }) => {
                               min="0"
                               className="billing-price-input"
                               value={item.selling_price}
-                            onChange={(e) => handlePriceChange(index, e.target.value)}
-                          />
+                              onChange={(e) => handlePriceChange(index, e.target.value)}
+                              onBlur={() => handlePriceBlur(index)}
+                            />
                         </div>
                       </td>
                         <td>

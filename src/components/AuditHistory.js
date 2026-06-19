@@ -98,6 +98,7 @@ function formatAuditSummary(log) {
     return notes || ACTION_LABELS[log.action] || '—';
   }
   if (notes && !/^Accessed sensitive resource:/i.test(notes)) {
+    if (notes.startsWith('Billing price override on ')) return notes;
     return notes;
   }
   const m = notes.match(/^Accessed sensitive resource:\s*(.+)$/i);
@@ -122,6 +123,7 @@ function formatAuditAction(log) {
   if (log.action === 'login') return 'Signed in';
   if (log.action === 'login_failed') return 'Sign-in failed';
   if (log.action === 'logout') return 'Signed out';
+  if (notes.startsWith('Billing price override on ')) return 'Price override';
   if (notes.startsWith('Opened ')) return 'Opened';
   if (notes.startsWith('Loaded ')) return 'Loaded';
   if (notes.startsWith('Exported ')) return 'Exported';
