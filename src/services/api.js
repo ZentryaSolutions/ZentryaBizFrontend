@@ -141,6 +141,7 @@ export const supplierPaymentsAPI = {
 export const salesAPI = {
   getAll: (params) => api.get('/sales', { params }),
   getById: (id) => api.get(`/sales/${id}`),
+  nextInvoiceNumber: () => api.get('/sales/next-invoice-number'),
   create: (data) => api.post('/sales', data),
   update: (id, data) => api.put(`/sales/${id}`, data),
   delete: (id) => api.delete(`/sales/${id}`),

@@ -71,10 +71,10 @@ const billingMobileOverrides = `
 const STOCK_ERR = (avail) =>
   `Insufficient stock. Available: ${Number(avail || 0)} units. Please add stock first.`;
 
-function createDraftBill(idx = 1) {
+function createDraftBill() {
   return {
     id: `bill_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    label: `Bill #${idx}`,
+    label: 'Bill …',
     meta: 'Empty',
     invoiceItems: [],
     searchQuery: '',
@@ -86,9 +86,16 @@ function createDraftBill(idx = 1) {
     saleNotes: '',
     itemPriceTypes: {},
     invoiceNumber: '',
+    pendingInvoiceNumber: '',
     paymentMode: 'cash',
     saleType: 'full',
   };
+}
+
+function billLabelFromInvoice(invoiceNo) {
+  const m = String(invoiceNo || '').match(/-(\d+)$/);
+  const n = m ? parseInt(m[1], 10) : NaN;
+  return `Bill #${Number.isFinite(n) && n > 0 ? n : '…'}`;
 }
 
 function validateCartAgainstStock(invoiceItems, productsList) {
@@ -141,7 +148,7 @@ const Billing = ({ readOnly = false }) => {
   });
 
   // Core state
-  const [bills, setBills] = useState(() => [createDraftBill(1)]);
+  const [bills, setBills] = useState(() => [createDraftBill()]);
   const [activeBillId, setActiveBillId] = useState(() => bills?.[0]?.id);
   const activeBill = useMemo(
     () => bills.find((b) => b.id === activeBillId) || bills[0],
@@ -152,6 +159,32 @@ const Billing = ({ readOnly = false }) => {
       prev.map((b) => (b.id === activeBillId ? { ...b, ...patch } : b))
     );
   };
+
+  const refreshBillInvoiceDraft = async (billId = activeBillId) => {
+    if (!posApiQueriesEnabled(activeShopId) || !billId) return;
+    try {
+      const { data } = await salesAPI.nextInvoiceNumber();
+      const num = String(data?.invoice_number || '').trim();
+      if (!num) return;
+      setBills((prev) =>
+        prev.map((b) =>
+          b.id === billId
+            ? { ...b, pendingInvoiceNumber: num, label: billLabelFromInvoice(num), invoiceNumber: '' }
+            : b
+        )
+      );
+    } catch (e) {
+      console.warn('[Billing] next invoice number:', e?.message || e);
+    }
+  };
+
+  useEffect(() => {
+    if (!posApiQueriesEnabled(activeShopId) || !activeBillId) return;
+    const bill = bills.find((b) => b.id === activeBillId);
+    if (!bill || bill.pendingInvoiceNumber || (bill.invoiceItems || []).length > 0) return;
+    void refreshBillInvoiceDraft(activeBillId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeShopId, activeBillId]);
 
   const invoiceItems = activeBill?.invoiceItems || [];
   const searchQuery = activeBill?.searchQuery || '';
@@ -171,6 +204,7 @@ const Billing = ({ readOnly = false }) => {
   const [lastSavedSale, setLastSavedSale] = useState(null);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const invoiceNumber = activeBill?.invoiceNumber || '';
+  const pendingInvoiceNumber = activeBill?.pendingInvoiceNumber || '';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [customerSearchQuery, setCustomerSearchQuery] = useState(''); // UI-only
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false); // UI-only
@@ -656,6 +690,7 @@ const Billing = ({ readOnly = false }) => {
       const response = await salesAPI.create(saleData);
       if (isOfflineQueuedResponse(response)) {
         resetForm();
+        await refreshBillInvoiceDraft(activeBillId);
         return;
       }
       const savedInvoice = response.data;
@@ -673,6 +708,7 @@ const Billing = ({ readOnly = false }) => {
       }
 
       resetForm();
+      await refreshBillInvoiceDraft(activeBillId);
 
       await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).inventoryBundle());
       await invalidateUnlessOffline(queryClient, zbKeys(activeShopId).customersList());
@@ -972,13 +1008,7 @@ const Billing = ({ readOnly = false }) => {
     };
   }, []);
 
-  const invoiceLabel = useMemo(() => {
-    if (invoiceNumber) return invoiceNumber;
-    const n = bills.findIndex((b) => b.id === activeBillId);
-    const idx = n >= 0 ? n + 1 : 1;
-    const year = new Date().getFullYear();
-    return `INV-${year}-${String(idx).padStart(4, '0')}`;
-  }, [invoiceNumber, bills, activeBillId]);
+  const invoiceLabel = pendingInvoiceNumber || invoiceNumber || t('billing.newBill');
 
   const { subtotal, discountAmount, taxAmount, grandTotal, remainingDue, change, paid } = calculateTotals();
 
@@ -1056,13 +1086,15 @@ const Billing = ({ readOnly = false }) => {
                   if (hasItems && !window.confirm(`${b.label} has unsaved items. Close anyway?`)) return;
                   setBills((prev) => {
                     const next = prev.filter((x) => x.id !== b.id);
-                    if (!next.length) return [createDraftBill(1)];
+                    if (!next.length) {
+                      const fresh = createDraftBill();
+                      setActiveBillId(fresh.id);
+                      return [fresh];
+                    }
+                    if (activeBillId === b.id) {
+                      setActiveBillId(next[next.length - 1].id);
+                    }
                     return next;
-                  });
-                  setActiveBillId((cur) => {
-                    if (cur !== b.id) return cur;
-                    const remaining = bills.filter((x) => x.id !== b.id);
-                    return (remaining[remaining.length - 1] || remaining[0] || createDraftBill(1)).id;
                   });
                 }}
                 aria-label="Close bill"
@@ -1076,9 +1108,10 @@ const Billing = ({ readOnly = false }) => {
             type="button"
             className="billing-tab-new"
             onClick={() => {
-              const next = createDraftBill(bills.length + 1);
+              const next = createDraftBill();
               setBills((prev) => [...prev, next]);
               setActiveBillId(next.id);
+              void refreshBillInvoiceDraft(next.id);
               setError(null);
               setCustomerSearchQuery('');
               setShowCustomerDropdown(false);
@@ -1098,7 +1131,7 @@ const Billing = ({ readOnly = false }) => {
           <div className="billing-time">{currentTime.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
         </div>
         <div className="billing-invoice-display">
-          <span>{t('billing.invoiceNumber')}: {invoiceNumber || t('billing.newBill')}</span>
+          <span>{t('billing.invoiceNumber')}: {invoiceLabel}</span>
         </div>
       </div>
 
