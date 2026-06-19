@@ -53,6 +53,7 @@ const Customers = ({ readOnly = false }) => {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [balanceFilter, setBalanceFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,7 +73,18 @@ const Customers = ({ readOnly = false }) => {
     setModalOpen(true);
   };
 
+  const openDeleteConfirm = (customerId) => {
+    setDeleteError('');
+    setDeleteConfirm(customerId);
+  };
+
+  const closeDeleteConfirm = () => {
+    setDeleteConfirm(null);
+    setDeleteError('');
+  };
+
   const handleDelete = async (customerId) => {
+    setDeleteError('');
     try {
       const res = await customersAPI.delete(customerId);
       await invalidateUnlessOffline(
@@ -80,10 +92,16 @@ const Customers = ({ readOnly = false }) => {
         zbKeys(activeShopId).customersList(),
         offlineOptsFromResponse(res)
       );
-      setDeleteConfirm(null);
+      closeDeleteConfirm();
     } catch (err) {
       console.error('Error deleting customer:', err);
-      alert(getConnectivityErrorMessage(err) || err.response?.data?.error || t('customers.failedToDelete'));
+      const apiMsg = err.response?.data?.message || err.response?.data?.error;
+      const fallback = getConnectivityErrorMessage(err) || t('customers.failedToDelete');
+      setDeleteError(
+        apiMsg ||
+          fallback ||
+          'Could not delete this customer. If they have sales or payments, edit them and set status to Inactive instead.'
+      );
     }
   };
 
@@ -367,7 +385,7 @@ const Customers = ({ readOnly = false }) => {
                             <button className="sup3-rowAction" onClick={() => handleEdit(customer)} aria-label="Edit customer">
                               <FontAwesomeIcon icon={faPenToSquare} />
                             </button>
-                            <button className="sup3-rowAction sup3-rowAction--danger" onClick={() => setDeleteConfirm(customer.customer_id)} aria-label="Delete customer">
+                            <button className="sup3-rowAction sup3-rowAction--danger" onClick={() => openDeleteConfirm(customer.customer_id)} aria-label="Delete customer">
                               <FontAwesomeIcon icon={faTrashCan} />
                             </button>
                           </div>
@@ -401,12 +419,29 @@ const Customers = ({ readOnly = false }) => {
       </section>
 
       {deleteConfirm ? (
-        <ModalOverlay onClose={() => setDeleteConfirm(null)}>
+        <ModalOverlay onClose={closeDeleteConfirm}>
           <div className="modal delete-modal sup2-delete-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{t('common.confirmDelete')}</h3>
             <p>{t('customers.deleteConfirm')} {t('common.cannotBeUndone')}</p>
+            {deleteError ? (
+              <p
+                role="alert"
+                style={{
+                  margin: '0 0 12px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {deleteError}
+              </p>
+            ) : null}
             <div className="modal-actions">
-              <button className="sup2-btn sup2-btn--ghost" onClick={() => setDeleteConfirm(null)}>
+              <button className="sup2-btn sup2-btn--ghost" onClick={closeDeleteConfirm}>
                 {t('common.cancel')}
               </button>
               <button className="sup2-btn sup2-btn--danger" onClick={() => handleDelete(deleteConfirm)}>
