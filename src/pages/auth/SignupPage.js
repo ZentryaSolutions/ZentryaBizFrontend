@@ -133,11 +133,9 @@ export default function SignupPage() {
           />
         </div>
 
-        <fieldset className="zb-auth__fieldset" style={{ border: 0, padding: 0, margin: '0 0 16px' }}>
-          <legend className="zb-auth__label" style={{ marginBottom: 8, display: 'block' }}>
-            Sign up as
-          </legend>
-          <label className="zb-auth__radio" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div className="zb-auth__signupAs" role="radiogroup" aria-label="Sign up as">
+          <span className="zb-auth__signupAs-label">Sign up as</span>
+          <label className="zb-auth__signupAs-option">
             <input
               type="radio"
               name="accountType"
@@ -147,7 +145,7 @@ export default function SignupPage() {
             />
             Shop owner
           </label>
-          <label className="zb-auth__radio" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label className="zb-auth__signupAs-option">
             <input
               type="radio"
               name="accountType"
@@ -157,7 +155,7 @@ export default function SignupPage() {
             />
             Cashier
           </label>
-        </fieldset>
+        </div>
 
         <AuthPasswordField
           id="zb-signup-password"

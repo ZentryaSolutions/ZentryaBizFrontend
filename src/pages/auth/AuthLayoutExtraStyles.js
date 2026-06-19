@@ -34,6 +34,38 @@ export const authLayoutExtraStyles = `
 .zb-auth__googleFallbackIcon{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px}
 .zb-auth__googleFallbackIcon svg{display:block;width:18px;height:18px}
 
+.zb-auth__signupAs{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 12px;
+  margin:2px 0 10px;
+}
+.zb-auth__signupAs-label{
+  font-size:12px;
+  font-weight:600;
+  color:#64748b;
+  flex:0 0 auto;
+}
+.zb-auth__signupAs-option{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin:0;
+  font-size:12px;
+  font-weight:500;
+  color:#475569;
+  cursor:pointer;
+  user-select:none;
+}
+.zb-auth__signupAs-option input{
+  width:13px;
+  height:13px;
+  margin:0;
+  accent-color:#2563eb;
+  flex-shrink:0;
+}
+
 @media (max-width: 980px){
   .zb-auth__card--split{width:min(780px, calc(100vw - 40px)) !important;}
   .zb-auth__right{display:none !important;}
