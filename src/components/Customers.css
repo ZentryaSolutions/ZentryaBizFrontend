@@ -390,3 +390,6 @@
   gap: 10px;
   justify-content: flex-end;
 }
+
+.cus2-page .sup3-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+

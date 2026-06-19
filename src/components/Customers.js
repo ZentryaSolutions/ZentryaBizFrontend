@@ -7,7 +7,6 @@ import {
   faDollarSign,
   faEye,
   faPenToSquare,
-  faReceipt,
   faTrashCan,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons';
@@ -223,7 +222,7 @@ const Customers = ({ readOnly = false }) => {
   }
 
   return (
-    <div className="content-container sup2">
+    <div className="content-container sup2 cus2-page">
       <section className="sup3-stats">
         <article className="sup3-statCard">
           <span className="sup3-statIcon sup3-statIcon--money">
@@ -248,14 +247,6 @@ const Customers = ({ readOnly = false }) => {
           <h3>{summary.dueCount}</h3>
           <p>Customers with dues</p>
           <small>{summary.settledCount} settled</small>
-        </article>
-        <article className="sup3-statCard">
-          <span className="sup3-statIcon sup3-statIcon--purple">
-            <FontAwesomeIcon icon={faReceipt} />
-          </span>
-          <h3>{filteredCustomers.length}</h3>
-          <p>Filtered Results</p>
-          <small>Current view</small>
         </article>
       </section>
 
