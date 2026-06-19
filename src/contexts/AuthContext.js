@@ -328,7 +328,7 @@ async function tryEstablishNodeSession(username, password, rememberLong = true) 
 /**
  * Google Sign-In → POST /auth/google (does not use zb_login or password).
  */
-async function tryEstablishGoogleSession(credential, rememberLong = true) {
+async function tryEstablishGoogleSession(credential, rememberLong = true, accountType = 'shop_owner') {
   let deviceId;
   try {
     deviceId = getDeviceId();
@@ -351,7 +351,7 @@ async function tryEstablishGoogleSession(credential, rememberLong = true) {
   };
 
   try {
-    const { data } = await axios.post(`${base}/auth/google`, { credential }, cfg);
+    const { data } = await axios.post(`${base}/auth/google`, { credential, accountType }, cfg);
     if (data?.success && data?.requiresOtp) {
       return {
         ok: true,
@@ -759,11 +759,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   /** Sign in with Google (GIS credential). Email/password login unchanged. */
-  const signInWithGoogle = async (credential, rememberLong = false) => {
+  const signInWithGoogle = async (credential, rememberLong = false, accountType = 'shop_owner') => {
     if (!credential) {
       return { success: false, error: 'Google sign-in was cancelled' };
     }
-    const apiSess = await tryEstablishGoogleSession(credential, rememberLong);
+    const apiSess = await tryEstablishGoogleSession(credential, rememberLong, accountType);
     if (apiSess.ok && apiSess.pendingOtp) {
       persistPendingOtp(
         apiSess.user_id,
@@ -840,7 +840,7 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
-  const signUpWithEmail = async ({ password, fullName, email, otp }) => {
+  const signUpWithEmail = async ({ password, fullName, email, otp, accountType }) => {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
     const em = String(email || '').trim().toLowerCase();
     const code = String(otp || '').trim();
@@ -859,6 +859,7 @@ export const AuthProvider = ({ children }) => {
         username: em,
         password,
         otp: code,
+        accountType: accountType === 'cashier' ? 'cashier' : 'shop_owner',
       });
       const data = res.data;
       const status = res.status;

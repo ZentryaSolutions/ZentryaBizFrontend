@@ -22,6 +22,7 @@ function readPending() {
       fullName,
       email: String(o.email).trim().toLowerCase(),
       password: o.password,
+      accountType: o.accountType === 'cashier' ? 'cashier' : 'shop_owner',
     };
   } catch {
     return null;
@@ -42,6 +43,7 @@ export default function SignupVerifyPage() {
           fullName,
           email: String(fromNav.email).trim().toLowerCase(),
           password: fromNav.password,
+          accountType: fromNav.accountType === 'cashier' ? 'cashier' : 'shop_owner',
         };
       }
     }
@@ -65,6 +67,7 @@ export default function SignupVerifyPage() {
               fullName,
               email: String(fromNav.email).trim().toLowerCase(),
               password: fromNav.password,
+              accountType: fromNav.accountType === 'cashier' ? 'cashier' : 'shop_owner',
             })
           );
         } catch {
@@ -122,6 +125,7 @@ export default function SignupVerifyPage() {
         fullName: pending.fullName,
         email: pending.email,
         otp,
+        accountType: pending.accountType,
       });
       if (!r.success) {
         setError(r.error || 'Verification failed');

@@ -22,12 +22,13 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [accountType, setAccountType] = useState('shop_owner');
 
   const handleGoogleCredential = async (credential) => {
     setError('');
     setGoogleLoading(true);
     try {
-      const r = await signInWithGoogle(credential, true);
+      const r = await signInWithGoogle(credential, true, accountType);
       if (!r.success) {
         setError(r.error || 'Google sign-up failed');
         return;
@@ -67,6 +68,7 @@ export default function SignupPage() {
         fullName: name,
         email: em,
         password,
+        accountType,
       };
       try {
         sessionStorage.setItem(PENDING_KEY, JSON.stringify(payload));
@@ -130,6 +132,32 @@ export default function SignupPage() {
             required
           />
         </div>
+
+        <fieldset className="zb-auth__fieldset" style={{ border: 0, padding: 0, margin: '0 0 16px' }}>
+          <legend className="zb-auth__label" style={{ marginBottom: 8, display: 'block' }}>
+            Sign up as
+          </legend>
+          <label className="zb-auth__radio" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input
+              type="radio"
+              name="accountType"
+              value="shop_owner"
+              checked={accountType === 'shop_owner'}
+              onChange={() => setAccountType('shop_owner')}
+            />
+            Shop owner
+          </label>
+          <label className="zb-auth__radio" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="radio"
+              name="accountType"
+              value="cashier"
+              checked={accountType === 'cashier'}
+              onChange={() => setAccountType('cashier')}
+            />
+            Cashier
+          </label>
+        </fieldset>
 
         <AuthPasswordField
           id="zb-signup-password"

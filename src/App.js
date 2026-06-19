@@ -46,7 +46,8 @@ import StaffInvitePage from './pages/auth/StaffInvitePage';
 import ShopSelection from './components/ShopSelection';
 // License system removed — plans handled via Stripe + Supabase.
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { isExpiredPlan, isWorkspaceAccessBlocked } from './utils/planFeatures';
+import { isWorkspaceAccessBlocked, isShopOwnerAccountRole } from './utils/planFeatures';
+import WorkspaceSubscriptionBanner from './components/WorkspaceSubscriptionBanner';
 import { isZbWebOnlyMode } from './lib/appMode';
 import { mobileGlobalStyles } from './styles/mobileGlobalStyles';
 import {
@@ -169,7 +170,7 @@ function AppContent({ location }) {
   // Expired trial/subscription on the account owner's own plan — staff can still open shops
   // where the shop owner's subscription is active (checked per shop).
   const accountRole = String(profile?.role || '').toLowerCase();
-  const isAccountShopOwner = ['owner', 'admin', 'administrator'].includes(accountRole);
+  const isAccountShopOwner = isShopOwnerAccountRole(accountRole);
   if (profile && isWorkspaceAccessBlocked(profile) && !onOwnShopsPicker && isAccountShopOwner) {
     return <Navigate to={shopsPath(user.id)} replace />;
   }
@@ -222,22 +223,7 @@ function AppContent({ location }) {
         readOnlyMode={readOnlyMode}
         setConnectionReadOnly={setConnectionReadOnly}
       />
-      {profile && isExpiredPlan(profile.plan) && (
-        <div
-          role="status"
-          style={{
-            margin: '0 16px',
-            padding: '10px 14px',
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            borderRadius: '8px',
-            color: '#92400e',
-            fontSize: '14px',
-          }}
-        >
-          Your subscription is expired. Renew from pricing / billing to restore Growth and Business features.
-        </div>
-      )}
+      <WorkspaceSubscriptionBanner profile={profile} activeShopId={activeShopId} />
       <main className={`main-content${compactTopSpacing ? ' main-content--compact-top' : ''}`}>
         <ErrorBoundary>
           <Routes>

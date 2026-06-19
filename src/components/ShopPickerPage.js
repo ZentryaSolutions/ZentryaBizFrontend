@@ -9,6 +9,7 @@ import {
   getTrialProgress,
   isWorkspaceAccessBlocked,
   getPlanDisplayName,
+  isShopOwnerAccountRole,
 } from '../utils/planFeatures';
 import { isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { marketingHomeQuery } from '../utils/workspacePaths';
@@ -627,8 +628,7 @@ export default function ShopPickerPage() {
   const displayName = user?.full_name || user?.name || user?.username || 'User';
   const accountRole = String(profile?.role || '').toLowerCase();
   const effectiveRole = accountRole || resolvedRole;
-  const canManageShops =
-    effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'administrator';
+  const canManageShops = isShopOwnerAccountRole(effectiveRole);
 
   const isShopLocked = (shop) => {
     if (!shop) return true;
@@ -637,6 +637,12 @@ export default function ShopPickerPage() {
     }
     return shop.planAccess?.ok === false;
   };
+
+  const openableShopCount = useMemo(
+    () => shops.filter((shop) => !isShopLocked(shop)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shops, subscriptionExpired, canManageShops]
+  );
 
   const selectShop = async (id) => {
     const shop = shops.find((s) => String(s.id) === String(id));
@@ -1262,7 +1268,11 @@ export default function ShopPickerPage() {
                         <div className="zbms-hero-usage-lbl">Assigned shops</div>
                         <div className="zbms-hero-usage-num">{shopsUsed}</div>
                         <div className="zbms-hero-usage-sub">
-                          Open a shop when your administrator&apos;s plan is active.
+                          {openableShopCount > 0
+                            ? `${openableShopCount} shop${openableShopCount !== 1 ? 's' : ''} ready to open`
+                            : shopsUsed > 0
+                              ? 'Ask your administrator to renew the plan for locked shops.'
+                              : 'Your administrator can assign shops to this account.'}
                         </div>
                       </>
                     )}

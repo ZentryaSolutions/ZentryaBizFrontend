@@ -129,8 +129,19 @@ export function getTrialProgress(profile) {
   return { day, total, expired, daysLeft };
 }
 
-/** Block opening workspace / creating shops — data stays in DB. */
+/** Block opening workspace / creating shops — data stays in DB. Staff use shop owner plan instead. */
+export function isStaffAccountRole(role) {
+  const r = String(role || '').trim().toLowerCase();
+  return ['cashier', 'salesman', 'staff', 'user'].includes(r);
+}
+
+export function isShopOwnerAccountRole(role) {
+  const r = String(role || '').trim().toLowerCase();
+  return ['owner', 'admin', 'administrator'].includes(r);
+}
+
 export function isWorkspaceAccessBlocked(profile) {
+  if (isStaffAccountRole(profile?.role)) return false;
   if (isExpiredPlan(profile?.plan)) return true;
   if (Number(resolveShopLimitFromProfile(profile)) <= 0) return true;
   if (String(profile?.plan || '').toLowerCase() === 'trial' && isTrialExpiredByDate(profile)) {
