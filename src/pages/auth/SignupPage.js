@@ -137,26 +137,28 @@ export default function SignupPage() {
 
         <div className="zb-auth__signupAs" role="radiogroup" aria-label="Sign up as">
           <span className="zb-auth__signupAs-label">Sign up as</span>
-          <label className="zb-auth__signupAs-option">
-            <input
-              type="radio"
-              name="accountType"
-              value="shop_owner"
-              checked={accountType === 'shop_owner'}
-              onChange={() => setAccountType('shop_owner')}
-            />
-            Shop owner
-          </label>
-          <label className="zb-auth__signupAs-option">
-            <input
-              type="radio"
-              name="accountType"
-              value="cashier"
-              checked={accountType === 'cashier'}
-              onChange={() => setAccountType('cashier')}
-            />
-            Cashier
-          </label>
+          <div className="zb-auth__signupAs-options">
+            <label className="zb-auth__signupAs-option">
+              <input
+                type="radio"
+                name="accountType"
+                value="shop_owner"
+                checked={accountType === 'shop_owner'}
+                onChange={() => setAccountType('shop_owner')}
+              />
+              Shop owner
+            </label>
+            <label className="zb-auth__signupAs-option">
+              <input
+                type="radio"
+                name="accountType"
+                value="cashier"
+                checked={accountType === 'cashier'}
+                onChange={() => setAccountType('cashier')}
+              />
+              Cashier
+            </label>
+          </div>
         </div>
 
         <AuthPasswordField

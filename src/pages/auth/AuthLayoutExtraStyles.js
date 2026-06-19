@@ -43,32 +43,50 @@ export const authLayoutExtraStyles = `
   backdrop-filter: blur(4px);
 }
 
+.zb-auth__signupAs{
   display:flex;
   align-items:center;
   flex-wrap:wrap;
-  gap:8px 12px;
-  margin:2px 0 10px;
+  gap:10px 16px;
+  margin:0 0 9px;
+  padding:10px 12px;
+  min-height:44px;
+  border:1px solid #e4e7ec;
+  border-radius:10px;
+  background:#f8fafc;
+  box-sizing:border-box;
 }
 .zb-auth__signupAs-label{
-  font-size:12px;
+  font-size:13px;
   font-weight:600;
   color:#64748b;
   flex:0 0 auto;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.zb-auth__signupAs-options{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 18px;
+  flex:1 1 auto;
+  min-width:0;
 }
 .zb-auth__signupAs-option{
   display:inline-flex;
   align-items:center;
-  gap:5px;
+  gap:6px;
   margin:0;
-  font-size:12px;
+  font-size:13px;
   font-weight:500;
-  color:#475569;
+  color:#344054;
   cursor:pointer;
   user-select:none;
+  white-space:nowrap;
 }
 .zb-auth__signupAs-option input{
-  width:13px;
-  height:13px;
+  width:14px;
+  height:14px;
   margin:0;
   accent-color:#2563eb;
   flex-shrink:0;
