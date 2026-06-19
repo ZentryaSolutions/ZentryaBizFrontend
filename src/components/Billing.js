@@ -15,7 +15,7 @@ import {
 import PageLoadingCenter from './PageLoadingCenter';
 import './Billing.css';
 import { billingExtraStyles } from './BillingExtraStyles';
-import { posApiQueriesEnabled } from '../lib/appMode';
+import { posApiQueriesEnabled, ZB_BACKEND_SESSION_CHANGED } from '../lib/appMode';
 import { getConnectivityErrorMessage, isOfflineQueuedResponse } from '../lib/offlineUserMessages';
 import { invalidateUnlessOffline, offlineOptsFromResponse } from '../lib/offlineWorkspace';
 import { openWhatsAppInvoice } from '../lib/whatsappInvoice';
@@ -179,12 +179,34 @@ const Billing = ({ readOnly = false }) => {
   };
 
   useEffect(() => {
-    if (!posApiQueriesEnabled(activeShopId) || !activeBillId) return;
-    const bill = bills.find((b) => b.id === activeBillId);
-    if (!bill || bill.pendingInvoiceNumber || (bill.invoiceItems || []).length > 0) return;
-    void refreshBillInvoiceDraft(activeBillId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeShopId, activeBillId]);
+    if (!posApiQueriesEnabled(activeShopId)) return;
+
+    const syncDraftInvoiceNumbers = async () => {
+      if (!posApiQueriesEnabled(activeShopId)) return;
+      try {
+        const { data } = await salesAPI.nextInvoiceNumber();
+        const num = String(data?.invoice_number || '').trim();
+        if (!num) return;
+        setBills((prev) =>
+          prev.map((b) => {
+            if (b.invoiceNumber || (b.invoiceItems || []).length > 0) return b;
+            return {
+              ...b,
+              pendingInvoiceNumber: num,
+              label: billLabelFromInvoice(num),
+              invoiceNumber: '',
+            };
+          })
+        );
+      } catch (e) {
+        console.warn('[Billing] next invoice number:', e?.message || e);
+      }
+    };
+
+    void syncDraftInvoiceNumbers();
+    window.addEventListener(ZB_BACKEND_SESSION_CHANGED, syncDraftInvoiceNumbers);
+    return () => window.removeEventListener(ZB_BACKEND_SESSION_CHANGED, syncDraftInvoiceNumbers);
+  }, [activeShopId]);
 
   const invoiceItems = activeBill?.invoiceItems || [];
   const searchQuery = activeBill?.searchQuery || '';
