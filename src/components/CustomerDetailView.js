@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faDollarSign, faLocationDot, faPhone, faReceipt, faBook } from '@fortawesome/free-solid-svg-icons';
+import { faDollarSign, faLocationDot, faPhone, faReceipt, faBook } from '@fortawesome/free-solid-svg-icons';
 import { customerPaymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { zbKeys } from '../lib/queryKeys';
@@ -123,17 +123,6 @@ const CustomerDetailView = ({ customerId, onClose, readOnly = false }) => {
 
   return (
     <div className="content-container sdv cdv-skin">
-      <div className="sdv-topbar">
-        <button className="sdv-back" onClick={onClose}>
-          <FontAwesomeIcon icon={faArrowLeft} /> Back
-        </button>
-        <div className="sdv-breadcrumb">
-          <span>Customers</span>
-          <span>›</span>
-          <strong>{customer?.name || 'Customer'}</strong>
-        </div>
-      </div>
-
       {error ? <div className="cdv2-alert">{error}</div> : null}
 
       <section className="sdv-hero">

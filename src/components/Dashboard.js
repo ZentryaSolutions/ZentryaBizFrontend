@@ -254,7 +254,7 @@ const Dashboard = () => {
               </span>
             </p>
           ) : null}
-        </div>
+          </div>
         </div>
       );
     }
