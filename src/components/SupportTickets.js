@@ -217,7 +217,8 @@ const SupportTickets = ({ readOnly = false }) => {
                   defaultValue: 'All tickets from your shop (you and cashiers). Status updates when Zentrya resolves them.',
                 })
               : t('supportTickets.subStaff', {
-                  defaultValue: 'Report an issue and track your ticket status.',
+                  defaultValue:
+                    'All tickets for this shop — yours and other staff. Report issues and follow updates in chat.',
                 })}
           </p>
         </div>
@@ -251,9 +252,7 @@ const SupportTickets = ({ readOnly = false }) => {
               <tr>
                 <th>{t('supportTickets.colNumber', { defaultValue: 'Ticket #' })}</th>
                 <th>{t('supportTickets.colHeading', { defaultValue: 'Problem' })}</th>
-                {adminView ? (
-                  <th>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</th>
-                ) : null}
+                <th>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</th>
                 <th>{t('supportTickets.colDate', { defaultValue: 'Date' })}</th>
                 <th>{t('supportTickets.colStatus', { defaultValue: 'Status' })}</th>
                 <th>{t('supportTickets.colPhotos', { defaultValue: 'Photos' })}</th>
@@ -269,14 +268,12 @@ const SupportTickets = ({ readOnly = false }) => {
                       <span className="stk-num">{row.ticket_number}</span>
                     </td>
                     <td>{row.heading}</td>
-                    {adminView ? (
-                      <td>
-                        {row.created_by_name || '—'}
-                        {row.created_by_role ? (
-                          <span style={{ color: '#9ca3af', fontSize: 12 }}> · {row.created_by_role}</span>
-                        ) : null}
-                      </td>
-                    ) : null}
+                    <td>
+                      {row.created_by_name || '—'}
+                      {row.created_by_role ? (
+                        <span style={{ color: '#9ca3af', fontSize: 12 }}> · {row.created_by_role}</span>
+                      ) : null}
+                    </td>
                     <td>{formatWhen(row.created_at)}</td>
                     <td>
                       <span className={`stk-badge ${resolved ? 'stk-badge--resolved' : 'stk-badge--open'}`}>
@@ -438,14 +435,12 @@ const SupportTickets = ({ readOnly = false }) => {
                         <dt>{t('supportTickets.colDate', { defaultValue: 'Date' })}</dt>
                         <dd>{formatWhen(detail.created_at)}</dd>
                       </div>
-                      {adminView ? (
-                        <div>
-                          <dt>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</dt>
-                          <dd>
-                            {detail.created_by_name} ({detail.created_by_role})
-                          </dd>
-                        </div>
-                      ) : null}
+                      <div>
+                        <dt>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</dt>
+                        <dd>
+                          {detail.created_by_name} ({detail.created_by_role})
+                        </dd>
+                      </div>
                       <div>
                         <dt>{t('supportTickets.problemDescription', { defaultValue: 'Problem description' })}</dt>
                         <dd style={{ whiteSpace: 'pre-wrap' }}>{detail.description}</dd>

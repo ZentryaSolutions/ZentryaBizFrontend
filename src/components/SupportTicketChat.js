@@ -239,7 +239,7 @@ export default function SupportTicketChat({ readOnly = false }) {
               ) : null}
             </div>
           </div>
-          {!readOnly ? (
+          {!readOnly && adminView ? (
             <div className="stk-chat-topbar-actions">
               {resolved ? (
                 <button
@@ -282,14 +282,12 @@ export default function SupportTicketChat({ readOnly = false }) {
                 <dt>{t('supportTickets.colDate', { defaultValue: 'Date' })}</dt>
                 <dd>{formatWhen(ticket.created_at)}</dd>
               </div>
-              {adminView ? (
-                <div>
-                  <dt>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</dt>
-                  <dd>
-                    {ticket.created_by_name} ({ticket.created_by_role})
-                  </dd>
-                </div>
-              ) : null}
+              <div>
+                <dt>{t('supportTickets.colRaisedBy', { defaultValue: 'Raised by' })}</dt>
+                <dd>
+                  {ticket.created_by_name} ({ticket.created_by_role})
+                </dd>
+              </div>
               {resolved && ticket.resolved_by_name ? (
                 <div>
                   <dt>{t('supportTickets.resolvedByLabel', { defaultValue: 'Resolved by' })}</dt>
