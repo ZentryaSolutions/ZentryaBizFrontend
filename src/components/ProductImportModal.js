@@ -18,6 +18,7 @@ const TEMPLATE_HEADERS = [
   'SKU',
   'Category',
   'Unit',
+  'Purchase Price',
   'Selling Price',
   'Wholesale Price',
   'Opening Stock',
@@ -62,6 +63,7 @@ function parseCsv(text) {
       if (h === 'sku') obj.sku = cells[idx];
       if (h === 'category') obj.category = cells[idx];
       if (h === 'unit') obj.unit = cells[idx];
+      if (h === 'purchase_price' || h === 'purchase price') obj.purchase_price = cells[idx];
       if (h === 'selling_price' || h === 'selling price') obj.selling_price = cells[idx];
       if (h === 'wholesale_price' || h === 'wholesale price') obj.wholesale_price = cells[idx];
       if (h === 'opening_stock' || h === 'opening stock') obj.opening_stock = cells[idx];
@@ -77,7 +79,7 @@ export default function ProductImportModal({ onClose, onImported }) {
   const [error, setError] = useState('');
 
   const downloadTemplate = () => {
-    const csv = `${TEMPLATE_HEADERS.join(',')}\nSample PVC Pipe,SKU-001,Plumbing,piece,450,400,100`;
+    const csv = `${TEMPLATE_HEADERS.join(',')}\nSample PVC Pipe,SKU-001,Plumbing,piece,350,450,400,100`;
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -127,6 +129,7 @@ export default function ProductImportModal({ onClose, onImported }) {
           sku: r.sku,
           category: r.category,
           unit: r.unit,
+          purchase_price: r.purchase_price,
           selling_price: r.selling_price,
           wholesale_price: r.wholesale_price,
           opening_stock: r.opening_stock,
@@ -177,7 +180,8 @@ export default function ProductImportModal({ onClose, onImported }) {
                       <th>#</th>
                       <th>Name</th>
                       <th>Category</th>
-                      <th>Price</th>
+                      <th>Purchase</th>
+                      <th>Sell</th>
                       <th>Stock</th>
                       <th>Status</th>
                     </tr>
@@ -188,6 +192,7 @@ export default function ProductImportModal({ onClose, onImported }) {
                         <td>{r.row}</td>
                         <td>{r.name || '—'}</td>
                         <td>{r.category}</td>
+                        <td>{r.purchase_price ?? '—'}</td>
                         <td>{r.selling_price}</td>
                         <td>{r.opening_stock}</td>
                         <td style={{ color: r.errors?.length ? '#b91c1c' : '#047857' }}>
