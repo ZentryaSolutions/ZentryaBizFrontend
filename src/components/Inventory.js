@@ -60,7 +60,16 @@ const inventoryMobileOverrides = `
 }
 `;
 
-const LOW_STOCK_THRESHOLD = 5;
+function productLowStockThreshold(product, fallback = 10) {
+  const n = Number.parseInt(String(product?.low_stock_threshold ?? ''), 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function isProductLowStock(product) {
+  const qty = Number(product?.quantity_in_stock);
+  if (!Number.isFinite(qty) || qty <= 0) return false;
+  return qty <= productLowStockThreshold(product);
+}
 
 const Inventory = ({ readOnly = false }) => {
   const { t } = useTranslation();
@@ -329,7 +338,7 @@ const Inventory = ({ readOnly = false }) => {
 
 
   const totalProducts = filteredProducts.length;
-  const lowStockCount = filteredProducts.filter((p) => Number(p.quantity_in_stock) > 0 && Number(p.quantity_in_stock) <= LOW_STOCK_THRESHOLD).length;
+  const lowStockCount = filteredProducts.filter((p) => isProductLowStock(p)).length;
   const outOfStockCount = filteredProducts.filter((p) => Number(p.quantity_in_stock) <= 0).length;
   const inventoryValue = filteredProducts.reduce(
     (sum, p) => sum + (Number(p.purchase_price || 0) * Math.max(0, Number(p.quantity_in_stock || 0))),
@@ -519,7 +528,7 @@ const Inventory = ({ readOnly = false }) => {
                   const wholesalePrice = product.wholesale_price || retailPrice;
                   const isFrequent = product.is_frequently_sold === true || product.is_frequently_sold === 1;
                   const qty = Number(product.quantity_in_stock);
-                  const low = qty <= LOW_STOCK_THRESHOLD;
+                  const low = isProductLowStock(product);
                   return (
                     <tr key={product.product_id} className={low ? 'inv2-row--low' : ''}>
                       <td>

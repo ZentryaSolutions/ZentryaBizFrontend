@@ -31,7 +31,10 @@ import { withCurrentScope } from '../utils/appRouteScope';
 import { productDetailPremiumCss } from './productDetailPremiumStyles';
 import { posApiQueriesEnabled } from '../lib/appMode';
 
-const LOW_STOCK_THRESHOLD = 5;
+function productLowStockThreshold(product, fallback = 10) {
+  const n = Number.parseInt(String(product?.low_stock_threshold ?? ''), 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
 
 const ProductDetailView = ({ readOnly = false }) => {
   const { productId } = useParams();
@@ -118,7 +121,8 @@ const ProductDetailView = ({ readOnly = false }) => {
   const wholesale = product?.wholesale_price;
   const avgCost = product?.purchase_price;
   const stockNum = product != null ? Number(product.quantity_in_stock) : 0;
-  const isLowStock = stockNum <= LOW_STOCK_THRESHOLD && stockNum >= 0;
+  const lowStockThreshold = product != null ? productLowStockThreshold(product) : 10;
+  const isLowStock = stockNum > 0 && stockNum <= lowStockThreshold;
   const isFrequent =
     product &&
     (product.is_frequently_sold === true || product.is_frequently_sold === 1);
@@ -398,7 +402,7 @@ const ProductDetailView = ({ readOnly = false }) => {
                   </div>
                   <div className="pdv3-spec-cell">
                     <dt>Low stock alert</dt>
-                    <dd>Below {LOW_STOCK_THRESHOLD} {unitLabel !== emptyLabel ? unitLabel : 'pcs'}</dd>
+                    <dd>Below {lowStockThreshold} {unitLabel !== emptyLabel ? unitLabel : 'pcs'}</dd>
                   </div>
                 </dl>
                 <div className="pdv3-desc">

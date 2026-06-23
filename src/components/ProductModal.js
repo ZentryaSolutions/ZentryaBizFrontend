@@ -3,6 +3,13 @@ import { createPortal } from 'react-dom';
 import { getConnectivityErrorMessage } from '../lib/offlineUserMessages';
 import './ProductModal.css';
 
+function parseLowStockThreshold(value, fallback = 10) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return n;
+}
+
 const ProductModal = ({ product, suppliers, categories = [], units = [], onClose, onSave }) => {
   const modalScopedStyles = `
     .modal-overlay{position:fixed!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:6px!important;background:rgba(15,23,42,.42)!important;backdrop-filter:blur(7px)!important;z-index:9999!important}
@@ -78,7 +85,10 @@ const ProductModal = ({ product, suppliers, categories = [], units = [], onClose
         unit_type: product.unit_type || 'piece',
         is_frequently_sold: product.is_frequently_sold || false,
         quantity_in_stock: product.quantity_in_stock || '0',
-        low_stock_threshold: product.low_stock_threshold || '10',
+        low_stock_threshold:
+          product.low_stock_threshold != null && product.low_stock_threshold !== ''
+            ? String(product.low_stock_threshold)
+            : '10',
         description: product.description || '',
         note_tag: product.note_tag || '',
         supplier_id: product.supplier_id || '',
@@ -169,7 +179,7 @@ const ProductModal = ({ product, suppliers, categories = [], units = [], onClose
         unit_type: formData.unit_type || 'piece',
         is_frequently_sold: formData.is_frequently_sold || false,
         quantity_in_stock: parseInt(formData.quantity_in_stock),
-        low_stock_threshold: formData.low_stock_threshold ? parseInt(formData.low_stock_threshold) : null,
+        low_stock_threshold: parseLowStockThreshold(formData.low_stock_threshold),
         description: formData.description?.trim() || null,
         supplier_id: formData.supplier_id || null,
       };
